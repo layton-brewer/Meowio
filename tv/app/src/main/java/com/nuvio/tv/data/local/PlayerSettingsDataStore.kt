@@ -366,6 +366,8 @@ data class PlayerSettings(
     val streamAutoPlaySource: StreamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES,
     val streamAutoPlaySelectedAddons: Set<String> = emptySet(),
     val streamAutoPlaySelectedPlugins: Set<String> = emptySet(),
+    /** Add-ons the user pinned: their streams win ties in Smart ranking and list first. */
+    val streamPinnedSources: Set<String> = emptySet(),
     val streamAutoPlayRegex: String = "",
     val postPlayRecommendationsEnabled: Boolean = true,
     val postPlayMovieThresholdPercent: Int = DEFAULT_POST_PLAY_MOVIE_THRESHOLD_PERCENT,
@@ -696,6 +698,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val streamAutoPlaySourceKey = stringPreferencesKey("stream_auto_play_source")
     private val streamAutoPlaySelectedAddonsKey = stringSetPreferencesKey("stream_auto_play_selected_addons")
     private val streamAutoPlaySelectedPluginsKey = stringSetPreferencesKey("stream_auto_play_selected_plugins")
+    private val streamPinnedSourcesKey = stringSetPreferencesKey("stream_pinned_sources")
     private val streamAutoPlayRegexKey = stringPreferencesKey("stream_auto_play_regex")
     private val postPlayRecommendationsEnabledKey = booleanPreferencesKey("post_play_recommendations_enabled")
     private val postPlayMovieThresholdPercentKey = intPreferencesKey("post_play_movie_threshold_percent")
@@ -1103,6 +1106,9 @@ class PlayerSettingsDataStore @Inject constructor(
                 } ?: StreamAutoPlaySource.ALL_SOURCES,
                 streamAutoPlaySelectedAddons = prefs[streamAutoPlaySelectedAddonsKey] ?: emptySet(),
                 streamAutoPlaySelectedPlugins = prefs[streamAutoPlaySelectedPluginsKey] ?: emptySet(),
+                streamPinnedSources = (prefs[streamPinnedSourcesKey] ?: emptySet()).also {
+                    com.nuvio.tv.core.player.StreamSmartRanker.pinnedSources = it
+                },
                 streamAutoPlayRegex = prefs[streamAutoPlayRegexKey] ?: "",
                 postPlayRecommendationsEnabled = prefs[postPlayRecommendationsEnabledKey] ?: true,
                 postPlayMovieThresholdPercent = (prefs[postPlayMovieThresholdPercentKey]
@@ -1483,6 +1489,12 @@ class PlayerSettingsDataStore @Inject constructor(
     suspend fun setStreamAutoPlaySelectedAddons(addons: Set<String>) {
         store().edit { prefs ->
             prefs[streamAutoPlaySelectedAddonsKey] = addons
+        }
+    }
+
+    suspend fun setStreamPinnedSources(sources: Set<String>) {
+        store().edit { prefs ->
+            prefs[streamPinnedSourcesKey] = sources
         }
     }
 

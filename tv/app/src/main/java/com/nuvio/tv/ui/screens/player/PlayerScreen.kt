@@ -57,6 +57,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bedtime
+import com.nuvio.tv.core.player.SleepTimer
 import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -1661,6 +1663,7 @@ fun PlayerScreen(
                 },
                 onSwitchPlayerEngine = { viewModel.onEvent(PlayerEvent.OnSwitchInternalPlayerEngine) },
                 onReportPlaybackIssue = { viewModel.onEvent(PlayerEvent.OnReportPlaybackIssue) },
+                onCycleSleepTimer = { viewModel.onEvent(PlayerEvent.OnCycleSleepTimer) },
                 onToggleMoreActions = {
                     if (uiState.showMoreDialog) {
                         viewModel.onEvent(PlayerEvent.OnDismissMoreDialog)
@@ -2779,6 +2782,7 @@ private fun PlayerControlsOverlay(
     onSwitchPlayerEngine: () -> Unit,
     onReportPlaybackIssue: () -> Unit,
     onToggleMoreActions: () -> Unit,
+    onCycleSleepTimer: () -> Unit,
     onOpenInExternalPlayer: (() -> Unit)?,
     onShowStreamInfo: () -> Unit,
     onResetHideTimer: () -> Unit,
@@ -2790,6 +2794,7 @@ private fun PlayerControlsOverlay(
     onSubtitleClearanceChanged: (Float) -> Unit = {},
     onSubtitleTitleBoundsChanged: (Float, Float) -> Unit = { _, _ -> }
 ) {
+    val sleepTimerState by SleepTimer.state.collectAsState()
     val density = LocalDensity.current
     val clearanceOffsetPx = with(density) { (NuvioTheme.spacing.xl - SUBTITLE_CONTROLS_GAP).toPx() }
     val subtitleGapPx = with(density) { SUBTITLE_CONTROLS_GAP.toPx() }
@@ -3119,6 +3124,19 @@ private fun PlayerControlsOverlay(
                                 upFocusRequester = progressUpTarget,
                                 onDownKey = onHideControls,
                                 onFocused = onResetHideTimer
+                            )
+                            ControlButton(
+                                icon = Icons.Default.Bedtime,
+                                contentDescription = stringResource(R.string.extended_sleep_timer),
+                                onClick = onCycleSleepTimer,
+                                upFocusRequester = progressUpTarget,
+                                onDownKey = onHideControls,
+                                onFocused = onResetHideTimer,
+                                contentColor = if (sleepTimerState != SleepTimer.State.Off) {
+                                    NuvioTheme.colors.Secondary
+                                } else {
+                                    Color.White
+                                }
                             )
                             ControlButton(
                                 icon = Icons.Default.SwapHoriz,

@@ -545,6 +545,10 @@ class PlaybackSettingsViewModel @Inject constructor(
         playerSettingsDataStore.setStreamAutoPlaySelectedAddons(addons)
     }
 
+    suspend fun setStreamPinnedSources(sources: Set<String>) {
+        playerSettingsDataStore.setStreamPinnedSources(sources)
+    }
+
     suspend fun setStreamAutoPlaySelectedPlugins(plugins: Set<String>) {
         playerSettingsDataStore.setStreamAutoPlaySelectedPlugins(plugins)
     }

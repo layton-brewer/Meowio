@@ -5,6 +5,7 @@ import com.nuvio.app.features.player.skip.AutoSkipSegmentType
 import com.nuvio.app.features.player.skip.NextEpisodeThresholdMode
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
+import com.nuvio.app.features.streams.StreamSmartRanker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,6 +86,8 @@ data class PlayerSettingsUiState(
     val streamAutoPlaySource: StreamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES,
     val streamAutoPlaySelectedAddons: Set<String> = emptySet(),
     val streamAutoPlaySelectedPlugins: Set<String> = emptySet(),
+    /** Add-ons the user pinned: their streams win ties in Smart ranking and list first. */
+    val streamPinnedSources: Set<String> = emptySet(),
     val streamAutoPlayRegex: String = "",
     val streamAutoPlayTimeoutSeconds: Int = 3,
     val skipIntroEnabled: Boolean = true,
@@ -179,6 +182,7 @@ object PlayerSettingsRepository {
     private var streamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES
     private var streamAutoPlaySelectedAddons: Set<String> = emptySet()
     private var streamAutoPlaySelectedPlugins: Set<String> = emptySet()
+    private var streamPinnedSources: Set<String> = emptySet()
     private var streamAutoPlayRegex = ""
     private var streamAutoPlayTimeoutSeconds = 3
     private var skipIntroEnabled = true
@@ -279,6 +283,8 @@ object PlayerSettingsRepository {
         streamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES
         streamAutoPlaySelectedAddons = emptySet()
         streamAutoPlaySelectedPlugins = emptySet()
+        streamPinnedSources = emptySet()
+        StreamSmartRanker.pinnedSources = emptySet()
         streamAutoPlayRegex = ""
         streamAutoPlayTimeoutSeconds = 3
         skipIntroEnabled = true
@@ -424,6 +430,8 @@ object PlayerSettingsRepository {
             ?: StreamAutoPlaySource.ALL_SOURCES
         streamAutoPlaySelectedAddons = PlayerSettingsStorage.loadStreamAutoPlaySelectedAddons() ?: emptySet()
         streamAutoPlaySelectedPlugins = PlayerSettingsStorage.loadStreamAutoPlaySelectedPlugins() ?: emptySet()
+        streamPinnedSources = PlayerSettingsStorage.loadStreamPinnedSources() ?: emptySet()
+        StreamSmartRanker.pinnedSources = streamPinnedSources
         if (!AppFeaturePolicy.pluginsEnabled) {
             val normalizedSource = normalizeStreamAutoPlaySource(streamAutoPlaySource)
             if (normalizedSource != streamAutoPlaySource) {
@@ -972,6 +980,15 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveStreamAutoPlaySelectedAddons(addons)
     }
 
+    fun setStreamPinnedSources(sources: Set<String>) {
+        ensureLoaded()
+        if (streamPinnedSources == sources) return
+        streamPinnedSources = sources
+        StreamSmartRanker.pinnedSources = sources
+        publish()
+        PlayerSettingsStorage.saveStreamPinnedSources(sources)
+    }
+
     fun setStreamAutoPlaySelectedPlugins(plugins: Set<String>) {
         ensureLoaded()
         val normalizedPlugins = if (AppFeaturePolicy.pluginsEnabled) plugins else emptySet()
@@ -1361,6 +1378,7 @@ object PlayerSettingsRepository {
             streamAutoPlaySource = streamAutoPlaySource,
             streamAutoPlaySelectedAddons = streamAutoPlaySelectedAddons,
             streamAutoPlaySelectedPlugins = streamAutoPlaySelectedPlugins,
+            streamPinnedSources = streamPinnedSources,
             streamAutoPlayRegex = streamAutoPlayRegex,
             streamAutoPlayTimeoutSeconds = streamAutoPlayTimeoutSeconds,
             skipIntroEnabled = skipIntroEnabled,

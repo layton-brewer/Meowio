@@ -796,6 +796,7 @@ class PlayerRuntimeController(
         observeTorrentSettings()
         observeStreamBadgeSettings()
         observeDeviceLocalAspectMode()
+        observeSleepTimer()
         observeDeviceLocalTransparentLetterbox()
         observeDeviceLocalTunneledSurfaceFill()
         observeDeviceLocalReleaseDecoderOnBackground()

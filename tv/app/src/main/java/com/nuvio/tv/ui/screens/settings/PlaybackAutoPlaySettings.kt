@@ -146,6 +146,16 @@ internal fun PlaybackStreamSelectionSection(
         }
     }
 
+    SettingsActionRow(
+        title = stringResource(R.string.extended_pinned_sources),
+        subtitle = stringResource(R.string.extended_pinned_sources_sub),
+        value = selectionSummary(
+            selectedCount = settings.streamPinnedSources.size,
+            allLabel = stringResource(R.string.extended_pinned_sources_none)
+        ),
+        onClick = { onOpenDialog(PlaybackDialog.STREAM_PINNED_SOURCES) }
+    )
+
     val timeoutSeconds = settings.streamAutoPlayTimeoutSeconds
     SliderSettingsItem(
         title = stringResource(R.string.autoplay_timeout_title),
@@ -372,6 +382,14 @@ internal fun AutoPlaySettingsDialogs(
             items = enabledPluginNames,
             selectedItems = settings.streamAutoPlaySelectedPlugins,
             onSelectionSaved = { selected -> onUpdate { setStreamAutoPlaySelectedPlugins(selected) } },
+            onDismiss = onDismiss
+        )
+        PlaybackDialog.STREAM_PINNED_SOURCES -> StreamAutoPlayProviderSelectionDialog(
+            title = stringResource(R.string.extended_pinned_sources),
+            allLabel = stringResource(R.string.extended_pinned_sources_none),
+            items = (installedAddonNames + enabledPluginNames).distinct(),
+            selectedItems = settings.streamPinnedSources,
+            onSelectionSaved = { selected -> onUpdate { setStreamPinnedSources(selected) } },
             onDismiss = onDismiss
         )
         PlaybackDialog.REUSE_LAST_LINK_CACHE -> StreamReuseLastLinkCacheDurationDialog(
