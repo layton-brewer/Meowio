@@ -38,6 +38,9 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.ui.screens.ambient.AmbientDialogEffect
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassEdge
+import com.nuvio.tv.ui.theme.rememberNuvioWindowBlurBehind
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -61,27 +64,35 @@ fun NuvioDialog(
     var isReady by remember { mutableStateOf(!suppressFirstKeyUp) }
     val maxDialogHeight = (LocalConfiguration.current.screenHeightDp.dp - NuvioTheme.spacing.xxxl).coerceAtLeast(320.dp)
     val containerShape = RoundedCornerShape(containerCornerRadius)
-    val backgroundModifier = if (containerBrush == null) {
-        Modifier.background(NuvioTheme.colors.BackgroundElevated, containerShape)
-    } else {
-        Modifier.background(containerBrush, containerShape)
-    }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = usePlatformDefaultWidth)
     ) {
         AmbientDialogEffect(onDismiss)
+        val blurredBehind = rememberNuvioWindowBlurBehind()
+        val backgroundModifier = if (containerBrush == null) {
+            Modifier.background(
+                NuvioTheme.colors.BackgroundElevated.copy(
+                    alpha = if (blurredBehind) NuvioGlass.BlurredAlpha else 1f
+                ),
+                containerShape
+            )
+        } else {
+            Modifier.background(containerBrush, containerShape)
+        }
         Box(
             modifier = Modifier
                 .width(width)
                 .heightIn(max = maxDialogHeight)
                 .clip(containerShape)
                 .then(backgroundModifier)
-                .border(
-                    containerBorderWidth,
-                    containerBorderColor ?: NuvioTheme.colors.Border,
-                    containerShape
+                .then(
+                    if (containerBorderColor == null) {
+                        Modifier.nuvioGlassEdge(containerShape)
+                    } else {
+                        Modifier.border(containerBorderWidth, containerBorderColor, containerShape)
+                    }
                 )
                 .onPreviewKeyEvent { event ->
                     val native = event.nativeKeyEvent

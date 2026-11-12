@@ -22,7 +22,7 @@ enum class NuvioCardDepthSurface {
 
 @Serializable
 private data class StoredCardDepthStylePreferences(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val edgeStrength: Int = DefaultCardDepthEdgeStrength,
     val sheenStrength: Int = DefaultCardDepthSheenStrength,
     val edgeCoverage: Int = DefaultCardDepthEdgeCoverage,
@@ -34,7 +34,7 @@ private data class StoredCardDepthStylePreferences(
 )
 
 data class CardDepthStyleUiState(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val edgeStrength: Int = DefaultCardDepthEdgeStrength,
     val sheenStrength: Int = DefaultCardDepthSheenStrength,
     val edgeCoverage: Int = DefaultCardDepthEdgeCoverage,

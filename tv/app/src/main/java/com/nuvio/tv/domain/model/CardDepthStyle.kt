@@ -13,7 +13,7 @@ enum class CardDepthSurface {
 }
 
 data class CardDepthStyle(
-    val enabled: Boolean = false,
+    val enabled: Boolean = true,
     val edgeStrength: Int = DEFAULT_CARD_DEPTH_EDGE_STRENGTH,
     val sheenStrength: Int = DEFAULT_CARD_DEPTH_SHEEN_STRENGTH,
     val edgeCoverage: Int = DEFAULT_CARD_DEPTH_EDGE_COVERAGE,
