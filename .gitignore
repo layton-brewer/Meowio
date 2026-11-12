@@ -1,0 +1,18 @@
+# Never commit keys or signing files
+local.properties
+*.jks
+*.keystore
+*.p12
+!**/src/test/resources/*.p12
+.env
+.env.*
+keystore/
+
+# Build output
+build/
+.gradle/
+.kotlin/
+*.apk
+*.aab
+.idea/
+.DS_Store
