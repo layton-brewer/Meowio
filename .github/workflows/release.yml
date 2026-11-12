@@ -1,0 +1,151 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tv/**"
+      - "mobile/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  tv:
+    name: Build TV APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tv
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Private settings (account server address and keys) come from repository
+      # secrets only. They are never stored in the repository.
+      - name: Prepare local properties
+        env:
+          LOCAL_PROPERTIES_BASE64: ${{ secrets.TV_LOCAL_PROPERTIES_BASE64 }}
+        run: |
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
+            printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+            sed -i -E '/^[[:space:]]*sdk\.dir[[:space:]]*=/d' local.properties
+          else
+            touch local.properties
+          fi
+          touch local.dev.properties
+
+      - name: Prepare signing key
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.jks"
+            alias_name="$SIGNING_KEY_ALIAS"
+            password="$SIGNING_PASSWORD"
+          else
+            alias_name=androiddebugkey
+            password=android
+            keytool -genkeypair -keystore "$RUNNER_TEMP/signing.jks" \
+              -storepass "$password" -alias "$alias_name" -keypass "$password" \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          echo "::add-mask::$password"
+          {
+            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/signing.jks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=$alias_name"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=$password"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+
+      - name: Build
+        run: ./gradlew :app:assembleFullDebug --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/NuvioExtended-tv.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tv-apk
+          path: ${{ runner.temp }}/NuvioExtended-tv.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  mobile:
+    name: Build phone APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare local properties
+        env:
+          LOCAL_PROPERTIES_BASE64: ${{ secrets.MOBILE_LOCAL_PROPERTIES_BASE64 }}
+        run: |
+          if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
+            printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
+            sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
+          else
+            touch local.properties
+          fi
+
+      - name: Build
+        run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
+
+      - name: Rename APK
+        run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/NuvioExtended-mobile.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk
+          path: ${{ runner.temp }}/NuvioExtended-mobile.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    needs: [tv, mobile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: apks
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v0.1.${{ github.run_number }}"
+          gh release create "$tag" apks/*.apk \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "Nuvio Extended $tag" \
+            --notes "Phone: NuvioExtended-mobile.apk. Android TV: NuvioExtended-tv.apk. Built from commit ${{ github.sha }}." \
+            --latest
