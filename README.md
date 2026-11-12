@@ -26,7 +26,16 @@ You can switch back to the manual source list in Settings, under Playback, Strea
 
 ## Signing in
 
-Nuvio accounts need a Supabase server address and key that are not part of the public source, so these builds have no account server. Choose **Continue Without Account** on the first screen. Add-ons, debrid services and playback all work without an account.
+Signing in with a normal Nuvio account works once the build knows the Nuvio account server address and key. Those two values are private settings, so they are stored as repository secrets and never in the code.
+
+Until the secrets are added, builds have no account server. Choose **Continue Without Account** on the first screen. Add-ons, debrid services and playback all work without an account.
+
+To turn sign-in on, add these under Settings, Secrets and variables, Actions, then run the **Build and release** workflow again:
+
+| Secret | Value |
+| --- | --- |
+| `NUVIO_SUPABASE_URL` | The account server address |
+| `NUVIO_SUPABASE_ANON_KEY` | The account server public key |
 
 ## Repository layout
 
