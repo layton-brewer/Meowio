@@ -62,7 +62,7 @@
     <string name="addon_already_installed">இந்தத் துணைநிரல் ஏற்கனவே நிறுவப்பட்டுள்ளது.</string>
     <string name="addon_invalid_url">சரியான துணைநிரல் URL-ஐ உள்ளிடவும்</string>
     <string name="addon_load_manifest_failed">manifest-ஐ ஏற்ற முடியவில்லை</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">Meowio</string>
     <string name="auth_account_deletion_failed">கணக்கை நீக்க முடியவில்லை</string>
     <string name="auth_sign_in_failed">உள்நுழைவு தோல்வியடைந்தது</string>
     <string name="auth_sign_out_failed">வெளியேற முடியவில்லை</string>

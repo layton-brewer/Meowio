@@ -56,6 +56,9 @@ jobs:
             } >> local.properties
           fi
 
+      # The persistent signing key comes from secrets so every release installs
+      # over the previous one. Without the secret, a throwaway key is generated
+      # (the build still works, but updates won't install over an older one).
       - name: Prepare signing key
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -67,6 +70,7 @@ jobs:
             alias_name="$SIGNING_KEY_ALIAS"
             password="$SIGNING_PASSWORD"
           else
+            echo "::warning::SIGNING_KEYSTORE_BASE64 is not set; using a throwaway key. Updates will not install over a previous version until this secret is added."
             alias_name=androiddebugkey
             password=android
             keytool -genkeypair -keystore "$RUNNER_TEMP/signing.jks" \
@@ -80,18 +84,35 @@ jobs:
             echo "NUVIO_RELEASE_KEY_ALIAS=$alias_name"
             echo "NUVIO_RELEASE_KEY_PASSWORD=$password"
             echo "NUVIO_RELEASE_STORE_PASSWORD=$password"
+            echo "SIGNING_KEY_ALIAS_RESOLVED=$alias_name"
+            echo "SIGNING_PASSWORD_RESOLVED=$password"
           } >> "$GITHUB_ENV"
 
       - name: Build
         run: ./gradlew :app:assembleFullDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/NuvioExtended-tv.apk"
+        run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/Meowio-tv.apk"
+
+      # Re-sign with the persistent key so the shipped APK always carries the
+      # same signature regardless of how the build type signs by default.
+      - name: Sign APK
+        run: |
+          echo "::add-mask::$SIGNING_PASSWORD_RESOLVED"
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          apksigner=$(find "$sdk/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+          "$apksigner" sign \
+            --ks "$RUNNER_TEMP/signing.jks" \
+            --ks-pass "pass:$SIGNING_PASSWORD_RESOLVED" \
+            --ks-key-alias "$SIGNING_KEY_ALIAS_RESOLVED" \
+            --key-pass "pass:$SIGNING_PASSWORD_RESOLVED" \
+            "$RUNNER_TEMP/Meowio-tv.apk"
+          "$apksigner" verify --print-certs "$RUNNER_TEMP/Meowio-tv.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: tv-apk
-          path: ${{ runner.temp }}/NuvioExtended-tv.apk
+          path: ${{ runner.temp }}/Meowio-tv.apk
           if-no-files-found: error
           retention-days: 7
 
@@ -131,16 +152,54 @@ jobs:
             } >> local.properties
           fi
 
+      - name: Prepare signing key
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            printf '%s' "$SIGNING_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/signing.jks"
+            alias_name="$SIGNING_KEY_ALIAS"
+            password="$SIGNING_PASSWORD"
+          else
+            echo "::warning::SIGNING_KEYSTORE_BASE64 is not set; using a throwaway key. Updates will not install over a previous version until this secret is added."
+            alias_name=androiddebugkey
+            password=android
+            keytool -genkeypair -keystore "$RUNNER_TEMP/signing.jks" \
+              -storepass "$password" -alias "$alias_name" -keypass "$password" \
+              -dname "CN=Android Debug,O=Android,C=US" \
+              -keyalg RSA -keysize 2048 -validity 10000
+          fi
+          echo "::add-mask::$password"
+          {
+            echo "SIGNING_KEY_ALIAS_RESOLVED=$alias_name"
+            echo "SIGNING_PASSWORD_RESOLVED=$password"
+          } >> "$GITHUB_ENV"
+
       - name: Build
         run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
 
       - name: Rename APK
-        run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/NuvioExtended-mobile.apk"
+        run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
+
+      - name: Sign APK
+        run: |
+          echo "::add-mask::$SIGNING_PASSWORD_RESOLVED"
+          sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          apksigner=$(find "$sdk/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+          "$apksigner" sign \
+            --ks "$RUNNER_TEMP/signing.jks" \
+            --ks-pass "pass:$SIGNING_PASSWORD_RESOLVED" \
+            --ks-key-alias "$SIGNING_KEY_ALIAS_RESOLVED" \
+            --key-pass "pass:$SIGNING_PASSWORD_RESOLVED" \
+            "$RUNNER_TEMP/Meowio-mobile.apk"
+          "$apksigner" verify --print-certs "$RUNNER_TEMP/Meowio-mobile.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: mobile-apk
-          path: ${{ runner.temp }}/NuvioExtended-mobile.apk
+          path: ${{ runner.temp }}/Meowio-mobile.apk
           if-no-files-found: error
           retention-days: 7
 
@@ -165,6 +224,6 @@ jobs:
           gh release create "$tag" apks/*.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "Nuvio Extended $tag" \
-            --notes "Phone: NuvioExtended-mobile.apk. Android TV: NuvioExtended-tv.apk. Built from commit ${{ github.sha }}." \
+            --title "Meowio $tag" \
+            --notes "Phone: Meowio-mobile.apk. Android TV: Meowio-tv.apk. Built from commit ${{ github.sha }}." \
             --latest
