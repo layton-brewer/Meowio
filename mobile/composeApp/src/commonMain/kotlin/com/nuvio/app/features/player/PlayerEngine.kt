@@ -1,0 +1,102 @@
+package com.nuvio.app.features.player
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+
+interface PlayerEngineController {
+    val playbackEngine: AndroidPlaybackEngine? get() = null
+    fun play()
+    fun pause()
+    fun seekTo(positionMs: Long)
+    fun seekBy(offsetMs: Long)
+    fun retry()
+    fun setPlaybackSpeed(speed: Float)
+    fun setMuted(muted: Boolean) {}
+    fun getAudioTracks(): List<AudioTrack>
+    fun getSubtitleTracks(): List<SubtitleTrack>
+    fun applyAudioLanguagePreferences(languages: List<String>)
+    fun selectAudioTrack(index: Int)
+    fun selectSubtitleTrack(index: Int)
+    fun setSubtitleUri(url: String)
+    fun clearExternalSubtitle()
+    fun clearExternalSubtitleAndSelect(trackIndex: Int)
+    fun applySubtitleStyle(style: SubtitleStyleState) {}
+    fun applySubtitlePreferences(
+        preferredLanguage: String,
+        secondaryPreferredLanguage: String? = null,
+        useForcedSubtitles: Boolean,
+        autoSelectionApplied: Boolean,
+        hasActiveSubtitle: Boolean,
+        useCustomSubtitles: Boolean = false,
+    ) {}
+    fun setSubtitleDelayMs(delayMs: Int) {}
+    /** Whether [setAudioDelayMs] has an effect; the player hides the audio delay control otherwise. */
+    val supportsAudioDelay: Boolean get() = false
+    /** Plays the audio [delayMs] later than the video; negative values play it earlier. */
+    fun setAudioDelayMs(delayMs: Int) {}
+    /** Whether [setAudioAmplificationDb] has an effect; the player hides the amplification control otherwise. */
+    val supportsAudioAmplification: Boolean get() = false
+    /** Boosts the audio by [db] decibels, from 0 (off) to [AUDIO_AMPLIFICATION_MAX_DB]. */
+    fun setAudioAmplificationDb(db: Int) {}
+    /** Whether the audio playing now goes through a downmix whose center level [setCenterMixLevelDb] changes. */
+    fun isCenterMixActive(): Boolean = false
+    /** Center channel level in the downmix, from [CENTER_MIX_LEVEL_MIN_DB] to [CENTER_MIX_LEVEL_MAX_DB]. */
+    fun setCenterMixLevelDb(db: Int) {}
+    fun configureIosVideoOutput(settings: PlayerSettingsUiState) {}
+    fun updateNowPlayingMetadata(info: PlayerNowPlayingInfo) {}
+    fun clearNowPlayingInfo() {}
+    suspend fun getMediaInfo(): PlayerMediaInfo = PlayerMediaInfo()
+    /** The loaded file's chapters, unsorted; empty when the engine cannot read them. */
+    suspend fun getChapters(): List<PlayerChapter> = emptyList()
+}
+
+internal fun sanitizePlaybackHeaders(headers: Map<String, String>?): Map<String, String> {
+    val rawHeaders = headers ?: return emptyMap()
+    if (rawHeaders.isEmpty()) return emptyMap()
+
+    val sanitized = LinkedHashMap<String, String>(rawHeaders.size)
+    rawHeaders.forEach { (rawKey, rawValue) ->
+        val key = rawKey.trim()
+        val value = rawValue.trim()
+        if (key.isEmpty() || value.isEmpty()) return@forEach
+        if (key.equals("Range", ignoreCase = true)) return@forEach
+        sanitized[key] = value
+    }
+    return sanitized
+}
+
+internal fun sanitizePlaybackResponseHeaders(headers: Map<String, String>?): Map<String, String> {
+    val rawHeaders = headers ?: return emptyMap()
+    if (rawHeaders.isEmpty()) return emptyMap()
+
+    val sanitized = LinkedHashMap<String, String>(rawHeaders.size)
+    rawHeaders.forEach { (rawKey, rawValue) ->
+        val key = rawKey.trim()
+        val value = rawValue.trim()
+        if (key.isEmpty() || value.isEmpty()) return@forEach
+        sanitized[key] = value
+    }
+    return sanitized
+}
+
+@Composable
+expect fun PlatformPlayerSurface(
+    sourceUrl: String,
+    sourceAudioUrl: String? = null,
+    sourceHeaders: Map<String, String> = emptyMap(),
+    sourceResponseHeaders: Map<String, String> = emptyMap(),
+    externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle> = emptyList(),
+    streamType: String? = null,
+    useYoutubeChunkedPlayback: Boolean = false,
+    modifier: Modifier = Modifier,
+    playWhenReady: Boolean = true,
+    initialPositionMs: Long? = null,
+    initialPositionRequestKey: String? = null,
+    resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
+    playbackEngine: AndroidPlaybackEngine? = null,
+    useNativeController: Boolean = false,
+    onInitialPositionHandled: (key: String, handled: Boolean) -> Unit = { _, _ -> },
+    onControllerReady: (PlayerEngineController) -> Unit,
+    onSnapshot: (PlayerPlaybackSnapshot) -> Unit,
+    onError: (String?) -> Unit,
+)
