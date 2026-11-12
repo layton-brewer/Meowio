@@ -231,11 +231,11 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val modernSidebarEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernSidebarEnabledKey] ?: prefs[legacyModernSidebarEnabledKey] ?: false
+        prefs[modernSidebarEnabledKey] ?: prefs[legacyModernSidebarEnabledKey] ?: true
     }
 
     val modernSidebarBlurEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernSidebarBlurEnabledKey] ?: false
+        prefs[modernSidebarBlurEnabledKey] ?: true
     }
 
     val modernLandscapePostersEnabled: Flow<Boolean> = profileFlow { prefs ->
@@ -322,7 +322,7 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     val cardDepthStyle: Flow<CardDepthStyle> = profileFlow { prefs ->
         CardDepthStyle(
-            enabled = prefs[cardDepthEnabledKey] ?: false,
+            enabled = prefs[cardDepthEnabledKey] ?: true,
             edgeStrength = (prefs[cardDepthEdgeStrengthKey]
                 ?: DEFAULT_CARD_DEPTH_EDGE_STRENGTH).coerceIn(0, 100),
             sheenStrength = (prefs[cardDepthSheenStrengthKey]

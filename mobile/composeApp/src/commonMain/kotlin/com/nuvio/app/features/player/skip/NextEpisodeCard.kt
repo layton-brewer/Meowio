@@ -64,6 +64,9 @@ import nuvio.composeapp.generated.resources.player_next_episode_playing_via_coun
 import nuvio.composeapp.generated.resources.player_next_episode_thumbnail
 import nuvio.composeapp.generated.resources.player_next_episode_unaired
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.nuvioGlass
+import com.nuvio.app.core.ui.NuvioGlassStyle
+import com.nuvio.app.core.ui.NuvioGlass
 
 @Composable
 fun NextEpisodeCard(
@@ -111,9 +114,7 @@ fun NextEpisodeCard(
             modifier = Modifier
                 .widthIn(max = 292.dp)
                 .graphicsLayer { translationX = animatedOffsetX }
-                .clip(shape)
-                .background(Color(0xFF191919).copy(alpha = 0.89f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
+                .nuvioGlass(shape, NuvioGlassStyle.Thick, NuvioGlass.ThickOverVideoAlpha)
                 .pointerInput(nextEpisode.videoId, visible, dismissThreshold) {
                     if (!visible) return@pointerInput
                     detectHorizontalDragGestures(

@@ -178,6 +178,7 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import dev.chrisbanes.haze.HazeState
 
 private val watchedMarkerDiagnosticLog = Logger.withTag("WatchedMarkerDiag")
 
@@ -259,6 +260,7 @@ fun MetaDetailsScreen(
     var selectedEpisodeZoomAnchor by remember(type, id) { mutableStateOf<PosterZoomAnchor?>(null) }
     var episodeToRate by remember(type, id) { mutableStateOf<MetaVideo?>(null) }
     val episodeOverlayHazeState = rememberHazeState()
+    val detailHeaderHazeState = rememberHazeState()
     var selectedSeasonForActions by remember(type, id) { mutableStateOf<Int?>(null) }
     val commentsEnabled by remember {
         TraktCommentsSettings.ensureLoaded()
@@ -1183,7 +1185,8 @@ fun MetaDetailsScreen(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .nestedScroll(heroStretchState.nestedScrollConnection)
-                                        .zIndex(1f),
+                                        .zIndex(1f)
+                                        .hazeSource(state = detailHeaderHazeState),
                                 ) {
                                     item(key = "detail-hero") {
                                         if (useTabletLayout) {
@@ -1388,6 +1391,7 @@ fun MetaDetailsScreen(
                             } else {
                                 null
                             },
+                            hazeState = detailHeaderHazeState,
                             onBack = onBackFromDetails,
                             onToggleSaved = toggleSaved,
                         )
@@ -1871,6 +1875,7 @@ private fun DetailHeaderOverlay(
     isHeroCollapsed: State<Boolean>,
     backgroundColor: Color?,
     headerBackground: (@Composable () -> Unit)?,
+    hazeState: HazeState?,
     onBack: () -> Unit,
     onToggleSaved: () -> Unit,
 ) {
@@ -1906,6 +1911,7 @@ private fun DetailHeaderOverlay(
             progress = headerProgress,
             backgroundColor = backgroundColor,
             background = headerBackground,
+            hazeState = hazeState,
             onBack = onBack,
             onToggleSaved = onToggleSaved,
             modifier = Modifier.zIndex(2f),

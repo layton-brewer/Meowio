@@ -49,6 +49,13 @@ import com.nuvio.app.isIos
 import com.nuvio.app.navigation.LocalUseNativeNavigation
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import com.nuvio.app.core.ui.NuvioGlass
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 
 @Composable
 fun DetailFloatingHeader(
@@ -57,6 +64,7 @@ fun DetailFloatingHeader(
     progress: Float,
     backgroundColor: Color? = null,
     background: (@Composable () -> Unit)? = null,
+    hazeState: HazeState? = null,
     onBack: () -> Unit,
     onToggleSaved: () -> Unit,
     modifier: Modifier = Modifier,
@@ -94,7 +102,28 @@ fun DetailFloatingHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .clipToBounds()
-                .then(if (background == null) Modifier.background(surfaceColor) else Modifier),
+                .then(
+                    when {
+                        background != null -> Modifier
+                        hazeState != null && interactive -> Modifier.hazeEffect(state = hazeState) {
+                            blurRadius = NuvioGlass.BlurRadius
+                            this.backgroundColor = surfaceColor
+                            tints = listOf(HazeTint(surfaceColor.copy(alpha = 0.58f)))
+                            fallbackTint = HazeTint(surfaceColor.copy(alpha = 0.94f))
+                            noiseFactor = 0f
+                        }
+                        else -> Modifier.background(surfaceColor)
+                    },
+                )
+                .drawWithContent {
+                    drawContent()
+                    val hairline = 0.75.dp.toPx()
+                    drawRect(
+                        color = Color.White.copy(alpha = 0.12f),
+                        topLeft = Offset(0f, size.height - hairline),
+                        size = Size(size.width, hairline),
+                    )
+                },
         ) {
             if (background != null) {
                 Box(modifier = Modifier.matchParentSize()) { background() }
