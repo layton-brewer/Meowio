@@ -1019,6 +1019,14 @@
     <string name="autoplay_timeout_instant">Instant</string>
     <string name="autoplay_timeout_unlimited">Unlimited</string>
     <string name="autoplay_allowed_addons">Allowed Addons</string>
+    <string name="extended_sleep_timer">Sleep timer</string>
+    <string name="extended_sleep_timer_off">Sleep timer off</string>
+    <string name="extended_sleep_timer_minutes">Sleep in %1$d min</string>
+    <string name="extended_sleep_timer_end_of_episode">Sleep at end of episode</string>
+    <string name="extended_sleep_timer_paused">Sleep timer paused playback</string>
+    <string name="extended_pinned_sources">Pinned sources</string>
+    <string name="extended_pinned_sources_sub">Sources you pin are tried first and listed first.</string>
+    <string name="extended_pinned_sources_none">None</string>
     <string name="autoplay_all_addons">All installed addons</string>
     <string name="autoplay_allowed_plugins">Allowed Plugins</string>
     <string name="autoplay_all_plugins">All enabled plugins</string>

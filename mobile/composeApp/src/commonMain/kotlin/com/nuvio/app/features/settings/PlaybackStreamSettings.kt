@@ -53,6 +53,7 @@ internal fun PlaybackStreamSettings(
     var showAutoPlayAddonSelectionDialog by remember { mutableStateOf(false) }
     var showAutoPlayPluginSelectionDialog by remember { mutableStateOf(false) }
     var showAutoPlayRegexDialog by remember { mutableStateOf(false) }
+    var showPinnedSourcesDialog by remember { mutableStateOf(false) }
     val pluginsEnabled = AppFeaturePolicy.pluginsEnabled
     val addonUiState by AddonRepository.uiState.collectAsStateWithLifecycle()
     val pluginUiState = if (pluginsEnabled) {
@@ -74,6 +75,20 @@ internal fun PlaybackStreamSettings(
                     checked = settings.streamReuseLastLinkEnabled,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setStreamReuseLastLinkEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.extended_pinned_sources),
+                    description = if (settings.streamPinnedSources.isEmpty()) {
+                        stringResource(Res.string.extended_pinned_sources_description)
+                    } else {
+                        stringResource(
+                            Res.string.settings_playback_selected_count,
+                            settings.streamPinnedSources.size,
+                        )
+                    },
+                    isTablet = isTablet,
+                    onClick = { showPinnedSourcesDialog = true },
                 )
                 if (settings.streamReuseLastLinkEnabled) {
                     SettingsGroupDivider(isTablet = isTablet)
@@ -239,6 +254,30 @@ internal fun PlaybackStreamSettings(
                 showAutoPlaySourceDialog = false
             },
             onDismiss = { showAutoPlaySourceDialog = false },
+        )
+    }
+
+    if (showPinnedSourcesDialog) {
+        val sourceNames = (
+            addonUiState.addons
+                .enabledAddons()
+                .mapNotNull { it.manifest }
+                .filter { manifest -> manifest.resources.any { resource -> resource.name == "stream" } }
+                .map { it.name } +
+                pluginUiState.scrapers.filter { it.enabled }.map { it.name }
+            )
+            .distinct()
+            .sorted()
+        StreamAutoPlayProviderSelectionDialog(
+            title = stringResource(Res.string.extended_pinned_sources),
+            allLabel = stringResource(Res.string.extended_pinned_sources_none),
+            items = sourceNames,
+            selectedItems = settings.streamPinnedSources,
+            onSelectionSaved = {
+                PlayerSettingsRepository.setStreamPinnedSources(it)
+                showPinnedSourcesDialog = false
+            },
+            onDismiss = { showPinnedSourcesDialog = false },
         )
     }
 

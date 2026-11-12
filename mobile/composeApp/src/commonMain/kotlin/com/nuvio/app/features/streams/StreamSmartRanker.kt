@@ -7,12 +7,13 @@ package com.nuvio.app.features.streams
  * 1. Availability: links that play instantly (direct URLs, cached debrid, media servers) come
  *    before anything that still has to download.
  * 2. Junk releases (cam / telesync / screener) are pushed to the bottom.
- * 3. Series only: full-season packs first, so every episode of a season comes from the same
+ * 3. Sources the user pinned come before the rest.
+ * 4. Series only: full-season packs first, so every episode of a season comes from the same
  *    release and the next episode starts without a new search miss.
- * 4. Resolution fit for this device: the device's own resolution first, then higher
+ * 5. Resolution fit for this device: the device's own resolution first, then higher
  *    resolutions (they still look right, just cost more bandwidth), then lower ones.
- * 5. Source quality (remux > bluray > web-dl > webrip > hdtv).
- * 6. Original order, which is the user's add-on order.
+ * 6. Source quality (remux > bluray > web-dl > webrip > hdtv).
+ * 7. Original order, which is the user's add-on order.
  */
 object StreamSmartRanker {
 
@@ -22,10 +23,15 @@ object StreamSmartRanker {
 
     const val DEFAULT_MAX_VIDEO_HEIGHT = 1080
 
+    /** Names of the add-ons and plugins the user pinned. Kept current by the settings store. */
+    @kotlin.concurrent.Volatile
+    var pinnedSources: Set<String> = emptySet()
+
     fun rank(
         streams: List<StreamItem>,
         isSeries: Boolean,
         maxVideoHeight: Int = deviceMaxVideoHeight,
+        pinned: Set<String> = pinnedSources,
     ): List<StreamItem> {
         if (streams.size < 2) return streams
         val targetHeight = normalizeHeight(maxVideoHeight)
@@ -34,6 +40,7 @@ object StreamSmartRanker {
             .sortedWith(
                 compareBy<Pair<Int, Score>> { it.second.availabilityTier }
                     .thenBy { if (it.second.isJunk) 1 else 0 }
+                    .thenBy { if (streams[it.first].addonName in pinned) 0 else 1 }
                     .thenBy { if (it.second.isSeasonPack) 0 else 1 }
                     .thenByDescending { it.second.resolutionFit }
                     .thenByDescending { it.second.sourceQuality }

@@ -45,6 +45,7 @@ import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.watching.application.WatchingState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import nuvio.composeapp.generated.resources.*
@@ -81,6 +82,17 @@ private fun rememberNetworkCondition(): NetworkCondition {
 internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     val networkCondition = rememberNetworkCondition()
     val currentFeedback = liveGestureFeedback ?: gestureFeedback
+    LaunchedEffect(Unit) {
+        // The timer itself outlives this player, so it keeps counting across episodes.
+        SleepTimer.state.collectLatest { state ->
+            if (state is SleepTimer.State.Until) {
+                delay(SleepTimer.remainingMs() ?: 0L)
+                SleepTimer.cancel()
+                pauseForSleepTimer()
+            }
+        }
+    }
+
     LaunchedEffect(currentFeedback) {
         if (currentFeedback != null) {
             renderedGestureFeedback = currentFeedback
@@ -237,6 +249,15 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     LaunchedEffect(playbackSession.videoId) {
         subtitleDelayMs = PlayerTrackPreferenceStorage.loadSubtitleDelayMs(playbackSession.videoId) ?: 0
         subtitleAutoSyncState = SubtitleAutoSyncUiState()
+    }
+
+    LaunchedEffect(playerController, parentMetaId) {
+        val controller = playerController ?: return@LaunchedEffect
+        if (isPartySynced) return@LaunchedEffect
+        val savedSpeed = PlayerTrackPreferenceStorage.loadPlaybackSpeed(parentMetaId)
+        if (savedSpeed != null && savedSpeed != 1f) {
+            controller.setPlaybackSpeed(savedSpeed)
+        }
     }
 
     LaunchedEffect(playerController, subtitleDelayMs) {
@@ -851,7 +872,12 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         if (shouldShow && !showNextEpisodeCard) {
             showNextEpisodeCard = true
             if (playerSettingsUiState.streamAutoPlayNextEpisodeEnabled && nextEpisodeInfo?.hasAired == true && !isPartyControlLocked) {
-                playNextEpisode(automatic = true)
+                if (SleepTimer.consumeEndOfEpisode()) {
+                    // Sleep timer: stop here instead of rolling into the next episode.
+                    pauseForSleepTimer()
+                } else {
+                    playNextEpisode(automatic = true)
+                }
             }
         } else if (!shouldShow) {
             showNextEpisodeCard = false
@@ -1112,3 +1138,12 @@ internal fun findCredentialRefreshCandidate(
 
 private const val CREDENTIAL_REFRESH_POLL_COUNT = 30
 private const val CREDENTIAL_REFRESH_POLL_INTERVAL_MS = 500L
+
+internal fun PlayerScreenRuntime.pauseForSleepTimer() {
+    if (playbackSnapshot.isPlaying) {
+        shouldPlay = false
+        playerController?.pause()
+    }
+    showGestureMessage(sleepTimerPausedLabel)
+    controlsVisible = true
+}

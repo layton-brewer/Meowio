@@ -356,6 +356,7 @@ sealed class PlayerEvent {
     data class OnAdjustSubtitleDelay(val deltaMs: Int, val showOverlay: Boolean = true) : PlayerEvent()
     data class OnResetSubtitleDelay(val showOverlay: Boolean = true) : PlayerEvent()
     data object OnShowSpeedDialog : PlayerEvent()
+    data object OnCycleSleepTimer : PlayerEvent()
     data object OnShowMoreDialog : PlayerEvent()
     data object OnDismissMoreDialog : PlayerEvent()
     data object OnShowEpisodesPanel : PlayerEvent()

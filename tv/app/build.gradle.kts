@@ -136,7 +136,9 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1077
-        versionName = "1.1.0"
+        // Release builds pass the Nuvio Extended release number so the in-app
+        // updater can compare against release tags.
+        versionName = providers.gradleProperty("nuvio.app.versionName").orNull ?: "1.1.0"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")
@@ -177,8 +179,8 @@ android {
         buildConfigField("String", "SENTRY_DSN", buildConfigString(sentryDsn))
 
         // In-app updater (GitHub Releases)
-        buildConfigField("String", "GITHUB_OWNER", "\"NuvioMedia\"")
-        buildConfigField("String", "GITHUB_REPO", "\"NuvioTV\"")
+        buildConfigField("String", "GITHUB_OWNER", "\"layton-brewer\"")
+        buildConfigField("String", "GITHUB_REPO", "\"nuvio-extended\"")
     }
 
     flavorDimensions += "distribution"

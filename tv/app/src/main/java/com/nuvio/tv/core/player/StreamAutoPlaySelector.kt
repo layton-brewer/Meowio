@@ -13,12 +13,21 @@ object StreamAutoPlaySelector {
     fun orderAddonStreams(
         streams: List<AddonStreams>,
         installedOrder: List<String>,
-        preferredNames: Set<String> = emptySet()
+        preferredNames: Set<String> = emptySet(),
+        pinnedNames: Set<String> = StreamSmartRanker.pinnedSources
     ): List<AddonStreams> {
         if (streams.isEmpty()) return streams
+        if (pinnedNames.isNotEmpty()) {
+            // Pinned sources always list first, in the order the rest would have had.
+            val (pinned, rest) = streams.partition { it.addonName in pinnedNames }
+            if (pinned.isNotEmpty()) {
+                return orderAddonStreams(pinned, installedOrder, preferredNames, emptySet()) +
+                    orderAddonStreams(rest, installedOrder, preferredNames, emptySet())
+            }
+        }
         if (preferredNames.isNotEmpty()) {
             val (preferred, rest) = streams.partition { it.addonName in preferredNames }
-            return preferred + orderAddonStreams(rest, installedOrder)
+            return preferred + orderAddonStreams(rest, installedOrder, pinnedNames = emptySet())
         }
 
         val addonRankByName = HashMap<String, Int>(installedOrder.size)

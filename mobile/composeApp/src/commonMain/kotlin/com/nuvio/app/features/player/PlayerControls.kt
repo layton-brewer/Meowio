@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Flag
@@ -45,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -742,6 +744,18 @@ private fun ProgressControls(
                         label = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
                         icon = Icons.Filled.Speed,
                         onClick = onSpeedClick,
+                    )
+                    val sleepTimerState by SleepTimer.state.collectAsStateWithLifecycle()
+                    PlayerActionPillButton(
+                        label = when (val sleep = sleepTimerState) {
+                            SleepTimer.State.Off -> stringResource(Res.string.extended_sleep_timer)
+                            is SleepTimer.State.Until ->
+                                stringResource(Res.string.extended_sleep_timer_minutes, sleep.minutes)
+                            SleepTimer.State.EndOfEpisode ->
+                                stringResource(Res.string.extended_sleep_timer_end_of_episode)
+                        },
+                        icon = Icons.Rounded.Bedtime,
+                        onClick = { SleepTimer.cycle() },
                     )
                     PlayerActionPillButton(
                         label = stringResource(Res.string.compose_player_subs),
