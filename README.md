@@ -1,4 +1,4 @@
-# Nuvio Extended
+# Meowio
 
 A fork of [Nuvio](https://github.com/NuvioMedia) for Android phones and Android TV that picks a working stream for you and just plays.
 
@@ -8,10 +8,10 @@ Get the latest APKs from the [Releases page](../../releases/latest).
 
 | Device | File |
 | --- | --- |
-| Android phone or tablet | `NuvioExtended-mobile.apk` |
-| Android TV, Google TV, Fire TV | `NuvioExtended-tv.apk` |
+| Android phone or tablet | `Meowio-mobile.apk` |
+| Android TV, Google TV, Fire TV | `Meowio-tv.apk` |
 
-These are debug-signed builds. Android will ask you to allow installs from unknown sources.
+Android will ask you to allow installs from unknown sources.
 
 ## What is different from Nuvio
 
@@ -30,12 +30,35 @@ Signing in with a normal Nuvio account works once the build knows the Nuvio acco
 
 Until the secrets are added, builds have no account server. Choose **Continue Without Account** on the first screen. Add-ons, debrid services and playback all work without an account.
 
-To turn sign-in on, add these under Settings, Secrets and variables, Actions, then run the **Build and release** workflow again:
+## Repository secrets
 
-| Secret | Value |
+Add these under Settings → Secrets and variables → Actions. None of them are ever committed to the repository.
+
+| Secret | Purpose |
 | --- | --- |
-| `NUVIO_SUPABASE_URL` | The account server address |
-| `NUVIO_SUPABASE_ANON_KEY` | The account server public key |
+| `NUVIO_SUPABASE_URL` | Account server address (for sign-in) |
+| `NUVIO_SUPABASE_ANON_KEY` | Account server public key (for sign-in) |
+| `SIGNING_KEYSTORE_BASE64` | Base64 of the signing keystore, so every release installs over the last |
+| `SIGNING_KEY_ALIAS` | The key alias inside that keystore |
+| `SIGNING_PASSWORD` | The keystore/key password |
+
+Without the signing secrets the build still works, but each release gets a throwaway key and will not install on top of a previous version. See the signing note below.
+
+## A stable signing key
+
+Every Android app is signed, and Android only lets a new APK install over an older one when both carry the **same** signature. To create a keystore once and keep it forever:
+
+```sh
+keytool -genkeypair -v \
+  -keystore meowio-release.jks \
+  -alias meowio -keyalg RSA -keysize 2048 -validity 10000 \
+  -storepass "YOUR_PASSWORD" -keypass "YOUR_PASSWORD" \
+  -dname "CN=Meowio, O=Meowio, C=US"
+
+base64 -i meowio-release.jks   # copy this into SIGNING_KEYSTORE_BASE64
+```
+
+Then set `SIGNING_KEY_ALIAS` to `meowio` and `SIGNING_PASSWORD` to the password you chose. Keep `meowio-release.jks` backed up somewhere safe; if it is lost, future updates can no longer install over an installed copy.
 
 ## Repository layout
 
@@ -46,4 +69,4 @@ Each folder builds on its own with Gradle. See the README inside each folder.
 
 ## License
 
-GPL-3.0, the same as Nuvio. Nuvio Extended is not affiliated with or endorsed by the Nuvio team.
+GPL-3.0, the same as Nuvio. Meowio is not affiliated with or endorsed by the Nuvio team.
