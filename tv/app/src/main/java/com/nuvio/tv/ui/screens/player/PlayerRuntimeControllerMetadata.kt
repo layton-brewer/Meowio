@@ -419,6 +419,13 @@ internal fun PlayerRuntimeController.evaluatePostPlayOverlayVisibility(positionM
 
     if (_uiState.value.postPlayDismissedForCurrentEpisode) return
 
+    if (com.nuvio.tv.core.player.SleepTimer.consumeEndOfEpisode()) {
+        // Sleep timer: stop here instead of rolling into the next episode.
+        _uiState.update { it.copy(postPlayDismissedForCurrentEpisode = true) }
+        pauseForSleepTimer()
+        return
+    }
+
     val shouldEnterStillWatching = shouldEnterStillWatchingPrompt(
         stillWatchingEnabled = stillWatchingEnabledSetting,
         autoPlayNextEpisodeEnabled = streamAutoPlayNextEpisodeEnabledSetting,

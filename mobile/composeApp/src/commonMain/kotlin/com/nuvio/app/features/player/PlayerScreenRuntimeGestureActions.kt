@@ -273,6 +273,8 @@ internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {
     val next = speeds.firstOrNull { it > current + 0.01f } ?: speeds.first()
     partyRateNudge = null
     playerController?.setPlaybackSpeed(next)
+    // Remembered per show, so the next episode starts at the same speed.
+    PlayerTrackPreferenceStorage.savePlaybackSpeed(parentMetaId, next)
     publishPartyPlayback(rate = next)
     showGestureMessage(formatPlaybackSpeedLabel(next))
     controlsVisible = true

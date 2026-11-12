@@ -12,6 +12,7 @@ import com.nuvio.tv.domain.model.Subtitle
 import com.nuvio.tv.domain.model.WatchProgress
 import com.nuvio.tv.domain.model.enabledAddons
 import kotlinx.coroutines.Job
+import com.nuvio.tv.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -1037,6 +1038,47 @@ internal fun PlayerRuntimeController.observePlayerStatsHud() {
                 }
             }
     }
+}
+
+/** Pauses playback when the sleep timer runs out. The timer itself outlives this session. */
+internal fun PlayerRuntimeController.observeSleepTimer() {
+    scope.launch {
+        com.nuvio.tv.core.player.SleepTimer.state.collectLatest { state ->
+            if (state is com.nuvio.tv.core.player.SleepTimer.State.Until) {
+                delay((state.deadlineMs - System.currentTimeMillis()).coerceAtLeast(0L))
+                com.nuvio.tv.core.player.SleepTimer.cancel()
+                pauseForSleepTimer()
+            }
+        }
+    }
+}
+
+internal fun PlayerRuntimeController.pauseForSleepTimer() {
+    if (isPlaybackCurrentlyPlaying()) {
+        onEvent(PlayerEvent.OnPlayPause)
+    }
+    _uiState.update {
+        it.copy(
+            showAspectRatioIndicator = true,
+            aspectRatioIndicatorText = context.getString(R.string.extended_sleep_timer_paused)
+        )
+    }
+    hideAspectRatioIndicatorJob?.cancel()
+    hideAspectRatioIndicatorJob = scope.launch {
+        delay(4000)
+        _uiState.update { it.copy(showAspectRatioIndicator = false) }
+    }
+}
+
+internal fun PlayerRuntimeController.sleepTimerLabel(
+    state: com.nuvio.tv.core.player.SleepTimer.State
+): String = when (state) {
+    com.nuvio.tv.core.player.SleepTimer.State.Off ->
+        context.getString(R.string.extended_sleep_timer_off)
+    is com.nuvio.tv.core.player.SleepTimer.State.Until ->
+        context.getString(R.string.extended_sleep_timer_minutes, state.minutes)
+    com.nuvio.tv.core.player.SleepTimer.State.EndOfEpisode ->
+        context.getString(R.string.extended_sleep_timer_end_of_episode)
 }
 
 internal fun PlayerRuntimeController.observeDeviceLocalAspectMode() {

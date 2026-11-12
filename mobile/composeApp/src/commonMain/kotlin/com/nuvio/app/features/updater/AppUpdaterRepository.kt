@@ -40,10 +40,10 @@ internal object AppUpdaterRepository {
     suspend fun getLatestChannelUpdate(channel: UpdateChannel): Result<AppUpdate> = runCatching {
         val response = httpRequestRaw(
             method = "GET",
-            url = "https://api.github.com/repos/NuvioMedia/NuvioMobile/${releasePath(channel)}",
+            url = "https://api.github.com/repos/layton-brewer/nuvio-extended/${releasePath(channel)}",
             headers = mapOf(
                 "Accept" to "application/vnd.github+json",
-                "User-Agent" to "NuvioMobile",
+                "User-Agent" to "NuvioExtended",
             ),
             body = "",
         )
@@ -86,13 +86,19 @@ internal object AppUpdaterRepository {
         }
     }
 
-    private fun chooseBestApkAsset(
+    internal fun chooseBestApkAsset(
         assets: List<GitHubAssetDto>,
         supportedAbis: List<String>,
     ): GitHubAssetDto? {
-        val apkAssets = assets.filter { asset ->
+        val allApkAssets = assets.filter { asset ->
             asset.name.endsWith(".apk", ignoreCase = true) ||
                 asset.contentType == "application/vnd.android.package-archive"
+        }
+        // Nuvio Extended publishes the phone and TV builds in one release.
+        // Never offer the TV build to a phone.
+        val mobileAssets = allApkAssets.filter { it.name.contains("-mobile", ignoreCase = true) }
+        val apkAssets = mobileAssets.ifEmpty {
+            allApkAssets.filterNot { it.name.contains("-tv", ignoreCase = true) }
         }
         for (abi in supportedAbis) {
             apkAssets.firstOrNull { it.name.contains(abi, ignoreCase = true) }?.let { return it }
