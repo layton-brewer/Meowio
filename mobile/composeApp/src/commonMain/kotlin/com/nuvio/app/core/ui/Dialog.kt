@@ -54,14 +54,19 @@ fun DialogSurface(
 ) {
     val tokens = MaterialTheme.nuvio
     BasicAlertDialog(onDismissRequest = onDismissRequest, properties = properties) {
+        val blurredBehind = rememberNuvioWindowBlurBehind()
         Surface(
             modifier = modifier
                 .fillMaxWidth()
                 .widthIn(max = tokens.components.dialogMaxWidth),
             shape = tokens.shapes.dialog,
-            color = tokens.colors.surfaceDialog,
+            color = if (blurredBehind) {
+                tokens.colors.surfaceDialog.copy(alpha = NuvioGlass.ThickBlurredAlpha)
+            } else {
+                tokens.colors.surfaceDialog
+            },
             contentColor = tokens.colors.textPrimary,
-            border = BorderStroke(tokens.borders.thin, SurfaceEdge),
+            border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
         ) {
             Column(
                 modifier = Modifier.padding(tokens.spacing.dialogPadding),

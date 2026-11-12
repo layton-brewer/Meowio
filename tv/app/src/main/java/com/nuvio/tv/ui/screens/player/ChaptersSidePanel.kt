@@ -42,6 +42,8 @@ import androidx.tv.material3.CardDefaults
 import com.nuvio.tv.R
 import com.nuvio.tv.ui.theme.NuvioTheme
 import kotlinx.coroutines.delay
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
 
 /**
  * The file's chapters, from the right edge like the episodes panel. Focus opens on the chapter
@@ -76,8 +78,10 @@ internal fun ChaptersSidePanel(
         modifier = modifier
             .fillMaxHeight()
             .width(520.dp)
-            .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
-            .background(NuvioTheme.colors.BackgroundElevated)
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg),
+                alpha = NuvioGlass.OverVideoAlpha
+            )
     ) {
         Column(modifier = Modifier.padding(NuvioTheme.spacing.xl)) {
             Row(

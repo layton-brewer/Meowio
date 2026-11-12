@@ -7,7 +7,7 @@ import org.junit.Test
 class CardDepthStyleTest {
     @Test
     fun disabledStyleDisablesEverySurface() {
-        val style = CardDepthStyle()
+        val style = CardDepthStyle(enabled = false)
 
         CardDepthSurface.entries.forEach { surface ->
             assertFalse(style.isEnabledFor(surface))

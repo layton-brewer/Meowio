@@ -91,6 +91,8 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch as coroutineLaunch
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -125,8 +127,10 @@ internal fun EpisodesSidePanel(
         modifier = modifier
             .fillMaxHeight()
             .width(520.dp)
-            .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
-            .background(NuvioTheme.colors.BackgroundElevated)
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg),
+                alpha = NuvioGlass.OverVideoAlpha
+            )
     ) {
         Column(modifier = Modifier.padding(NuvioTheme.spacing.xl)) {
                 Row(
