@@ -35,6 +35,7 @@ import nuvio.composeapp.generated.resources.compose_player_downloaded
 import nuvio.composeapp.generated.resources.compose_player_resize_fill
 import nuvio.composeapp.generated.resources.compose_player_resize_fit
 import nuvio.composeapp.generated.resources.compose_player_resize_zoom
+import nuvio.composeapp.generated.resources.extended_sleep_timer_paused
 import nuvio.composeapp.generated.resources.generic_unknown
 import nuvio.composeapp.generated.resources.parental_alcohol
 import nuvio.composeapp.generated.resources.parental_frightening
@@ -157,6 +158,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
             systemGestureInsets.getRight(density, layoutDirection),
         ).toFloat()
         runtime.resizeModeFitLabel = stringResource(Res.string.compose_player_resize_fit)
+        runtime.sleepTimerPausedLabel = stringResource(Res.string.extended_sleep_timer_paused)
         runtime.resizeModeFillLabel = stringResource(Res.string.compose_player_resize_fill)
         runtime.resizeModeZoomLabel = stringResource(Res.string.compose_player_resize_zoom)
         runtime.downloadedLabel = stringResource(Res.string.compose_player_downloaded)

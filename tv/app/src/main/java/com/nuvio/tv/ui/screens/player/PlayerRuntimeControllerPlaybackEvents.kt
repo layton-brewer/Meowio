@@ -2126,6 +2126,17 @@ fun PlayerRuntimeController.onEvent(
                 _uiState.update { it.copy(showAspectRatioIndicator = false) }
             }
         }
+        PlayerEvent.OnCycleSleepTimer -> {
+            val label = sleepTimerLabel(com.nuvio.tv.core.player.SleepTimer.cycle())
+            _uiState.update {
+                it.copy(showAspectRatioIndicator = true, aspectRatioIndicatorText = label)
+            }
+            hideAspectRatioIndicatorJob?.cancel()
+            hideAspectRatioIndicatorJob = scope.launch {
+                delay(1500)
+                _uiState.update { it.copy(showAspectRatioIndicator = false) }
+            }
+        }
         PlayerEvent.OnSwitchInternalPlayerEngine -> {
             logSwitchTrace(
                 stage = "event-switch-engine",
