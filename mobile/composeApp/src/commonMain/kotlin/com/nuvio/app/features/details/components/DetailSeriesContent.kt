@@ -92,6 +92,7 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
 import com.nuvio.app.core.i18n.localizedEpisodeTitle
+import com.nuvio.app.core.ui.nuvioGlass
 
 private val log = Logger.withTag("SeriesContent")
 
@@ -456,13 +457,7 @@ private fun SeasonViewModeToggle(
     val isPosters = mode == SeasonViewMode.Posters
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(8.dp),
-            )
+            .nuvioGlass(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
@@ -519,12 +514,11 @@ private fun SeasonTextChipScrollRow(
             val isSelected = season == currentSeason
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(sizing.seasonChipRadius))
-                    .background(
+                    .then(
                         if (isSelected) {
-                            backdropControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                            Modifier.nuvioGlass(RoundedCornerShape(sizing.seasonChipRadius))
                         } else {
-                            Color.Transparent
+                            Modifier.clip(RoundedCornerShape(sizing.seasonChipRadius))
                         },
                     )
                     .combinedClickable(
@@ -1196,13 +1190,7 @@ private fun EpisodeListCard(
         modifier = modifier
             .fillMaxWidth()
             .height(sizing.cardHeight)
-            .clip(cardShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = 0.1f),
-                shape = cardShape,
-            )
+            .nuvioGlass(cardShape)
             .combinedClickable(
                 enabled = onClick != null || onLongPress != null,
                 onClick = { onClick?.invoke() },

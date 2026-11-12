@@ -62,6 +62,8 @@ import androidx.tv.material3.Text
 import com.nuvio.tv.data.local.SubtitleStyleSettings
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
 
 private val StyleCardWidth = 220.dp
 private val StyleCardHeight = 102.dp
@@ -98,8 +100,10 @@ internal fun SubtitleStyleSidePanel(
         modifier = modifier
             .width(760.dp)
             .height(330.dp)
-            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-            .background(Color(0xFF101010))
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+                alpha = NuvioGlass.OverVideoAlpha
+            )
             .then(if (isStyleDisabledByLibass) Modifier.focusProperties { canFocus = false } else Modifier)
             .padding(start = NuvioTheme.spacing.lg, end = NuvioTheme.spacing.lg, top = 22.dp, bottom = 10.dp)
     ) {

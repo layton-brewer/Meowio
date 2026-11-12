@@ -72,6 +72,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.nuvio.app.navigation.LocalNativeNavigationBarHidden
 import com.nuvio.app.navigation.LocalUseNativeNavigation
+import androidx.compose.foundation.border
 
 @Composable
 fun NuvioScreen(
@@ -118,8 +119,9 @@ fun NuvioSurfaceCard(
 ) {
     val tokens = MaterialTheme.nuvio
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = tokens.colors.surface,
+        modifier = modifier.fillMaxWidth().nuvioGlass(tokens.shapes.card),
+        color = Color.Transparent,
+        contentColor = tokens.colors.textPrimary,
         shape = tokens.shapes.card,
         tonalElevation = tonalElevation.dp,
         shadowElevation = tokens.elevation.flat,
@@ -288,6 +290,13 @@ fun NuvioBackButton(
             .size(buttonSize)
             .clip(shape)
             .background(containerColor)
+            .then(
+                if (containerColor.alpha > 0f) {
+                    Modifier.border(NuvioGlass.RimWidth, NuvioGlass.Rim, shape)
+                } else {
+                    Modifier
+                },
+            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

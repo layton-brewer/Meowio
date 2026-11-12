@@ -93,6 +93,7 @@ import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
 import com.nuvio.tv.ui.util.contentTextDirection
 import com.nuvio.tv.ui.util.rememberRawSvgPainter
 import java.util.Locale
+import com.nuvio.tv.ui.theme.NuvioGlass
 
 private const val MAX_VISIBLE_HERO_GENRES = 6
 
@@ -520,12 +521,16 @@ private fun ActionIconButtonPainter(
             }
             .focusProperties { up = FocusRequester.Cancel },
         colors = IconButtonDefaults.colors(
-            containerColor = NuvioTheme.colors.BackgroundCard,
+            containerColor = NuvioGlass.ControlFill,
             focusedContainerColor = NuvioTheme.colors.Secondary,
             contentColor = NuvioTheme.colors.TextPrimary,
             focusedContentColor = NuvioTheme.colors.OnSecondary
         ),
         border = IconButtonDefaults.border(
+            border = Border(
+                border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
+                shape = CircleShape
+            ),
             focusedBorder = Border(
                 border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
                 shape = CircleShape
@@ -619,12 +624,16 @@ private fun ActionIconButton(
                 }
             },
         colors = IconButtonDefaults.colors(
-            containerColor = if (selected) selectedContainerColor else NuvioTheme.colors.BackgroundCard,
+            containerColor = if (selected) selectedContainerColor else NuvioGlass.ControlFill,
             focusedContainerColor = NuvioTheme.colors.Secondary,
             contentColor = if (selected) selectedContentColor else NuvioTheme.colors.TextPrimary,
             focusedContentColor = NuvioTheme.colors.OnSecondary
         ),
         border = IconButtonDefaults.border(
+            border = Border(
+                border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
+                shape = CircleShape
+            ),
             focusedBorder = Border(
                 border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
                 shape = CircleShape
