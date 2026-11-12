@@ -49,7 +49,7 @@ fun Menu(
         containerColor = tokens.colors.surfacePopover,
         tonalElevation = tokens.elevation.flat,
         shadowElevation = tokens.elevation.overlay,
-        border = BorderStroke(tokens.borders.thin, SurfaceEdge),
+        border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
         content = content,
     )
 }

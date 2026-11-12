@@ -120,7 +120,7 @@ private fun ChapterRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(tokens.colors.surfaceCard)
+            .background(Color.White.copy(alpha = 0.08f))
             .then(if (isCurrent) Modifier.border(2.dp, tokens.colors.focusRing, shape) else Modifier)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),

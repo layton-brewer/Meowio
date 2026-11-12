@@ -82,6 +82,8 @@ import com.nuvio.app.features.streams.StreamBadge
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.i18n.localizedEpisodeTitle
+import com.nuvio.app.core.ui.nuvioGlass
+import com.nuvio.app.core.ui.NuvioGlassStyle
 
 @Composable
 internal fun PlayerControlsShell(
@@ -546,7 +548,7 @@ private fun PlayerHeader(
                     }
                     NuvioBackButton(
                         onClick = onBack,
-                        containerColor = Color.Black.copy(alpha = 0.35f),
+                        containerColor = Color(0xFF242428).copy(alpha = 0.58f),
                         contentColor = Color.White,
                         buttonSize = metrics.headerIconSize + 16.dp,
                         iconSize = metrics.headerIconSize,
@@ -570,8 +572,7 @@ internal fun PlayerHeaderIconButton(
     Box(
         modifier = Modifier
             .size(buttonSize)
-            .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.35f))
+            .nuvioGlass(CircleShape, NuvioGlassStyle.OverMedia)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -722,13 +723,10 @@ private fun ProgressControls(
             horizontalArrangement = Arrangement.Center,
         ) {
             Surface(
-                color = Color.Black.copy(alpha = 0.5f),
+                color = Color.Transparent,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp),
-                modifier = Modifier.border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(24.dp),
-                ),
+                modifier = Modifier.nuvioGlass(RoundedCornerShape(24.dp), NuvioGlassStyle.OverMedia),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -993,9 +991,7 @@ private fun TimePill(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.Black.copy(alpha = 0.5f))
-            .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            .nuvioGlass(RoundedCornerShape(12.dp), NuvioGlassStyle.OverMedia)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     ) {
         Text(
