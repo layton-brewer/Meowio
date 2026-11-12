@@ -39,6 +39,8 @@ jobs:
       - name: Prepare local properties
         env:
           LOCAL_PROPERTIES_BASE64: ${{ secrets.TV_LOCAL_PROPERTIES_BASE64 }}
+          NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
+          NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
@@ -47,6 +49,12 @@ jobs:
             touch local.properties
           fi
           touch local.dev.properties
+          if [ -n "$NUVIO_SUPABASE_URL" ]; then
+            {
+              echo "NUVIO_SUPABASE_URL=$NUVIO_SUPABASE_URL"
+              echo "NUVIO_SUPABASE_ANON_KEY=$NUVIO_SUPABASE_ANON_KEY"
+            } >> local.properties
+          fi
 
       - name: Prepare signing key
         env:
@@ -107,12 +115,20 @@ jobs:
       - name: Prepare local properties
         env:
           LOCAL_PROPERTIES_BASE64: ${{ secrets.MOBILE_LOCAL_PROPERTIES_BASE64 }}
+          NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
+          NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
             sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
           else
             touch local.properties
+          fi
+          if [ -n "$NUVIO_SUPABASE_URL" ]; then
+            {
+              echo "NUVIO_SUPABASE_URL=$NUVIO_SUPABASE_URL"
+              echo "NUVIO_SUPABASE_ANON_KEY=$NUVIO_SUPABASE_ANON_KEY"
+            } >> local.properties
           fi
 
       - name: Build
