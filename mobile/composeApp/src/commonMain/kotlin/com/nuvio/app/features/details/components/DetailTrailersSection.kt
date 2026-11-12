@@ -50,6 +50,9 @@ import nuvio.composeapp.generated.resources.detail_tab_trailer
 import nuvio.composeapp.generated.resources.detail_trailer_category_count
 import nuvio.composeapp.generated.resources.detail_trailers_title
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.NuvioGlass
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun DetailTrailersSection(
@@ -106,7 +109,8 @@ fun DetailTrailersSection(
                 Box {
                     Surface(
                         shape = RoundedCornerShape(sizing.selectorRadius),
-                        color = backdropControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+                        color = backdropControlColor(Color.White.copy(alpha = 0.08f)),
+                        border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
                         tonalElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(sizing.selectorRadius))

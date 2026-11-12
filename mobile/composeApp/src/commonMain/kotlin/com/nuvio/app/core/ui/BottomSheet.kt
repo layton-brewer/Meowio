@@ -67,13 +67,20 @@ fun NuvioModalBottomSheet(
             scrimColor = tokens.colors.overlayScrim,
             dragHandle = null,
         ) {
+            val blurredBehind = rememberNuvioWindowBlurBehind()
             CompositionLocalProvider(LocalBottomInsetsConsumed provides true) {
                 Column(
                     modifier = modifier
                         .padding(NuvioTokens.Space.s10)
                         .clip(SheetShape)
-                        .background(containerColor)
-                        .border(tokens.borders.thin, SurfaceEdge, SheetShape),
+                        .background(
+                            if (blurredBehind) {
+                                containerColor.copy(alpha = containerColor.alpha * NuvioGlass.ThickBlurredAlpha)
+                            } else {
+                                containerColor
+                            },
+                        )
+                        .nuvioGlassEdge(SheetShape),
                 ) {
                     if (showDragHandle) {
                         NuvioBottomSheetDragHandle(Modifier.align(Alignment.CenterHorizontally))

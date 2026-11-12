@@ -66,6 +66,7 @@ import com.nuvio.tv.ui.util.rememberRawSvgPainter
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.hazeEffect
+import com.nuvio.tv.ui.theme.nuvioGlassEdge
 
 private val SidebarLeadingVisualSize = NuvioComponents.tokens.sidebar.leadingVisual
 private val SidebarContentGap = NuvioComponents.tokens.sidebar.contentGap
@@ -147,7 +148,7 @@ internal fun ModernSidebarBlurPanel(
                 if (panelBorderColor != Color.Transparent) {
                     Modifier.border(width = NuvioStrokes.tokens.hairline, color = panelBorderColor, shape = panelShape)
                 } else {
-                    Modifier
+                    Modifier.nuvioGlassEdge(panelShape)
                 }
             )
             .padding(horizontal = NuvioTheme.spacing.md, vertical = NuvioTheme.spacing.lg - NuvioTheme.spacing.xxs)

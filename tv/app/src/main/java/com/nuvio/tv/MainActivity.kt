@@ -217,6 +217,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import com.nuvio.tv.ui.theme.NuvioGlass
 
 val LocalSidebarExpanded = compositionLocalOf { false }
 val LocalRootContentInset = compositionLocalOf { 0.dp }
@@ -254,8 +255,8 @@ private data class MainUiPrefs(
     val experienceModeLoaded: Boolean = false,
     val addonSetupSkipped: Boolean = false,
     val sidebarCollapsed: Boolean = false,
-    val modernSidebarEnabled: Boolean = false,
-    val modernSidebarBlurPref: Boolean = false,
+    val modernSidebarEnabled: Boolean = true,
+    val modernSidebarBlurPref: Boolean = true,
     val discoverLocation: DiscoverLocation? = null,
     val smoothBringIntoViewEnabled: Boolean = true,
     val fastHorizontalNavigationEnabled: Boolean = false,
@@ -2340,6 +2341,7 @@ private fun CollapsedSidebarPill(
                     }
                 )
                 .background(brush = pillBackgroundBrush, shape = pillShape)
+                .border(NuvioGlass.RimWidth, NuvioGlass.Rim, pillShape)
         ) {
             Row(
                 modifier = Modifier

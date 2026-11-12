@@ -61,6 +61,9 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_tab_all
 import nuvio.composeapp.generated.resources.streams_refresh
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.nuvioGlass
+import com.nuvio.app.core.ui.NuvioGlassStyle
+import com.nuvio.app.core.ui.NuvioGlass
 
 @Composable
 internal fun PlayerSidePanel(
@@ -113,8 +116,7 @@ internal fun PlayerSidePanel(
                     )
                     .width(resolvedWidth)
                     .fillMaxHeight()
-                    .clip(shape)
-                    .background(tokens.colors.surfaceElevated)
+                    .nuvioGlass(shape, NuvioGlassStyle.Thick, NuvioGlass.ThickOverVideoAlpha)
                     .clickable(
                         interactionSource = panelInteraction,
                         indication = null,
@@ -170,7 +172,7 @@ internal fun PlayerDialogButton(
         modifier = modifier
             .alpha(if (enabled) 1f else tokens.opacity.disabled)
             .clip(RoundedCornerShape(12.dp))
-            .background(tokens.colors.surfaceCard)
+            .background(Color.White.copy(alpha = 0.08f))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
