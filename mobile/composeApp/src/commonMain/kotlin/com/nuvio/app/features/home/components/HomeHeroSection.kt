@@ -72,6 +72,9 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import com.nuvio.app.core.ui.nuvioGlass
+import com.nuvio.app.core.ui.NuvioGlassStyle
+import androidx.compose.ui.graphics.Color
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.14f
@@ -327,11 +330,12 @@ fun HomeHeroSection(
                         Spacer(modifier = Modifier.height(14.dp))
                         Surface(
                             modifier = Modifier
+                                .nuvioGlass(RoundedCornerShape(40.dp), NuvioGlassStyle.OverMedia)
                                 .clickable(enabled = onItemClick != null) {
                                     onItemClick?.invoke(currentItem)
                                 },
-                            color = MaterialTheme.colorScheme.onBackground,
-                            contentColor = MaterialTheme.colorScheme.background,
+                            color = Color.Transparent,
+                            contentColor = MaterialTheme.colorScheme.onBackground,
                             shape = RoundedCornerShape(40.dp),
                         ) {
                             Text(

@@ -57,6 +57,9 @@ import nuvio.composeapp.generated.resources.playback_unavailable
 import nuvio.composeapp.generated.resources.random_episode_title
 import nuvio.composeapp.generated.resources.shuffle_stop
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.NuvioGlass
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Color
 
 data class DetailSecondaryAction(
     val label: String,
@@ -206,10 +209,11 @@ fun DetailActionButtons(
                 Surface(
                     modifier = Modifier.size(iconButtonSize),
                     shape = CircleShape,
+                    border = if (actionsExpanded) null else BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
                     color = if (actionsExpanded) {
                         MaterialTheme.colorScheme.onBackground
                     } else {
-                        backdropControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f))
+                        backdropControlColor(Color.White.copy(alpha = 0.10f))
                     },
                     contentColor = if (actionsExpanded) {
                         MaterialTheme.colorScheme.background
@@ -317,14 +321,15 @@ private fun DetailIconAction(
         color = if (active) {
             MaterialTheme.colorScheme.onBackground
         } else {
-            backdropControlColor(MaterialTheme.colorScheme.surfaceVariant)
+            backdropControlColor(Color.White.copy(alpha = 0.10f))
         },
+        border = if (active) null else BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
         contentColor = if (active) {
             MaterialTheme.colorScheme.background
         } else {
             MaterialTheme.colorScheme.onSurface
         },
-        tonalElevation = 6.dp,
+        tonalElevation = 0.dp,
     ) {
         Box(
             modifier = Modifier

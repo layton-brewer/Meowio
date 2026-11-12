@@ -179,6 +179,9 @@ import com.nuvio.tv.libass.media.widget.AssSubtitleSurfaceView
 import kotlin.math.abs
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
+import com.nuvio.tv.ui.theme.rememberNuvioWindowBlurBehind
 
 private const val PLAYER_CONTROLS_FADE_DURATION_MS = 200
 
@@ -3352,10 +3355,17 @@ private fun ControlButton(
                 if (it.isFocused) onFocused?.invoke()
             },
         colors = IconButtonDefaults.colors(
-            containerColor = Color.Transparent,
+            containerColor = NuvioGlass.ControlFill,
             focusedContainerColor = Color.White,
             contentColor = contentColor,
             focusedContentColor = Color.Black
+        ),
+        border = IconButtonDefaults.border(
+            border = Border(
+                border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
+                shape = CircleShape
+            ),
+            focusedBorder = Border.None
         ),
         shape = IconButtonDefaults.shape(shape = CircleShape)
     ) {
@@ -3734,9 +3744,9 @@ private fun AspectRatioIndicator(text: String) {
     // Floating pill indicator for aspect ratio changes
     Row(
         modifier = Modifier
-            .background(
-                color = Color.Black.copy(alpha = 0.85f),
-                shape = RoundedCornerShape(NuvioTheme.spacing.xl)
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(NuvioTheme.spacing.xl),
+                alpha = NuvioGlass.OverVideoAlpha
             )
             .padding(horizontal = 20.dp, vertical = NuvioTheme.spacing.md),
         horizontalArrangement = Arrangement.Center,
@@ -3747,7 +3757,7 @@ private fun AspectRatioIndicator(text: String) {
             modifier = Modifier
                 .size(36.dp)
                 .background(
-                    color = Color(0xFF3B3B3B),
+                    color = Color.White.copy(alpha = 0.16f),
                     shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
@@ -3778,10 +3788,7 @@ private fun AspectRatioIndicator(text: String) {
 private fun StreamSourceIndicator(text: String) {
     Row(
         modifier = Modifier
-            .background(
-                color = Color.Black.copy(alpha = 0.82f),
-                shape = RoundedCornerShape(20.dp)
-            )
+            .nuvioGlassPanel(shape = RoundedCornerShape(20.dp), alpha = NuvioGlass.OverVideoAlpha)
             .padding(horizontal = 14.dp, vertical = NuvioTheme.spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3802,8 +3809,7 @@ private fun PlayerEngineSwitchIndicator(
 ) {
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.Black.copy(alpha = 0.86f))
+            .nuvioGlassPanel(shape = RoundedCornerShape(20.dp), alpha = NuvioGlass.OverVideoAlpha)
             .padding(horizontal = 22.dp, vertical = NuvioTheme.spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -4288,13 +4294,16 @@ private fun SpeedSelectionDialog(
     }
 
     Dialog(onDismissRequest = onDismiss) {
+        val blurredBehind = rememberNuvioWindowBlurBehind()
         // The dialog is its own window, so the player's controls dim does not reach it.
         Box(
             modifier = Modifier
                 .playerControlsBrightness(brightness)
                 .width(300.dp)
-                .clip(RoundedCornerShape(NuvioTheme.radii.xl))
-                .background(NuvioTheme.colors.BackgroundElevated)
+                .nuvioGlassPanel(
+                    shape = RoundedCornerShape(NuvioTheme.radii.xl),
+                    alpha = if (blurredBehind) NuvioGlass.BlurredAlpha else NuvioGlass.OpaqueAlpha
+                )
         ) {
             Column(
                 modifier = Modifier.padding(NuvioTheme.spacing.xl)
@@ -4333,11 +4342,14 @@ private fun MoreActionsDialog(
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
+        val blurredBehind = rememberNuvioWindowBlurBehind()
         Box(
             modifier = Modifier
                 .width(360.dp)
-                .clip(RoundedCornerShape(NuvioTheme.radii.xl))
-                .background(NuvioTheme.colors.BackgroundElevated)
+                .nuvioGlassPanel(
+                    shape = RoundedCornerShape(NuvioTheme.radii.xl),
+                    alpha = if (blurredBehind) NuvioGlass.BlurredAlpha else NuvioGlass.OpaqueAlpha
+                )
         ) {
             Column(
                 modifier = Modifier.padding(NuvioTheme.spacing.xl),

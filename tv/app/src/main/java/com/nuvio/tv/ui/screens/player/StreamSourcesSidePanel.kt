@@ -60,6 +60,8 @@ import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
 import androidx.compose.ui.platform.LocalContext
+import com.nuvio.tv.ui.theme.NuvioGlass
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
 
 @Composable
 internal fun StreamSourcesSidePanel(
@@ -234,8 +236,10 @@ internal fun StreamSourcesSidePanel(
         modifier = modifier
             .fillMaxHeight()
             .width(520.dp)
-            .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
-            .background(NuvioTheme.colors.BackgroundElevated)
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg),
+                alpha = NuvioGlass.OverVideoAlpha
+            )
     ) {
         Column(modifier = Modifier.padding(NuvioTheme.spacing.xl)) {
             Row(

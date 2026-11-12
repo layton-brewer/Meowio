@@ -110,6 +110,7 @@ import java.util.TimeZone
 import com.nuvio.tv.ui.util.contentTextDirection
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
 import com.nuvio.tv.ui.util.rememberLongPressKeyTracker
+import com.nuvio.tv.ui.theme.NuvioGlass
 
 private const val EPISODE_CARD_CONTENT_TYPE = "episode_card"
 private const val EPISODE_SCROLL_REPEAT_THROTTLE_MS = 80L
@@ -139,6 +140,10 @@ fun SeasonTabs(
 
     val tabShape = remember { RoundedCornerShape(20.dp) }
     val tabBorder = CardDefaults.border(
+        border = Border(
+            border = BorderStroke(NuvioGlass.RimWidth, NuvioGlass.Rim),
+            shape = RoundedCornerShape(20.dp)
+        ),
         focusedBorder = Border(
             border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
             shape = RoundedCornerShape(20.dp)
@@ -354,7 +359,7 @@ fun SeasonTabs(
                     },
                 shape = CardDefaults.shape(shape = tabShape),
                 colors = CardDefaults.colors(
-                    containerColor = if (isSelected) NuvioTheme.colors.SurfaceVariant else NuvioTheme.colors.BackgroundCard,
+                    containerColor = if (isSelected) NuvioGlass.ControlSelectedFill else NuvioGlass.ControlFill,
                     focusedContainerColor = NuvioTheme.colors.Secondary
                 ),
                 border = tabBorder,
