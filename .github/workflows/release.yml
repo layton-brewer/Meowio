@@ -20,6 +20,7 @@ jobs:
   tv:
     name: Build TV APK
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: tv
@@ -89,6 +90,7 @@ jobs:
   mobile:
     name: Build phone APK
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: mobile
@@ -130,6 +132,7 @@ jobs:
     name: Publish release
     needs: [tv, mobile]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: write
     steps:
