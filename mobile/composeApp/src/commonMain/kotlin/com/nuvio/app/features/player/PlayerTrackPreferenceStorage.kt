@@ -25,6 +25,8 @@ internal expect object PlayerTrackPreferenceStorage {
     fun save(contentId: String, preference: PersistedPlayerTrackPreference)
     fun loadSubtitleDelayMs(videoId: String): Int?
     fun saveSubtitleDelayMs(videoId: String, delayMs: Int)
+    fun loadPlaybackSpeed(contentId: String): Float?
+    fun savePlaybackSpeed(contentId: String, speed: Float)
     fun loadAudioDelayMs(audioOutputKey: String): Int?
     fun saveAudioDelayMs(audioOutputKey: String, delayMs: Int)
 }

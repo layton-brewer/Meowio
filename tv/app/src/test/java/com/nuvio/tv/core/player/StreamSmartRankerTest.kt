@@ -143,4 +143,30 @@ class StreamSmartRankerTest {
         )
         assertEquals(listOf(best, low), ranked)
     }
+
+    @Test
+    fun `pinned source wins over a better looking stream from another source`() {
+        val pinned = stream("720p WEB-DL").copy(addonName = "Favorite")
+        val other = stream("1080p BluRay REMUX")
+        val ranked = StreamSmartRanker.rank(
+            streams = listOf(other, pinned),
+            isSeries = false,
+            maxVideoHeight = 1080,
+            pinned = setOf("Favorite"),
+        )
+        assertEquals(listOf(pinned, other), ranked)
+    }
+
+    @Test
+    fun `pinned source never beats a stream that plays instantly when it has to download`() {
+        val pinnedTorrent = stream("1080p", url = null, infoHash = "abc").copy(addonName = "Favorite")
+        val instant = stream("720p")
+        val ranked = StreamSmartRanker.rank(
+            streams = listOf(pinnedTorrent, instant),
+            isSeries = false,
+            maxVideoHeight = 1080,
+            pinned = setOf("Favorite"),
+        )
+        assertEquals(listOf(instant, pinnedTorrent), ranked)
+    }
 }

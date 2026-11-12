@@ -100,6 +100,7 @@ internal class PlayerScreenRuntime(
     var sideGestureSystemEdgeExclusionPx: Float = 0f
     var horizontalSeekSystemEdgeExclusionPx: Float = 0f
     var resizeModeFitLabel: String = ""
+    var sleepTimerPausedLabel: String = ""
     var resizeModeFillLabel: String = ""
     var resizeModeZoomLabel: String = ""
     var downloadedLabel: String = ""

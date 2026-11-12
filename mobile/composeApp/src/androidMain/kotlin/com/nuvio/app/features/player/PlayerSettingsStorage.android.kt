@@ -83,6 +83,7 @@ actual object PlayerSettingsStorage {
     private const val streamAutoPlayModeKey = "stream_auto_play_mode"
     private const val streamAutoPlaySourceKey = "stream_auto_play_source"
     private const val streamAutoPlaySelectedAddonsKey = "stream_auto_play_selected_addons"
+    private const val streamPinnedSourcesKey = "stream_pinned_sources"
     private const val streamAutoPlaySelectedPluginsKey = "stream_auto_play_selected_plugins"
     private const val streamAutoPlayRegexKey = "stream_auto_play_regex"
     private const val streamAutoPlayTimeoutSecondsKey = "stream_auto_play_timeout_seconds"
@@ -172,6 +173,7 @@ actual object PlayerSettingsStorage {
         streamAutoPlayModeKey,
         streamAutoPlaySourceKey,
         streamAutoPlaySelectedAddonsKey,
+        streamPinnedSourcesKey,
         streamAutoPlaySelectedPluginsKey,
         streamAutoPlayRegexKey,
         streamAutoPlayTimeoutSecondsKey,
@@ -1093,6 +1095,23 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadStreamPinnedSources(): Set<String>? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(streamPinnedSourcesKey)
+            if (sharedPreferences.contains(key)) {
+                sharedPreferences.getStringSet(key, emptySet()) ?: emptySet()
+            } else {
+                null
+            }
+        }
+
+    actual fun saveStreamPinnedSources(sources: Set<String>) {
+        preferences
+            ?.edit()
+            ?.putStringSet(ProfileScopedKey.of(streamPinnedSourcesKey), sources)
+            ?.apply()
+    }
+
     actual fun loadStreamAutoPlaySelectedPlugins(): Set<String>? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(streamAutoPlaySelectedPluginsKey)
@@ -1589,6 +1608,7 @@ actual object PlayerSettingsStorage {
         loadStreamAutoPlayMode()?.let { put(streamAutoPlayModeKey, encodeSyncString(it)) }
         loadStreamAutoPlaySource()?.let { put(streamAutoPlaySourceKey, encodeSyncString(it)) }
         loadStreamAutoPlaySelectedAddons()?.let { put(streamAutoPlaySelectedAddonsKey, encodeSyncStringSet(it)) }
+        loadStreamPinnedSources()?.let { put(streamPinnedSourcesKey, encodeSyncStringSet(it)) }
         loadStreamAutoPlaySelectedPlugins()?.let { put(streamAutoPlaySelectedPluginsKey, encodeSyncStringSet(it)) }
         loadStreamAutoPlayRegex()?.let { put(streamAutoPlayRegexKey, encodeSyncString(it)) }
         loadStreamAutoPlayTimeoutSeconds()?.let { put(streamAutoPlayTimeoutSecondsKey, encodeSyncInt(it)) }
@@ -1681,6 +1701,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(streamAutoPlayModeKey)?.let(::saveStreamAutoPlayMode)
         payload.decodeSyncString(streamAutoPlaySourceKey)?.let(::saveStreamAutoPlaySource)
         payload.decodeSyncStringSet(streamAutoPlaySelectedAddonsKey)?.let(::saveStreamAutoPlaySelectedAddons)
+        payload.decodeSyncStringSet(streamPinnedSourcesKey)?.let(::saveStreamPinnedSources)
         payload.decodeSyncStringSet(streamAutoPlaySelectedPluginsKey)?.let(::saveStreamAutoPlaySelectedPlugins)
         payload.decodeSyncString(streamAutoPlayRegexKey)?.let(::saveStreamAutoPlayRegex)
         payload.decodeSyncInt(streamAutoPlayTimeoutSecondsKey)?.let(::saveStreamAutoPlayTimeoutSeconds)
