@@ -36,8 +36,9 @@ Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** bui
 
 Notes:
 
-- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with Meowio branding; it does not yet include every Meowio-only feature.
-- The Apple TV app is a native SwiftUI app: browsing, search, Live TV, add-on sources, and auto-pick with silent failover and preloading. Add a stream add-on in **Settings** first. It plays direct and debrid HTTP streams (not raw torrents).
+- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with the Meowio features merged in (Smart auto-play, silent failover, season packs, preloading, pinned sources, sleep timer, Live TV, backup/restore, quality picker, themes, insights, AI assistant, glass UI). Its updater follows the `apple-latest` release.
+- The Apple TV app is a native SwiftUI app with the same features: Smart auto-play with silent failover and preloading for every season, season-pack and same-release preference, pinned sources, sleep timer, quality picker, Live TV with now/next guide and dead-stream pruning, themes, insights, AI assistant (your own key) and settings backup (shown as text, since Apple TV has no file picker). Add a stream add-on in **Settings** first. It plays direct and debrid HTTP streams (not raw torrents).
+- **Platform differences:** CloudStream plugins run only on Android phones, TV downloads only on Android TV, and audio passthrough/decoder defaults only on Android. Apple devices use the system decoders instead.
 - Apple does not allow notarized or App Store distribution without a developer account, so these cannot be installed with a plain tap.
 
 ## What's different from Nuvio?
@@ -161,7 +162,7 @@ Channels and guide data come from the configured provider. Availability can chan
 Use the in-app updater or download the latest APK for the same device type from [Releases](https://github.com/layton-brewer/Meowio/releases/latest).
 
 **Are there iOS or desktop downloads?**  
-This repository currently publishes Android mobile and TV APKs. The mobile source tree includes upstream multiplatform code, but that does not mean a Meowio iOS or desktop release is available.
+Yes. Android APKs are published on the main releases. iPhone/iPad, Mac and Apple TV builds are unsigned and published on the rolling `apple-latest` release (see Apple devices above).
 
 ## Bugs and feedback
 
