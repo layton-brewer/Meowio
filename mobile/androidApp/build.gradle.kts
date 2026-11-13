@@ -121,6 +121,21 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // This is the build that ships. Unless -Pdebuggable=true asks for a
+            // development build, it is optimized like a release build: not
+            // debuggable, with code shrunk and optimized, so the packaged
+            // startup profile applies and screens render at full speed.
+            val debuggableBuild = providers.gradleProperty("debuggable")
+                .map(String::toBooleanStrict)
+                .getOrElse(false)
+            isDebuggable = debuggableBuild
+            isMinifyEnabled = !debuggableBuild
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "../composeApp/proguard-rules.pro",
+            )
+        }
         getByName("release") {
             val minifyRelease = providers.gradleProperty("releaseMinifyEnabled")
                 .map(String::toBooleanStrict)
@@ -176,6 +191,8 @@ sentry {
 dependencies {
     implementation(project(":composeApp"))
     implementation(libs.androidx.appcompat)
+    // Installs the packaged startup profile on sideloaded installs.
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.compose.runtime)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.compose.uiTooling)
