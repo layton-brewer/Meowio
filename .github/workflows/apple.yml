@@ -193,7 +193,7 @@ jobs:
           brew install xcodegen
 
       - name: Fetch MPVKit
-        run: git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+        run: git clone --depth 1 https://github.com/mpvkit/MPVKit.git MPVKit
       - name: Generate project
         run: xcodegen generate
 
