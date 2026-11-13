@@ -209,6 +209,33 @@ class LiveTvParsersTest {
         assertEquals("Other Show", guide["other"]?.next?.title)
     }
 
+    @Test
+    fun `reads a guide handed over in small pieces and keeps only wanted channels`() {
+        val base = 1_767_225_600_000L
+        val xml = """
+            <tv><channel id="a"/>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="A"><title>On Now</title></programme>
+              <programme start="20260101010000 +0000" stop="20260101020000 +0000" channel="A"><title>After</title></programme>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="B"><title>Skipped</title></programme>
+            </tv>
+        """.trimIndent()
+        val reader = XmltvParser.Reader(nowMs = base + 60_000L, wanted = setOf("a"))
+        xml.chunked(7).forEach(reader::feed)
+        assertEquals("On Now", reader.result()["a"]?.now?.title)
+        assertEquals("After", reader.result()["a"]?.next?.title)
+        assertNull(reader.result()["b"])
+    }
+
+    @Test
+    fun `picks the guide file for a group of the built-in channels`() {
+        val urls = listOf("https://host/epg_ripper_AL1.xml.gz", "https://host/epg_ripper_US_LOCALS2.xml.gz", "https://host/epg_ripper_US1.xml.gz", "https://host/epg_ripper_UK1.xml.gz")
+        assertEquals("https://host/epg_ripper_US1.xml.gz", LiveTvDefaults.guideUrlForGroup("USA", urls))
+        assertEquals("https://host/epg_ripper_UK1.xml.gz", LiveTvDefaults.guideUrlForGroup("UK", urls))
+        assertNull(LiveTvDefaults.guideUrlForGroup("News", urls))
+        assertEquals("UK", LiveTvDefaults.groupForCountry("gb"))
+        assertEquals("USA", LiveTvDefaults.groupForCountry("US"))
+    }
+
     private fun loader(pages: Map<String, String>, nowMs: Long = 0L) =
         LiveTvLoader(fetchText = { url -> pages[url] }, nowMs = { nowMs })
 

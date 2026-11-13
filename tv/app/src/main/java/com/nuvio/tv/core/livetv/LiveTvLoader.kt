@@ -25,10 +25,13 @@ class LiveTvException(val error: LiveTvError) : Exception(error.name)
  *
  * @param fetchText downloads an address and returns its text, or null when the request failed.
  * Guide files compressed with gzip should come back already decompressed.
+ * @param streamText downloads an address and hands its text over piece by piece, returning false
+ * when that is not possible. Used for guides, which can be far too large to hold in memory.
  */
 class LiveTvLoader(
     private val fetchText: suspend (url: String) -> String?,
     private val nowMs: () -> Long,
+    private val streamText: suspend (url: String, onChunk: (String) -> Unit) -> Boolean = { _, _ -> false },
 ) {
 
     /** Channels for [source]. Throws [LiveTvException] with the reason when they cannot be loaded. */
@@ -66,27 +69,43 @@ class LiveTvLoader(
         return LivePlaylist(channels = channels)
     }
 
+    /** True when [playlist] announces so many guide files that they are loaded one group at a time. */
+    fun hasGuidePerGroup(source: LiveSource, playlist: LivePlaylist): Boolean =
+        !M3uParser.isHttpUrl(source.guideUrl.trim()) && playlist.guideUrls.size > MAX_ANNOUNCED_GUIDE_FILES
+
     /**
      * What is on now and next for every channel that the guide knows, keyed by [LiveChannel.id].
      * Uses the guide address the user entered, otherwise the ones the playlist announced.
      * Returns an empty map when there is no guide or it cannot be read.
      */
     suspend fun loadGuide(source: LiveSource, playlist: LivePlaylist): Map<String, LiveNowNext> {
+        // A playlist that lists dozens of guide files is a worldwide list; those load per group.
+        if (hasGuidePerGroup(source, playlist)) return emptyMap()
         val guideUrls = source.guideUrl.trim().takeIf(M3uParser::isHttpUrl)?.let(::listOf) ?: playlist.guideUrls
-        if (guideUrls.isEmpty()) return emptyMap()
-        // A playlist that lists dozens of guide files is a worldwide list; loading them all would
-        // take minutes and a first few would cover the wrong countries.
-        if (guideUrls.size > MAX_ANNOUNCED_GUIDE_FILES) return emptyMap()
+        return readGuides(guideUrls.take(MAX_GUIDE_FILES), playlist.channels)
+    }
+
+    /** The guide for the channels of one [group] of a worldwide playlist. */
+    suspend fun loadGroupGuide(source: LiveSource, playlist: LivePlaylist, group: String): Map<String, LiveNowNext> {
+        if (!hasGuidePerGroup(source, playlist)) return emptyMap()
+        val url = LiveTvDefaults.guideUrlForGroup(group, playlist.guideUrls) ?: return emptyMap()
+        return readGuides(listOf(url), playlist.channels.filter { it.group == group })
+    }
+
+    private suspend fun readGuides(urls: List<String>, channels: List<LiveChannel>): Map<String, LiveNowNext> {
+        val wanted = channels.mapNotNull { it.guideId?.lowercase() }.toSet()
+        if (urls.isEmpty() || wanted.isEmpty()) return emptyMap()
         val byGuideId = HashMap<String, LiveNowNext>()
-        for (url in guideUrls.take(MAX_GUIDE_FILES)) {
-            val xml = fetchText(url) ?: continue
-            XmltvParser.parseNowNext(xml, nowMs()).forEach { (guideId, entry) ->
+        for (url in urls) {
+            val reader = XmltvParser.Reader(nowMs(), wanted)
+            if (!streamText(url, reader::feed)) reader.feed(fetchText(url) ?: continue)
+            reader.result().forEach { (guideId, entry) ->
                 if (guideId !in byGuideId) byGuideId[guideId] = entry
             }
         }
         if (byGuideId.isEmpty()) return emptyMap()
         val result = HashMap<String, LiveNowNext>()
-        playlist.channels.forEach { channel ->
+        channels.forEach { channel ->
             val entry = channel.guideId?.lowercase()?.let(byGuideId::get) ?: return@forEach
             result[channel.id] = entry
         }
