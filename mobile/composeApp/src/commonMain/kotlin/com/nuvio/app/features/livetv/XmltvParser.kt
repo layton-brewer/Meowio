@@ -11,28 +11,67 @@ object XmltvParser {
     private val TITLE = Regex("""<title\b[^>]*>(.*?)</title>""", RegexOption.DOT_MATCHES_ALL)
 
     /** Channel guide id (lower case) to what is on now and next at [nowMs]. */
-    fun parseNowNext(xml: String, nowMs: Long): Map<String, LiveNowNext> {
-        val result = HashMap<String, LiveNowNext>()
-        PROGRAMME.findAll(xml).forEach { match ->
+    fun parseNowNext(xml: String, nowMs: Long): Map<String, LiveNowNext> =
+        Reader(nowMs).also { it.feed(xml) }.result()
+
+    /**
+     * Reads a guide piece by piece, so a guide of hundreds of megabytes never has to sit in
+     * memory. Pass [wanted] (lower-case guide ids) to keep only those channels.
+     */
+    class Reader(private val nowMs: Long, private val wanted: Set<String>? = null) {
+        private val pending = StringBuilder()
+        private val found = HashMap<String, LiveNowNext>()
+
+        fun feed(chunk: String) {
+            pending.append(chunk)
+            var position = 0
+            while (true) {
+                val start = pending.indexOf(OPEN, position)
+                if (start < 0) {
+                    // Keep a few characters in case an opening tag is split across two pieces.
+                    position = maxOf(position, pending.length - OPEN.length)
+                    break
+                }
+                val end = pending.indexOf(CLOSE, start)
+                if (end < 0) {
+                    position = start
+                    break
+                }
+                position = end + CLOSE.length
+                PROGRAMME.find(pending.substring(start, position))?.let(::accept)
+            }
+            pending.deleteRange(0, position)
+            // A broken guide with an element that never closes must not grow without limit.
+            if (pending.length > MAX_PENDING) pending.clear()
+        }
+
+        fun result(): Map<String, LiveNowNext> = found
+
+        private fun accept(match: MatchResult) {
             val attributes = ATTRIBUTE.findAll(match.groupValues[1]).associate { it.groupValues[1] to it.groupValues[2] }
-            val channel = attributes["channel"]?.trim()?.lowercase()?.takeIf(String::isNotEmpty) ?: return@forEach
-            val start = parseTime(attributes["start"]) ?: return@forEach
-            val stop = parseTime(attributes["stop"]) ?: return@forEach
-            if (stop <= nowMs) return@forEach
+            val channel = attributes["channel"]?.trim()?.lowercase()?.takeIf(String::isNotEmpty) ?: return
+            if (wanted != null && channel !in wanted) return
+            val start = parseTime(attributes["start"]) ?: return
+            val stop = parseTime(attributes["stop"]) ?: return
+            if (stop <= nowMs) return
             val title = TITLE.find(match.groupValues[2])?.groupValues?.get(1)?.let(::decodeEntities)?.trim()
-                ?.takeIf(String::isNotEmpty) ?: return@forEach
+                ?.takeIf(String::isNotEmpty) ?: return
             val programme = LiveProgramme(title = title, startMs = start, stopMs = stop)
-            val current = result[channel] ?: LiveNowNext()
-            result[channel] = if (start <= nowMs) {
+            val current = found[channel] ?: LiveNowNext()
+            val next = current.next
+            found[channel] = if (start <= nowMs) {
                 current.copy(now = programme)
-            } else if (current.next == null || start < current.next.startMs) {
+            } else if (next == null || start < next.startMs) {
                 current.copy(next = programme)
             } else {
                 current
             }
         }
-        return result
     }
+
+    private const val OPEN = "<programme"
+    private const val CLOSE = "</programme>"
+    private const val MAX_PENDING = 1_000_000
 
     /** XMLTV time: `YYYYMMDDhhmmss +hhmm`. Seconds and the offset are optional. */
     internal fun parseTime(value: String?): Long? {

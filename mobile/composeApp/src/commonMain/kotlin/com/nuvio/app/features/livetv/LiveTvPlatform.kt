@@ -11,3 +11,9 @@ internal expect fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray?
 
 /** The device's two-letter country code, or null when it is not known. */
 internal expect fun liveTvCountryCode(): String?
+
+/**
+ * Downloads [url] and hands its text over piece by piece, unpacking gzip. Returns false when the
+ * platform cannot do this, in which case the caller falls back to a plain download.
+ */
+internal expect suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean
