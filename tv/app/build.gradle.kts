@@ -226,8 +226,16 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("release")
-            isDebuggable = parseBooleanProperty(providers.gradleProperty("debuggable").orNull)
-            isMinifyEnabled = false
+            // This is the build that ships. Unless -Pdebuggable=true asks for a
+            // development build, it is optimized like a release build: code is
+            // shrunk and optimized, and the startup profile is packaged with it.
+            val debuggableBuild = parseBooleanProperty(providers.gradleProperty("debuggable").orNull)
+            isDebuggable = debuggableBuild
+            isMinifyEnabled = !debuggableBuild
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
 
             buildConfigField("boolean", "IS_DEBUG_BUILD", "true")
             buildConfigField("String", "SENTRY_ENVIRONMENT", buildConfigString("debug"))
