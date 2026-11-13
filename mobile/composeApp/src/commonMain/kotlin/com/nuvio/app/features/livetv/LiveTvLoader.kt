@@ -74,6 +74,9 @@ class LiveTvLoader(
     suspend fun loadGuide(source: LiveSource, playlist: LivePlaylist): Map<String, LiveNowNext> {
         val guideUrls = source.guideUrl.trim().takeIf(M3uParser::isHttpUrl)?.let(::listOf) ?: playlist.guideUrls
         if (guideUrls.isEmpty()) return emptyMap()
+        // A playlist that lists dozens of guide files is a worldwide list; loading them all would
+        // take minutes and a first few would cover the wrong countries.
+        if (guideUrls.size > MAX_ANNOUNCED_GUIDE_FILES) return emptyMap()
         val byGuideId = HashMap<String, LiveNowNext>()
         for (url in guideUrls.take(MAX_GUIDE_FILES)) {
             val xml = fetchText(url) ?: continue
@@ -105,5 +108,6 @@ class LiveTvLoader(
 
     private companion object {
         const val MAX_GUIDE_FILES = 2
+        const val MAX_ANNOUNCED_GUIDE_FILES = 6
     }
 }
