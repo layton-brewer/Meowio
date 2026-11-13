@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.clickable
+import com.nuvio.app.core.ui.nuvioTap
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -211,7 +212,10 @@ private fun PlayerAction(
     iconSize: Dp = 24.dp,
     tint: Color = Color.White,
 ) {
-    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+    Box(
+        modifier = Modifier.size(48.dp).nuvioTap(onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         if (painter != null) {
             Icon(painter, description, tint = tint, modifier = Modifier.size(iconSize))
         } else if (icon != null) {

@@ -457,7 +457,8 @@ object PlayerSettingsRepository {
         targetBufferSizeMb = PlayerSettingsStorage.loadTargetBufferSizeMb()
             ?: PlaybackBufferSettings.DEFAULT_TARGET_BUFFER_MB
         streamAutoPlayMode = PlayerSettingsStorage.loadStreamAutoPlayMode()
-            ?.let { runCatching { StreamAutoPlayMode.valueOf(it) }.getOrNull() }
+            ?.let { if (it == "MANUAL_USER") StreamAutoPlayMode.MANUAL else runCatching { StreamAutoPlayMode.valueOf(it) }.getOrNull() }
+            ?.takeUnless { stored -> stored == StreamAutoPlayMode.MANUAL && PlayerSettingsStorage.loadStreamAutoPlayMode() == "MANUAL" }
             ?: StreamAutoPlayMode.SMART
         streamAutoPlaySource = PlayerSettingsStorage.loadStreamAutoPlaySource()
             ?.let { runCatching { StreamAutoPlaySource.valueOf(it) }.getOrNull() }
@@ -1020,7 +1021,8 @@ object PlayerSettingsRepository {
         if (streamAutoPlayMode == mode) return
         streamAutoPlayMode = mode
         publish()
-        PlayerSettingsStorage.saveStreamAutoPlayMode(mode.name)
+        // Mark an explicit Manual choice so legacy stored "MANUAL" can migrate to Smart.
+        PlayerSettingsStorage.saveStreamAutoPlayMode(if (mode == StreamAutoPlayMode.MANUAL) "MANUAL_USER" else mode.name)
     }
 
     fun setStreamAutoPlaySource(source: StreamAutoPlaySource) {
