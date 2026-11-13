@@ -124,9 +124,50 @@ jobs:
           path: out/*.dmg
           retention-days: 14
 
+  tvos:
+    name: Build tvOS IPA (unsigned)
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: tvos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i tvos || true
+          brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
+            -sdk appletvos -destination 'generic/platform=tvOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
+
+      - name: Package IPA
+        run: |
+          app="build/Build/Products/Release-appletvos/Meowio.app"
+          test -d "$app"
+          rm -rf pkg && mkdir -p pkg/Payload
+          cp -R "$app" pkg/Payload/
+          (cd pkg && zip -qry ../Meowio-tvos.ipa Payload)
+          shasum -a 256 Meowio-tvos.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-tvos
+          path: tvos/Meowio-tvos.ipa
+          retention-days: 14
+
   publish:
     name: Publish Apple release
-    needs: [ios, macos]
+    needs: [ios, macos, tvos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
