@@ -1749,7 +1749,7 @@
     <string name="updates_debug_test_title">اختبار شريط التحديث</string>
     <string name="updates_install_failed">تعذر بدء التثبيت</string>
     <string name="updates_latest_version">أنت تستخدم أحدث إصدار.</string>
-    <string name="updates_message_allow_installs">اسمح لـ Nuvio بتثبيت التطبيقات، ثم ارجع وتابع.</string>
+    <string name="updates_message_allow_installs">اسمح لـ Meowio بتثبيت التطبيقات، ثم ارجع وتابع.</string>
     <string name="updates_message_downloading">جارٍ تحميل التحديث</string>
     <string name="updates_message_no_updates">لم يتم العثور على تحديثات.</string>
     <string name="updates_message_ready">إصدار جديد جاهز للتثبيت.</string>

@@ -1677,7 +1677,7 @@
     <string name="updates_debug_test_title">আপডেট ব্যানার পরীক্ষা করুন</string>
     <string name="updates_install_failed">ইনস্টলেশন শুরু করা যায়নি</string>
     <string name="updates_latest_version">আপনি সর্বশেষ সংস্করণ ব্যবহার করছেন।</string>
-    <string name="updates_message_allow_installs">Nuvio-এর জন্য অ্যাপ ইনস্টল চালু করুন, তারপরে ফিরে আসুন এবং চালিয়ে যান।</string>
+    <string name="updates_message_allow_installs">Meowio-এর জন্য অ্যাপ ইনস্টল চালু করুন, তারপরে ফিরে আসুন এবং চালিয়ে যান।</string>
     <string name="updates_message_downloading">আপডেট ডাউনলোড হচ্ছে…</string>
     <string name="updates_message_no_updates">কোনো আপডেট পাওয়া যায়নি।</string>
     <string name="updates_message_ready">একটি নতুন সংস্করণ ইনস্টল করার জন্য প্রস্তুত।</string>
