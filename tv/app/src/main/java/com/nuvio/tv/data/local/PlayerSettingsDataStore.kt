@@ -320,8 +320,8 @@ data class PlayerSettings(
     val audioOutputChannels: AudioOutputChannels = AudioOutputChannels.default,
     val maintainOriginalAudioOnDownmix: Boolean = true,
     val downmixLfeLevel: DownmixLfeLevel = DownmixLfeLevel.OFF,
-    val tunnelingEnabled: Boolean = false,
-    val forceOpticalPassthrough: Boolean = false,
+    val tunnelingEnabled: Boolean = true,
+    val forceOpticalPassthrough: Boolean = true,
     val skipSilence: Boolean = false,
     val nightMode: NightMode = NightMode.OFF,
     val audioAmplificationDb: Int = 0,
@@ -1049,8 +1049,8 @@ class PlayerSettingsDataStore @Inject constructor(
                     prefs[maintainOriginalAudioOnDownmixKey]
                         ?: !(prefs[downmixNormalizationEnabledLegacyKey] ?: false),
                 downmixLfeLevel = DownmixLfeLevel.fromSettingValue(prefs[downmixLfeLevelKey]),
-                tunnelingEnabled = prefs[tunnelingEnabledKey] ?: false,
-                forceOpticalPassthrough = prefs[forceOpticalPassthroughKey] ?: false,
+                tunnelingEnabled = prefs[tunnelingEnabledKey] ?: true,
+                forceOpticalPassthrough = prefs[forceOpticalPassthroughKey] ?: true,
                 skipSilence = prefs[skipSilenceKey] ?: false,
                 nightMode = NightMode.fromSettingValue(prefs[nightModeKey]),
                 audioAmplificationDb = (prefs[audioAmplificationDbKey] ?: 0).coerceIn(
