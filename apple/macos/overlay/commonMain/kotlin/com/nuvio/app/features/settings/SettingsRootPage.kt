@@ -1,0 +1,174 @@
+package com.nuvio.app.features.settings
+
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+
+internal fun LazyListScope.settingsRootContent(
+    isTablet: Boolean,
+    onPageClick: (SettingsPage) -> Unit,
+    onSwitchProfileClick: (() -> Unit)? = null,
+    onWatchPartyClick: (() -> Unit)? = null,
+    showNotificationsEntry: Boolean = true,
+    category: SettingsCategory? = null,
+) {
+    SettingsCategory.entries.filter { category == null || it == category }.forEach { group ->
+        item(key = group.name) {
+            SettingsGroup(isTablet = isTablet) {
+                when (group) {
+                    SettingsCategory.You -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Account,
+                            description = Res.string.compose_settings_root_account_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        var showInsights by androidx.compose.runtime.saveable.rememberSaveable {
+                            androidx.compose.runtime.mutableStateOf(false)
+                        }
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.insights_title),
+                            description = stringResource(Res.string.insights_open_sub),
+                            icon = Icons.Default.Insights,
+                            isTablet = isTablet,
+                            onClick = { showInsights = true },
+                        )
+                        if (showInsights) {
+                            com.nuvio.app.features.insights.InsightsDialog(onDismiss = { showInsights = false })
+                        }
+                        SettingsGroupDivider(isTablet = isTablet)
+                        var showAssistant by androidx.compose.runtime.saveable.rememberSaveable {
+                            androidx.compose.runtime.mutableStateOf(false)
+                        }
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.ai_title),
+                            description = stringResource(Res.string.ai_open_sub),
+                            icon = Icons.Default.AutoAwesome,
+                            isTablet = isTablet,
+                            onClick = { showAssistant = true },
+                        )
+                        if (showAssistant) {
+                            com.nuvio.app.features.ai.AiAssistantDialog(onDismiss = { showAssistant = false })
+                        }
+                        if (onSwitchProfileClick != null) {
+                            SettingsGroupDivider(isTablet = isTablet)
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.compose_settings_root_switch_profile_title),
+                                description = stringResource(Res.string.compose_settings_root_switch_profile_description),
+                                icon = Icons.Default.People,
+                                isTablet = isTablet,
+                                onClick = onSwitchProfileClick,
+                            )
+                        }
+                        if (onWatchPartyClick != null) {
+                            SettingsGroupDivider(isTablet = isTablet)
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.party_title),
+                                description = stringResource(Res.string.party_settings_description),
+                                icon = Icons.Rounded.Groups,
+                                isTablet = isTablet,
+                                onClick = onWatchPartyClick,
+                            )
+                        }
+                    }
+                    SettingsCategory.Look -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Appearance,
+                            description = Res.string.settings_appearance_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Layout,
+                            description = Res.string.compose_settings_root_layout_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.Watch -> {
+                        SettingsPageRow(
+                            page = SettingsPage.ContentDiscovery,
+                            description = Res.string.compose_settings_root_content_discovery_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Playback,
+                            description = Res.string.settings_playback_subtitle,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.Services -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Integrations,
+                            description = Res.string.compose_settings_root_integrations_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.TraktAuthentication,
+                            description = Res.string.compose_settings_root_tracking_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.System -> {
+                        if (showNotificationsEntry) {
+                            SettingsPageRow(
+                                page = SettingsPage.Notifications,
+                                description = Res.string.compose_settings_root_notifications_description,
+                                isTablet = isTablet,
+                                onPageClick = onPageClick,
+                            )
+                            SettingsGroupDivider(isTablet = isTablet)
+                        }
+                        SettingsPageRow(
+                            page = SettingsPage.Advanced,
+                            description = Res.string.compose_settings_root_advanced_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.About,
+                            description = Res.string.compose_settings_root_about_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                }
+            }
+        }
+    }
+    settingsFooterContent(isTablet = isTablet)
+}
+
+@Composable
+private fun SettingsPageRow(
+    page: SettingsPage,
+    description: StringResource,
+    isTablet: Boolean,
+    onPageClick: (SettingsPage) -> Unit,
+) {
+    SettingsNavigationRow(
+        title = stringResource(page.titleRes),
+        description = stringResource(description),
+        icon = page.icon,
+        isTablet = isTablet,
+        onClick = { onPageClick(page) },
+    )
+}

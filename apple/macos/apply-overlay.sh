@@ -6,6 +6,10 @@ root="$1"
 gradle="$root/composeApp/build.gradle.kts"
 icons="$root/composeApp/src/desktopMain/resources/icons"
 
+# Meowio features (Smart auto-play, Live TV, backup, insights, AI assistant, ...) merged into the
+# desktop sources. Files here replace the pinned desktop copies; new files are added.
+cp -R "$here/overlay/." "$root/composeApp/src/"
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \
