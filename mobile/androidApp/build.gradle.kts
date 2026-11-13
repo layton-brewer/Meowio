@@ -130,7 +130,13 @@ android {
                 .map(String::toBooleanStrict)
                 .getOrElse(false)
             isDebuggable = debuggableBuild
-            isMinifyEnabled = !debuggableBuild
+            // Code shrinking is opt-in (-PminifyShipped=true). The shrunk build shipped
+            // with top-bar buttons (back, actions) that did not respond on phones, so the
+            // default build stays unshrunk while remaining non-debuggable.
+            val minifyShipped = providers.gradleProperty("minifyShipped")
+                .map(String::toBooleanStrict)
+                .getOrElse(false)
+            isMinifyEnabled = minifyShipped && !debuggableBuild
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "../composeApp/proguard-rules.pro",
