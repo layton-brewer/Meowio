@@ -8,3 +8,6 @@ internal expect object LiveTvPlatformStorage {
 
 /** Unpacks gzip data, reading at most [maxBytes] of output. Null when the data cannot be unpacked. */
 internal expect fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray?
+
+/** The device's two-letter country code, or null when it is not known. */
+internal expect fun liveTvCountryCode(): String?

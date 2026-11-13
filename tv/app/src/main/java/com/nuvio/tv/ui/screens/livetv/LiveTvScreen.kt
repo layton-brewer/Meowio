@@ -110,7 +110,8 @@ fun LiveTvScreen(
         when {
             !state.ready -> CenteredLoading()
             state.source == null || editingSource -> SourceForm(
-                current = state.source,
+                current = state.source.takeUnless { state.usingDefault },
+                canCancel = state.source != null,
                 onSave = { source ->
                     editingSource = false
                     controller.setSource(source)
@@ -152,6 +153,7 @@ private fun CenteredLoading() {
 @Composable
 private fun SourceForm(
     current: LiveSource?,
+    canCancel: Boolean,
     onSave: (LiveSource) -> Unit,
     onCancel: () -> Unit,
     onRemove: () -> Unit
@@ -228,8 +230,10 @@ private fun SourceForm(
                 enabled = canSave,
                 onClick = { onSave(LiveSource(type, url, username, password, guideUrl)) }
             )
-            if (current != null) {
+            if (canCancel) {
                 PillButton(label = stringResource(R.string.live_tv_cancel), selected = false, onClick = onCancel)
+            }
+            if (current != null) {
                 PillButton(label = stringResource(R.string.live_tv_remove), selected = false, onClick = onRemove)
             }
         }
@@ -249,6 +253,12 @@ private fun ChannelBrowser(
         LiveTvController.visibleChannels(state, query, selection)
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
+    var firstGroupChosen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.groups, state.usingDefault) {
+        if (firstGroupChosen || state.groups.isEmpty()) return@LaunchedEffect
+        firstGroupChosen = true
+        LiveTvController.preferredGroup(state, java.util.Locale.getDefault().country)?.let { selection = it }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(

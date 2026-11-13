@@ -23,6 +23,8 @@ data class LiveTvState(
     /** Whether the Live TV tab is shown in the app's navigation. */
     val tabVisible: Boolean = true,
     val source: LiveSource? = null,
+    /** True while the built-in free channels are shown because the user has not added a source. */
+    val usingDefault: Boolean = false,
     val loading: Boolean = false,
     val error: LiveTvError? = null,
     val channels: List<LiveChannel> = emptyList(),
@@ -49,6 +51,8 @@ class LiveTvController(
     private val storage: LiveTvStorage,
     private val loader: LiveTvLoader,
     private val scope: CoroutineScope,
+    /** Channels shown until the user adds a source of their own. */
+    private val defaultSource: LiveSource? = LiveTvDefaults.source,
 ) {
     private val _state = MutableStateFlow(LiveTvState())
     val state: StateFlow<LiveTvState> = _state.asStateFlow()
@@ -62,12 +66,20 @@ class LiveTvController(
     fun start() {
         if (startJob != null) return
         startJob = scope.launch {
-            val source = LiveTvCodec.decodeSource(storage.read(KEY_SOURCE))
+            val saved = LiveTvCodec.decodeSource(storage.read(KEY_SOURCE))
+            val source = saved ?: defaultSource
             val favorites = LiveTvCodec.decodeIds(storage.read(KEY_FAVORITES)).toSet()
             val recent = LiveTvCodec.decodeIds(storage.read(KEY_RECENT)).take(MAX_RECENT)
             val tabVisible = storage.read(KEY_TAB_VISIBLE) != "false"
             _state.update {
-                it.copy(ready = true, tabVisible = tabVisible, source = source, favorites = favorites, recent = recent)
+                it.copy(
+                    ready = true,
+                    tabVisible = tabVisible,
+                    source = source,
+                    usingDefault = saved == null && source != null,
+                    favorites = favorites,
+                    recent = recent,
+                )
             }
             if (channelsRequested) loadChannels()
         }
@@ -104,18 +116,28 @@ class LiveTvController(
             password = source.password.trim(),
             guideUrl = source.guideUrl.trim(),
         )
-        _state.update { it.copy(source = cleaned) }
+        _state.update { it.copy(source = cleaned, usingDefault = false) }
         scope.launch { storage.write(KEY_SOURCE, LiveTvCodec.encodeSource(cleaned)) }
         refresh()
     }
 
+    /** Drops the user's own source and goes back to the built-in channels, when there are any. */
     fun removeSource() {
         loadJob?.cancel()
         guideRequested.clear()
         _state.update {
-            it.copy(source = null, loading = false, error = null, channels = emptyList(), groups = emptyList(), guide = emptyMap())
+            it.copy(
+                source = defaultSource,
+                usingDefault = defaultSource != null,
+                loading = false,
+                error = null,
+                channels = emptyList(),
+                groups = emptyList(),
+                guide = emptyMap(),
+            )
         }
         scope.launch { storage.write(KEY_SOURCE, null) }
+        if (defaultSource != null) refresh()
     }
 
     fun setTabVisible(visible: Boolean) {
@@ -196,6 +218,13 @@ class LiveTvController(
                 LiveTvFilters.filter(state.recent.mapNotNull(byId::get), query)
             }
             else -> LiveTvFilters.filter(state.channels, query, group = selection)
+        }
+
+        /** The group to open first on the built-in channels: the one for the device's country. */
+        fun preferredGroup(state: LiveTvState, countryCode: String?): String? {
+            if (!state.usingDefault) return null
+            val group = LiveTvDefaults.groupForCountry(countryCode) ?: return null
+            return group.takeIf { it in state.groups }
         }
 
         /** Guide text for a channel row, or null when nothing is known. */
