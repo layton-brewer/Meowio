@@ -10,6 +10,8 @@ sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \
   -e 's/vendor = "Nuvio Media"/vendor = "Meowio"/' \
+  -e 's/"Nuvio-macOS-/"Meowio-macOS-/' \
+  -e 's/"Nuvio-\$desktopReleasePackageVersion/"Meowio-$desktopReleasePackageVersion/' \
   -e 's/menuGroup = "Nuvio"/menuGroup = "Meowio"/' \
   "$gradle"
 rm -f "$gradle.bak"
