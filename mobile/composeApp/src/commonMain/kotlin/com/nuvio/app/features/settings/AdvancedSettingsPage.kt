@@ -27,6 +27,15 @@ import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_cancel
+import nuvio.composeapp.generated.resources.backup_restore
+import nuvio.composeapp.generated.resources.backup_restore_failed
+import nuvio.composeapp.generated.resources.backup_restore_sub
+import nuvio.composeapp.generated.resources.backup_restored
+import nuvio.composeapp.generated.resources.backup_save
+import nuvio.composeapp.generated.resources.backup_save_failed
+import nuvio.composeapp.generated.resources.backup_save_sub
+import nuvio.composeapp.generated.resources.backup_saved
+import nuvio.composeapp.generated.resources.backup_title
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache_done
 import nuvio.composeapp.generated.resources.settings_advanced_clear_cw_cache_subtitle
@@ -69,6 +78,49 @@ internal fun LazyListScope.advancedSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = ProfileRepository::setRememberLastProfileEnabled,
                 )
+            }
+        }
+    }
+    if (backupFilesSupported) {
+        item {
+            val scope = rememberCoroutineScope()
+            var status by remember { mutableStateOf<org.jetbrains.compose.resources.StringResource?>(null) }
+            val saveBackup = rememberBackupFileSaver { saved ->
+                status = if (saved) Res.string.backup_saved else Res.string.backup_save_failed
+            }
+            val openBackup = rememberBackupFileOpener { text ->
+                scope.launch {
+                    val restored = text != null &&
+                        runCatching { com.nuvio.app.core.sync.ProfileSettingsSync.importBackupJson(text) }.getOrDefault(false)
+                    status = if (restored) Res.string.backup_restored else Res.string.backup_restore_failed
+                }
+            }
+            SettingsSection(
+                title = stringResource(Res.string.backup_title),
+                isTablet = isTablet,
+            ) {
+                SettingsGroup(isTablet = isTablet) {
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.backup_save),
+                        description = stringResource(status ?: Res.string.backup_save_sub),
+                        isTablet = isTablet,
+                        onClick = {
+                            val text = runCatching { com.nuvio.app.core.sync.ProfileSettingsSync.exportBackupJson() }.getOrNull()
+                            if (text == null) {
+                                status = Res.string.backup_save_failed
+                            } else {
+                                saveBackup(com.nuvio.app.core.sync.BACKUP_FILE_NAME, text)
+                            }
+                        },
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.backup_restore),
+                        description = stringResource(Res.string.backup_restore_sub),
+                        isTablet = isTablet,
+                        onClick = openBackup,
+                    )
+                }
             }
         }
     }
