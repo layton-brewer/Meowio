@@ -68,6 +68,9 @@ import dev.chrisbanes.haze.HazeInputScale
 import dev.chrisbanes.haze.hazeEffect
 import com.nuvio.tv.ui.theme.nuvioGlassEdge
 
+/** Share of full resolution the sidebar blur is rendered at. */
+internal const val SIDEBAR_BLUR_INPUT_SCALE = 0.33f
+
 private val SidebarLeadingVisualSize = NuvioComponents.tokens.sidebar.leadingVisual
 private val SidebarContentGap = NuvioComponents.tokens.sidebar.contentGap
 private val SidebarProfileContentGap = NuvioComponents.tokens.sidebar.contentGap + NuvioTheme.spacing.xs
@@ -101,10 +104,14 @@ internal fun ModernSidebarBlurPanel(
         !sidebarCollapsePending &&
         delayedBlurProgress > 0f
     val expandedPanelBlurModifier = if (showPanelBlur) {
+        // The radius stays fixed while the panel opens: the panel already fades
+        // in as a layer, and a radius that changes every frame makes the blur be
+        // rebuilt every frame. The blur is rendered at a third of the screen
+        // size, which looks the same at this radius and costs far less to draw.
         Modifier.hazeEffect(state = sidebarHazeState) {
-            blurRadius = NuvioTheme.effects.blurPanel * delayedBlurProgress
-            noiseFactor = 0.04f * delayedBlurProgress
-            inputScale = HazeInputScale.Fixed(0.66f)
+            blurRadius = NuvioTheme.effects.blurPanel
+            noiseFactor = 0.04f
+            inputScale = HazeInputScale.Fixed(SIDEBAR_BLUR_INPUT_SCALE)
         }
     } else {
         Modifier
