@@ -135,10 +135,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1077
-        // Release builds pass the Nuvio Extended release number so the in-app
+        versionCode = 1078
+        // Release builds pass the Meowio release number so the in-app
         // updater can compare against release tags.
-        versionName = providers.gradleProperty("nuvio.app.versionName").orNull ?: "1.1.0"
+        versionName = providers.gradleProperty("nuvio.app.versionName").orNull ?: "1.2.0-beta.1"
 
         buildConfigField("String", "PARENTAL_GUIDE_API_URL", "\"${localProperties.getProperty("PARENTAL_GUIDE_API_URL", "")}\"")
         buildConfigField("String", "INTRODB_API_URL", "\"${localProperties.getProperty("INTRODB_API_URL", "")}\"")

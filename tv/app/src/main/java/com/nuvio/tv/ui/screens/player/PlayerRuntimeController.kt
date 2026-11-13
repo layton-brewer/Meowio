@@ -266,6 +266,14 @@ class PlayerRuntimeController(
     internal var sourceFailoverContentKey: String? = null
     internal val sourceFailoverTriedKeys: MutableSet<String> = mutableSetOf()
     internal var sourceFailoverAttempts: Int = 0
+    /** URL picked by auto source selection; only this source falls back to the next match on failure. */
+    internal var autoSelectedSourceUrl: String? = currentStreamUrl.takeIf {
+        navigationArgs.autoPlayNav && it.isNotBlank() && !it.startsWith("torrent://")
+    }
+    internal var sourceFallbackAttempts = 0
+    internal val sourceFallbackTriedKeys = mutableSetOf<String>()
+    internal var sourceFallbackJob: Job? = null
+    internal var sourceStartupTimeoutJob: Job? = null
 
     fun getCurrentStreamUrl(): String = currentStreamUrl
     fun getCurrentHeaders(): Map<String, String> = currentHeaders
@@ -586,6 +594,10 @@ class PlayerRuntimeController(
     internal var resolvedAutoPlayerEngine: InternalPlayerEngine? = null
     internal var currentInternalPlayerEngine: InternalPlayerEngine = InternalPlayerEngine.EXOPLAYER
     internal var streamAutoPlayModeSetting: StreamAutoPlayMode = StreamAutoPlayMode.SMART
+    internal var streamAutoPlayFallbackActive: Boolean = false
+    internal var streamAutoPlayFallbackMaxSources: Int = PlayerSettings.DEFAULT_SOURCE_FALLBACK_MAX_SOURCES
+    internal var streamAutoPlayFallbackStartupTimeoutSeconds: Int =
+        PlayerSettings.DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS
     internal var streamAutoPlayNextEpisodeEnabledSetting: Boolean = false
     internal var streamAutoPlayPreferBingeGroupForNextEpisodeSetting: Boolean = false
     internal var streamAutoPlayTimeoutSecondsSetting: Int = 10
