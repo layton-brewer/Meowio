@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="tv/assets/brand/app_logo_wordmark.png" alt="Meowio" width="320" />
+<img src="docs/assets/meowio-logo.webp" alt="Meowio cat logo" width="220" />
 
 # Meowio
 
