@@ -62,3 +62,55 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# CloudStream plugin runtime: keep what extensions load by name, ignore optional missing classes.
+
+# ── External extension compatibility stubs (loaded via DexClassLoader) ────────
+-keep class com.lagradost.cloudstream3.** { *; }
+-keepclassmembers class com.lagradost.cloudstream3.** { *; }
+-keep class com.lagradost.nicehttp.** { *; }
+-keepclassmembers class com.lagradost.nicehttp.** { *; }
+-keep class com.lagradost.api.** { *; }
+-keepclassmembers class com.lagradost.api.** { *; }
+
+# ── General ────────────────────────────────────────────────────────────────────
+# Keep line numbers for crash reports
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# MPV (native JNI callbacks)
+# Native code reflects into multiple classes/methods under is.xyz.mpv,
+# so keep the whole package to avoid JNI lookup crashes after R8.
+-keep class is.xyz.mpv.** { *; }
+
+# ── Missing class stubs (referenced by cloudstream3 / jsoup / newpipe) ────────
+-dontwarn org.mozilla.javascript.**
+-dontwarn com.google.re2j.**
+-dontwarn javax.script.**
+-dontwarn okhttp3.internal.sse.**
+-dontwarn org.jsoup.helper.Re2jRegex
+
+# ── DexClassLoader runtime deps (CloudStream extensions) ─────────────────────
+# Extensions are DEX files loaded at runtime via DexClassLoader. They resolve
+# dependencies by fully-qualified name from the host classloader. R8 must not
+# rename or remove any class that extensions may reference.
+-keep class kotlin.** { *; }
+-keep class kotlinx.coroutines.** { *; }
+
+-keep class okhttp3.** { *; }
+-keepclassmembers class okhttp3.** { *; }
+-keep class okio.** { *; }
+-keepclassmembers class okio.** { *; }
+-keep class org.jsoup.** { *; }
+-keepclassmembers class org.jsoup.** { *; }
+-keep class com.fasterxml.jackson.** { *; }
+-keepclassmembers class com.fasterxml.jackson.** { *; }
+
+# AndroidX components referenced by extensions
+-keep class androidx.fragment.app.** { *; }
+-keep interface androidx.fragment.app.** { *; }
+-keep class androidx.appcompat.app.** { *; }
+-keep interface androidx.appcompat.app.** { *; }
+
+-dontwarn java.beans.ConstructorProperties
+-dontwarn java.beans.Transient
