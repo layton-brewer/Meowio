@@ -160,6 +160,43 @@ object ThemeColors {
         backgroundCard = Color(0xFF241A1F),
     )
 
+    val Sunset = ThemeColorPalette(
+        secondary = Color(0xFFFF6B5E),
+        secondaryVariant = Color(0xFFE0458F),
+        accentGradient = listOf(Color(0xFFFFB347), Color(0xFFFF6B5E), Color(0xFFE0458F)),
+        nativeAccentHex = "#FF6B5E",
+        focusRing = Color(0xFFFFB347),
+        focusBackground = Color(0xFF3D211C),
+        background = Color(0xFF100B0B),
+        backgroundElevated = Color(0xFF1E1615),
+        backgroundCard = Color(0xFF281B1A),
+    )
+
+    val Aurora = ThemeColorPalette(
+        secondary = Color(0xFF39B8E8),
+        secondaryVariant = Color(0xFF8B6CFF),
+        accentGradient = listOf(Color(0xFF5EF2C2), Color(0xFF39B8E8), Color(0xFF8B6CFF)),
+        nativeAccentHex = "#39B8E8",
+        onSecondary = Color(0xFF111111),
+        focusRing = Color(0xFF5EF2C2),
+        focusBackground = Color(0xFF16343A),
+        background = Color(0xFF090E10),
+        backgroundElevated = Color(0xFF131C1F),
+        backgroundCard = Color(0xFF172428),
+    )
+
+    val Midnight = ThemeColorPalette(
+        secondary = Color(0xFF5468FF),
+        secondaryVariant = Color(0xFF8A4DFF),
+        accentGradient = listOf(Color(0xFF7FA8FF), Color(0xFF5468FF), Color(0xFF8A4DFF)),
+        nativeAccentHex = "#5468FF",
+        focusRing = Color(0xFF7FA8FF),
+        focusBackground = Color(0xFF1C2147),
+        background = Color(0xFF07080F),
+        backgroundElevated = Color(0xFF10121F),
+        backgroundCard = Color(0xFF161A2C),
+    )
+
     val White = ThemeColorPalette(
         secondary = Color(0xFFF5F5F5),
         secondaryVariant = Color(0xFFE0E0E0),
@@ -189,6 +226,9 @@ object ThemeColors {
         AppTheme.EMERALD -> Emerald
         AppTheme.AMBER -> Amber
         AppTheme.ROSE -> Rose
+        AppTheme.SUNSET -> Sunset
+        AppTheme.AURORA -> Aurora
+        AppTheme.MIDNIGHT -> Midnight
         AppTheme.WHITE -> White
     }
 }

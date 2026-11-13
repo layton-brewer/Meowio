@@ -17,3 +17,9 @@ internal expect fun liveTvCountryCode(): String?
  * platform cannot do this, in which case the caller falls back to a plain download.
  */
 internal expect suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean
+
+/**
+ * Opens a stream briefly to see whether it is there: true or false, or null when the platform
+ * cannot tell.
+ */
+internal expect suspend fun liveTvStreamAnswers(url: String, headers: Map<String, String>): Boolean?

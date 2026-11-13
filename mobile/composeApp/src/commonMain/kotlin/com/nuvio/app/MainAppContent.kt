@@ -408,6 +408,12 @@ internal fun MainAppContent(
         }
     }
 
+    // Picking a title in the AI assistant opens the Search tab, which looks it up.
+    val assistantTitle by com.nuvio.app.features.ai.AiSearchHandoff.pendingTitle.collectAsStateWithLifecycle()
+    LaunchedEffect(assistantTitle) {
+        if (assistantTitle != null) activateTab(AppScreenTab.Search)
+    }
+
     fun handleRootTabClick(tab: AppScreenTab) {
         if (selectedTab != tab) {
             activateTab(tab)

@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.tv.R
 import com.nuvio.tv.core.qr.QrCodeGenerator
+import com.nuvio.tv.core.util.readAppLogoBytes
 import com.nuvio.tv.core.server.DeviceIpAddress
 import com.nuvio.tv.core.server.SettingsBackupServer
 import com.nuvio.tv.core.sync.ProfileSettingsSyncService

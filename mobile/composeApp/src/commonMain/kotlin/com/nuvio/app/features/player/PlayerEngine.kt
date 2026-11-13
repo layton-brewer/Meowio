@@ -13,6 +13,10 @@ interface PlayerEngineController {
     fun setPlaybackSpeed(speed: Float)
     fun setMuted(muted: Boolean) {}
     fun getAudioTracks(): List<AudioTrack>
+    /** Resolutions an adaptive stream offers, highest first. Empty when there is no choice. */
+    fun getVideoQualityHeights(): List<Int> = emptyList()
+    /** Limits an adaptive stream to [maxHeight] lines, or lets the player choose when null. */
+    fun setVideoQualityCap(maxHeight: Int?) {}
     fun getSubtitleTracks(): List<SubtitleTrack>
     fun applyAudioLanguagePreferences(languages: List<String>)
     fun selectAudioTrack(index: Int)
