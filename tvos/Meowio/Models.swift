@@ -9,6 +9,7 @@ struct MetaItem: Identifiable, Codable, Hashable {
     var description: String?
     var releaseInfo: String?
     var imdbRating: String?
+    var genres: [String]?
     var videos: [Video]?
 
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
@@ -38,30 +39,48 @@ struct StreamItem: Codable, Hashable {
     var url: String?
     var infoHash: String?
     var behaviorHints: BehaviorHints?
+    /// Name of the add-on that returned this stream. Filled in by the client, never decoded.
+    var addonName: String? = nil
 
     struct BehaviorHints: Codable, Hashable {
         var notWebReady: Bool?
         var filename: String?
+        var bingeGroup: String?
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, title, description, url, infoHash, behaviorHints
     }
 
     var playableURL: URL? { url.flatMap(URL.init(string:)) }
     var combinedText: String {
-        [name, title, description, behaviorHints?.filename].compactMap { $0 }.joined(separator: " ")
+        [name, title, description, behaviorHints?.filename].compactMap { $0 }.joined(separator: "\n")
+    }
+    /// Short label for the source list: what the add-on says about this stream.
+    var label: String {
+        let first = (name ?? title ?? "Source").replacingOccurrences(of: "\n", with: " ")
+        return first.trimmingCharacters(in: .whitespaces)
+    }
+    var detail: String {
+        (title ?? description ?? "").replacingOccurrences(of: "\n", with: "  ")
     }
 }
 struct StreamResponse: Codable { var streams: [StreamItem] }
-
-struct Channel: Identifiable, Hashable {
-    var id: String { url.absoluteString }
-    var name: String
-    var group: String
-    var logo: URL?
-    var url: URL
-}
 
 struct ContinueItem: Codable, Identifiable, Hashable {
     var id: String
     var meta: MetaItem
     var videoId: String?
     var updated: Date
+}
+
+/// One finished or partly watched item, kept for watch statistics.
+struct WatchRecord: Codable, Identifiable, Hashable {
+    var id: String            // movie id, or episode video id
+    var contentId: String     // movie id, or show id
+    var title: String
+    var isEpisode: Bool
+    var seconds: Double
+    var completed: Bool
+    var at: Date
 }
