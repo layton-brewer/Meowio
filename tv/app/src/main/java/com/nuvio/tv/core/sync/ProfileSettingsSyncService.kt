@@ -26,6 +26,7 @@ import com.nuvio.tv.domain.model.DiscoverLocation
 import com.nuvio.tv.domain.repository.MetaRepository
 import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -177,6 +178,9 @@ internal fun shouldExcludePreferenceFromProfileSettingsSync(feature: String, key
 }
 
 @Singleton
+private const val BACKUP_APP = "meowio-tv"
+private const val BACKUP_HOME_ROWS = "home_rows"
+
 class ProfileSettingsSyncService @Inject constructor(
     private val authManager: AuthManager,
     private val postgrest: Postgrest,
@@ -199,6 +203,10 @@ class ProfileSettingsSyncService @Inject constructor(
     private var skipNextPushSignature: String? = null
     private var foregroundPullJob: Job? = null
     private var lastForegroundPullAtMs: Long = 0L
+
+    /** Kept on the device rather than synced, but still part of a backup file. */
+    private val backupOnlyFeatures = listOf("addon_preferences", "collections", "ambient_mode_settings")
+    private val backupHomeRowKeys = setOf("home_catalog_order_keys", "disabled_home_catalog_keys", "custom_catalog_titles")
 
     private val syncedFeatures = listOf(
         "theme_settings",
@@ -487,6 +495,64 @@ class ProfileSettingsSyncService @Inject constructor(
             put("version", 1)
             put("features", features)
         }
+    }
+
+    /**
+     * Everything worth keeping for the active profile, as text for a backup file: the settings
+     * that sync, plus add-ons, collections and the home row order. Service logins and API keys
+     * are left out, so the file is safe to keep on a phone or computer.
+     */
+    suspend fun exportBackupJson(): String {
+        val profileId = profileManager.activeProfileId.value
+        val settings = exportSettingsBlob(profileId)["features"] ?: JsonObject(emptyMap())
+        val extras = buildJsonObject {
+            backupOnlyFeatures.forEach { feature ->
+                val prefs = profileDataStoreFactory.get(profileId, feature).data.first()
+                put(feature, buildJsonObject {
+                    prefs.asMap().forEach { (key, rawValue) ->
+                        encodePreferenceValue(rawValue)?.let { put(key.name, it) }
+                    }
+                })
+            }
+            val layout = profileDataStoreFactory.get(profileId, "layout_settings").data.first()
+            put(BACKUP_HOME_ROWS, buildJsonObject {
+                layout.asMap().forEach { (key, rawValue) ->
+                    if (key.name !in backupHomeRowKeys) return@forEach
+                    encodePreferenceValue(rawValue)?.let { put(key.name, it) }
+                }
+            })
+        }
+        return buildJsonObject {
+            put("app", BACKUP_APP)
+            put("format", 1)
+            put("features", settings)
+            put("extras", extras)
+        }.toString()
+    }
+
+    /** Restores a file made by [exportBackupJson] into the active profile. False when it is not one. */
+    suspend fun importBackupJson(text: String): Boolean {
+        val root = runCatching { Json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return false
+        if (root["app"]?.jsonPrimitive?.contentOrNull != BACKUP_APP) return false
+        val features = root["features"] as? JsonObject ?: return false
+        val profileId = profileManager.activeProfileId.value
+        importSettingsBlob(profileId, features)
+        val extras = root["extras"] as? JsonObject ?: return true
+        backupOnlyFeatures.forEach { feature ->
+            val featureJson = extras[feature] as? JsonObject ?: return@forEach
+            profileDataStoreFactory.get(profileId, feature).edit { prefs ->
+                prefs.clear()
+                featureJson.forEach { (keyName, encoded) -> applyEncodedPreference(prefs, keyName, encoded) }
+            }
+        }
+        (extras[BACKUP_HOME_ROWS] as? JsonObject)?.let { rows ->
+            profileDataStoreFactory.get(profileId, "layout_settings").edit { prefs ->
+                rows.forEach { (keyName, encoded) ->
+                    if (keyName in backupHomeRowKeys) applyEncodedPreference(prefs, keyName, encoded)
+                }
+            }
+        }
+        return true
     }
 
     private suspend fun importSettingsBlob(profileId: Int, featuresJson: JsonObject) {

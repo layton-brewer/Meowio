@@ -38,8 +38,9 @@ class LiveTvRepository @Inject constructor(
 
     val controller = LiveTvController(
         storage = storage,
-        loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis),
-        scope = scope
+        loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis, streamText = ::streamText),
+        scope = scope,
+        probe = ::answers
     )
 
     init {
@@ -52,6 +53,29 @@ class LiveTvRepository @Inject constructor(
         }
     }
 
+    /** Opens a channel briefly to see whether its stream is there. */
+    private suspend fun answers(channel: com.nuvio.tv.core.livetv.LiveChannel): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder().url(channel.url).apply {
+                channel.headers.forEach { (name, value) -> runCatching { header(name, value) } }
+            }.build()
+            probeClient.newCall(request).execute().use { response -> response.isSuccessful }
+        } catch (e: IllegalArgumentException) {
+            // Not an http link, so there is nothing to check.
+            null
+        } catch (e: java.io.IOException) {
+            false
+        }
+    }
+
+    private val probeClient by lazy {
+        client.newBuilder()
+            .connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
     private suspend fun fetchText(url: String): String? = withContext(Dispatchers.IO) {
         runCatching {
             client.newCall(Request.Builder().url(url).build()).execute().use { response ->
@@ -62,14 +86,45 @@ class LiveTvRepository @Inject constructor(
         }.getOrNull()
     }
 
-    /** Reads at most [MAX_TEXT_BYTES], unpacking gzip files that servers send as plain downloads. */
-    private fun readText(raw: InputStream): String {
+    /** Hands a guide over in pieces, so its full size never has to fit in memory. */
+    private suspend fun streamText(url: String, onChunk: (String) -> Unit): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+                if (!response.isSuccessful) return@use false
+                val body = response.body ?: return@use false
+                body.byteStream().use { raw ->
+                    val reader = unpacked(raw).reader(Charsets.UTF_8)
+                    val buffer = CharArray(64 * 1024)
+                    var total = 0L
+                    try {
+                        while (total < MAX_STREAM_CHARS) {
+                            val count = reader.read(buffer)
+                            if (count < 0) break
+                            onChunk(String(buffer, 0, count))
+                            total += count
+                        }
+                    } catch (e: java.io.IOException) {
+                        // Keep what was read from a download that was cut off.
+                        if (total == 0L) throw e
+                    }
+                }
+                true
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun unpacked(raw: InputStream): InputStream {
         val pushback = PushbackInputStream(raw, 2)
         val magic = ByteArray(2)
         val read = pushback.read(magic, 0, 2)
         if (read > 0) pushback.unread(magic, 0, read)
         val gzip = read == 2 && magic[0] == 0x1f.toByte() && magic[1] == 0x8b.toByte()
-        val input: InputStream = if (gzip) GZIPInputStream(pushback) else pushback
+        return if (gzip) GZIPInputStream(pushback) else pushback
+    }
+
+    /** Reads at most [MAX_TEXT_BYTES], unpacking gzip files that servers send as plain downloads. */
+    private fun readText(raw: InputStream): String {
+        val input = unpacked(raw)
         val out = ByteArrayOutputStream()
         val buffer = ByteArray(64 * 1024)
         try {
@@ -87,5 +142,6 @@ class LiveTvRepository @Inject constructor(
 
     private companion object {
         const val MAX_TEXT_BYTES = 32 * 1024 * 1024
+        const val MAX_STREAM_CHARS = 600L * 1024 * 1024
     }
 }

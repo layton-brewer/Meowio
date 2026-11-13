@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -40,6 +42,27 @@ internal fun ProfileSettingsContent(
                     Modifier
                 }
             )
+            var showInsights by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+            SettingsActionRow(
+                title = stringResource(R.string.insights_title),
+                subtitle = stringResource(R.string.insights_open_sub),
+                onClick = { showInsights = true }
+            )
+            if (showInsights) InsightsDialog(onDismiss = { showInsights = false })
+            var showAssistant by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+            SettingsActionRow(
+                title = stringResource(R.string.ai_title),
+                subtitle = stringResource(R.string.ai_open_sub),
+                onClick = { showAssistant = true }
+            )
+            if (showAssistant) AiAssistantDialog(onDismiss = { showAssistant = false })
+            var showDownloads by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+            SettingsActionRow(
+                title = stringResource(R.string.downloads_title),
+                subtitle = stringResource(R.string.downloads_open_sub),
+                onClick = { showDownloads = true }
+            )
+            if (showDownloads) DownloadsDialog(onDismiss = { showDownloads = false })
         }
     }
 }

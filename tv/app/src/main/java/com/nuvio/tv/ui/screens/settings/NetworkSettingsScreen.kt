@@ -752,6 +752,10 @@ fun AdvancedSettingsContent(
             }
         }
 
+        item(key = "settings_backup") {
+            SettingsBackupCard()
+        }
+
         item(key = "clear_cw_cache") {
             SettingsGroupCard(
                 modifier = Modifier.fillMaxWidth(),

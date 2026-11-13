@@ -62,6 +62,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 
 private const val PUSH_DEBOUNCE_MS = 1500L
+private const val BACKUP_APP = "meowio-mobile"
+const val BACKUP_FILE_NAME = "meowio-mobile-backup.json"
 
 object ProfileSettingsSync {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -233,6 +235,70 @@ object ProfileSettingsSync {
         }
         SupabaseProvider.client.postgrest.rpc("sync_push_profile_settings_blob", params)
         log.d { "pushToRemoteLocked(profileId=$profileId) — success" }
+    }
+
+    /**
+     * Everything worth keeping for the active profile, as text for a backup file: the settings
+     * that sync, plus add-ons, collections and the home row order. Service logins and API keys
+     * are left out, so the file is safe to keep anywhere.
+     */
+    fun exportBackupJson(): String {
+        val profileId = ProfileRepository.activeProfileId
+        return buildJsonObject {
+            put("app", BACKUP_APP)
+            put("format", 1)
+            put("settings", json.encodeToJsonElement(MobileProfileSettingsBlob.serializer(), exportSettingsBlob()))
+            put("addons", kotlinx.serialization.json.JsonArray(
+                com.nuvio.app.features.addons.AddonStorage.loadInstalledAddonUrls(profileId)
+                    .map { kotlinx.serialization.json.JsonPrimitive(it) },
+            ))
+            put("addonStates", buildJsonObject {
+                com.nuvio.app.features.addons.AddonStorage.loadAddonEnabledStates(profileId)
+                    .forEach { (url, enabled) -> put(url, enabled) }
+            })
+            put("collections", com.nuvio.app.features.collection.CollectionStorage.loadPayload().orEmpty())
+            put("homeCatalogs", com.nuvio.app.features.home.HomeCatalogSettingsStorage.loadPayload().orEmpty())
+        }.toString()
+    }
+
+    /** Restores a file made by [exportBackupJson] into the active profile. False when it is not one. */
+    suspend fun importBackupJson(text: String): Boolean = syncMutex.withLock {
+        val root = runCatching { json.parseToJsonElement(text) }.getOrNull()
+            as? kotlinx.serialization.json.JsonObject ?: return@withLock false
+        val app = (root["app"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+        if (app != BACKUP_APP) return@withLock false
+        val blob = root["settings"]?.let {
+            runCatching { json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), it) }.getOrNull()
+        } ?: return@withLock false
+        val profileId = ProfileRepository.activeProfileId
+        ensureRepositoriesLoaded()
+        isApplyingRemoteBlob = true
+        try {
+            applyRemoteBlob(blob)
+        } finally {
+            isApplyingRemoteBlob = false
+        }
+        (root["addons"] as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf(String::isNotBlank) }
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { urls ->
+                com.nuvio.app.features.addons.AddonStorage.saveInstalledAddonUrls(profileId, urls)
+                val states = (root["addonStates"] as? kotlinx.serialization.json.JsonObject)
+                    ?.mapNotNull { (url, value) ->
+                        (value as? kotlinx.serialization.json.JsonPrimitive)?.content?.toBooleanStrictOrNull()?.let { url to it }
+                    }?.toMap().orEmpty()
+                com.nuvio.app.features.addons.AddonStorage.saveAddonEnabledStates(profileId, states)
+                com.nuvio.app.features.addons.AddonRepository.onProfileChanged(profileId)
+            }
+        (root["collections"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf(String::isNotBlank)?.let {
+            com.nuvio.app.features.collection.CollectionStorage.savePayload(it)
+            com.nuvio.app.features.collection.CollectionRepository.onProfileChanged()
+        }
+        (root["homeCatalogs"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.takeIf(String::isNotBlank)?.let {
+            com.nuvio.app.features.home.HomeCatalogSettingsStorage.savePayload(it)
+            com.nuvio.app.features.home.HomeCatalogSettingsRepository.onProfileChanged()
+        }
+        true
     }
 
     private fun exportSettingsBlob(): MobileProfileSettingsBlob {
