@@ -83,7 +83,6 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import com.nuvio.app.core.ui.nuvioGlass
 import com.nuvio.app.core.ui.NuvioGlassStyle
-import androidx.compose.ui.graphics.Color
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.14f
