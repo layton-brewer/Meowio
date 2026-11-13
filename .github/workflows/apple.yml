@@ -49,6 +49,19 @@ jobs:
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
+      - name: Prepare local properties
+        env:
+          NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
+          NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
+        run: |
+          touch local.properties
+          if [ -n "$NUVIO_SUPABASE_URL" ]; then
+            {
+              echo "NUVIO_SUPABASE_URL=$NUVIO_SUPABASE_URL"
+              echo "NUVIO_SUPABASE_ANON_KEY=$NUVIO_SUPABASE_ANON_KEY"
+            } >> local.properties
+          fi
+
       - name: Fetch MPVKit
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
