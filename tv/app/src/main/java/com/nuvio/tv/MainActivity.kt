@@ -2334,7 +2334,7 @@ private fun CollapsedSidebarPill(
                     if (blurEnabled && hazeState != null) {
                         Modifier.hazeEffect(state = hazeState) {
                             blurRadius = 24.dp
-                            inputScale = HazeInputScale.Fixed(0.66f)
+                            inputScale = HazeInputScale.Fixed(SIDEBAR_BLUR_INPUT_SCALE)
                         }
                     } else {
                         Modifier
