@@ -62,6 +62,9 @@ struct PlayRequest: Identifiable {
 @MainActor
 final class PlaybackController: ObservableObject {
     let player = AVPlayer()
+    let mpv = MPVEngine()
+    @Published var usingMPV = false
+    private var triedMPV = Set<Int>()
     @Published var failedAll = false
     @Published var request: PlayRequest
     @Published var activeIndex = 0
@@ -97,8 +100,10 @@ final class PlaybackController: ObservableObject {
         sleepTicker = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
+                self.syncFromMPV()
                 if SleepTimer.shared.consumeExpired() {
                     self.player.pause()
+                    if self.usingMPV { self.mpv.pause() }
                     self.sleptMessage = true
                 }
             }
@@ -114,6 +119,7 @@ final class PlaybackController: ObservableObject {
         timeObserver = nil
         player.pause()
         player.replaceCurrentItem(with: nil)
+        mpv.stop()
         cancellables.removeAll()
     }
 
@@ -123,7 +129,14 @@ final class PlaybackController: ObservableObject {
         load(at: i)
     }
 
+    private func syncFromMPV() {
+        guard usingMPV else { return }
+        if mpv.position.isFinite, mpv.position > 0 { lastSeconds = mpv.position }
+        if mpv.duration.isFinite, mpv.duration > 0 { lastDuration = mpv.duration }
+    }
+
     private func finishRecording(completed: Bool) {
+        syncFromMPV()
         guard !request.isLive, lastSeconds > 5 else { return }
         let done = completed || (lastDuration > 0 && lastSeconds / lastDuration > 0.92)
         onProgress?(request, lastSeconds, done)
@@ -138,6 +151,29 @@ final class PlaybackController: ObservableObject {
         activeIndex = i
         failedAll = false
         cancellables.removeAll()
+        let stream = request.candidates[i]
+        let hint = (stream.behaviorHints?.filename ?? url.lastPathComponent).lowercased()
+        let mpvOnly = ["mkv", "avi", "webm", "flv", "wmv", "ts", "m2ts", "mpg", "mpeg"].contains((hint as NSString).pathExtension)
+        if mpvOnly || triedMPV.contains(i) {
+            player.pause()
+            player.replaceCurrentItem(with: nil)
+            usingMPV = true
+            mpv.onLoaded = { [weak self] in
+                guard let self else { return }
+                self.timeout?.cancel()
+                self.mpv.play()
+                self.onPlayed?(self.request, self.request.candidates[self.index])
+            }
+            mpv.onFailed = { [weak self] in self?.failover() }
+            mpv.onEnded = { [weak self] in self?.ended() }
+            mpv.load(url: url.absoluteString, headers: request.headers)
+            armTimeout()
+            return
+        }
+        if usingMPV {
+            mpv.stop()
+            usingMPV = false
+        }
         let asset: AVURLAsset
         if request.headers.isEmpty {
             asset = AVURLAsset(url: url)
@@ -167,6 +203,10 @@ final class PlaybackController: ObservableObject {
             .sink { [weak self] _ in self?.ended() }
             .store(in: &cancellables)
         player.replaceCurrentItem(with: item)
+        armTimeout()
+    }
+
+    private func armTimeout() {
         timeout?.cancel()
         let seconds = UInt64(max(settings.startupTimeout, 5)) * 1_000_000_000
         timeout = Task { [weak self] in
@@ -176,7 +216,17 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// A failed AVPlayer source is retried once with mpv, which opens far more formats, before moving on.
     private func failover() {
+        if !usingMPV, !triedMPV.contains(index) {
+            triedMPV.insert(index)
+            load(at: index)
+            return
+        }
+        nextSource()
+    }
+
+    private func nextSource() {
         guard settings.failoverEnabled, switches < settings.maxSwitches else { failedAll = true; return }
         let failedURL = request.candidates[index].url
         var next = index + 1
@@ -198,6 +248,7 @@ final class PlaybackController: ObservableObject {
         Task {
             if let next = await provider() {
                 request = next
+                triedMPV.removeAll()
                 switches = 0
                 lastSeconds = 0
                 lastDuration = 0
@@ -264,8 +315,12 @@ struct PlayerScreen: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            PlayerViewControllerRepresentable(player: controller.player, controller: controller, sleep: sleep)
-                .ignoresSafeArea()
+            if controller.usingMPV {
+                MPVPlayerLayer(controller: controller, sleep: sleep)
+            } else {
+                PlayerViewControllerRepresentable(player: controller.player, controller: controller, sleep: sleep)
+                    .ignoresSafeArea()
+            }
             if controller.failedAll {
                 VStack(spacing: 20) {
                     Text("None of the available sources would play.")
@@ -281,6 +336,7 @@ struct PlayerScreen: View {
                     Button("Keep watching") {
                         controller.sleptMessage = false
                         controller.player.play()
+                        if controller.usingMPV { controller.mpv.play() }
                     }
                 }
                 .padding(40)
@@ -297,5 +353,55 @@ struct PlayerScreen: View {
             controller.start()
         }
         .onDisappear { controller.stop() }
+    }
+}
+
+/// Controls for mpv playback: select pauses, left and right skip, up opens the quality and sleep menus.
+struct MPVPlayerLayer: View {
+    @ObservedObject var controller: PlaybackController
+    @ObservedObject var sleep: SleepTimer
+    @State private var showMenu = false
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            MPVSurface(engine: controller.mpv).ignoresSafeArea()
+            if showMenu {
+                HStack(spacing: 30) {
+                    if controller.request.candidates.count > 1 {
+                        Menu("Quality") {
+                            ForEach(Array(controller.request.candidates.prefix(25).enumerated()), id: \.offset) { i, s in
+                                Button("\(s.label) \(s.addonName ?? "")") { controller.choose(index: i) }
+                            }
+                        }
+                    }
+                    if !controller.request.isLive {
+                        Menu(sleep.label) {
+                            Button("Off") { SleepTimer.shared.cancel() }
+                            ForEach(SleepTimer.minuteOptions, id: \.self) { m in
+                                Button("\(m) minutes") { SleepTimer.shared.start(minutes: m) }
+                            }
+                            Button("End of episode") { SleepTimer.shared.endOfEpisode() }
+                        }
+                    }
+                    Button("Back 10s") { controller.mpv.seek(by: -10) }
+                    Button("Forward 30s") { controller.mpv.seek(by: 30) }
+                    Button("Hide") { showMenu = false }
+                }
+                .padding(30)
+                .glass()
+                .padding(60)
+            }
+        }
+        .focusable(!showMenu)
+        .onPlayPauseCommand { controller.mpv.togglePause() }
+        .onTapGesture { controller.mpv.togglePause() }
+        .onMoveCommand { direction in
+            switch direction {
+            case .left: controller.mpv.seek(by: -10)
+            case .right: controller.mpv.seek(by: 30)
+            case .up: showMenu = true
+            default: break
+            }
+        }
     }
 }
