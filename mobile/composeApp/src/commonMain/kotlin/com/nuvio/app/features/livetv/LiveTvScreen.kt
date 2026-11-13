@@ -104,6 +104,12 @@ fun LiveTvScreen(
         LiveTvController.visibleChannels(state, query, selection)
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
+    var firstGroupChosen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.groups, state.usingDefault) {
+        if (firstGroupChosen || state.groups.isEmpty()) return@LaunchedEffect
+        firstGroupChosen = true
+        LiveTvController.preferredGroup(state, liveTvCountryCode())?.let { selection = it }
+    }
 
     NuvioScreen(modifier = modifier) {
         item(key = "header") {
@@ -125,7 +131,8 @@ fun LiveTvScreen(
             !state.ready -> item(key = "starting") { LoadingRow() }
             showForm -> item(key = "form") {
                 SourceForm(
-                    current = state.source,
+                    current = state.source.takeUnless { state.usingDefault },
+                    canCancel = state.source != null,
                     onSave = { source ->
                         editingSource = false
                         controller.setSource(source)
@@ -244,6 +251,7 @@ private fun LoadingRow() {
 @Composable
 private fun SourceForm(
     current: LiveSource?,
+    canCancel: Boolean,
     onSave: (LiveSource) -> Unit,
     onCancel: () -> Unit,
     onRemove: () -> Unit,
@@ -324,11 +332,11 @@ private fun SourceForm(
                 )
             },
         )
-        if (current != null) {
+        if (canCancel) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = onCancel) { Text(stringResource(Res.string.live_tv_cancel)) }
-                TextButton(onClick = onRemove) {
-                    Text(stringResource(Res.string.live_tv_remove), color = MaterialTheme.colorScheme.error)
+                if (current != null) {
+                    TextButton(onClick = onRemove) { Text(stringResource(Res.string.live_tv_remove)) }
                 }
             }
         }
