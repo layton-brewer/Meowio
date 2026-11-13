@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -86,9 +89,16 @@ fun LiveTvScreen(
     val controller = viewModel.controller
     val state by controller.state.collectAsState()
     var editingSource by rememberSaveable { mutableStateOf(false) }
+    // Switching between the channel list and the source form removes the focused button, so the
+    // new view takes focus itself once this count goes above zero.
+    var focusHandoff by remember { mutableIntStateOf(0) }
+    val toggleEditing = { editing: Boolean ->
+        editingSource = editing
+        focusHandoff++
+    }
 
     LaunchedEffect(controller) { controller.ensureChannels() }
-    BackHandler(enabled = editingSource && state.source != null) { editingSource = false }
+    BackHandler(enabled = editingSource && state.source != null) { toggleEditing(false) }
 
     Column(
         modifier = Modifier
@@ -112,20 +122,22 @@ fun LiveTvScreen(
             state.source == null || editingSource -> SourceForm(
                 current = state.source.takeUnless { state.usingDefault },
                 canCancel = state.source != null,
+                focusHandoff = focusHandoff,
                 onSave = { source ->
-                    editingSource = false
+                    toggleEditing(false)
                     controller.setSource(source)
                 },
-                onCancel = { editingSource = false },
+                onCancel = { toggleEditing(false) },
                 onRemove = {
-                    editingSource = false
+                    toggleEditing(false)
                     controller.removeSource()
                 }
             )
             else -> ChannelBrowser(
                 state = state,
                 controller = controller,
-                onEditSource = { editingSource = true },
+                focusHandoff = focusHandoff,
+                onEditSource = { toggleEditing(true) },
                 onPlayChannel = { channel ->
                     controller.markWatched(channel.id)
                     onPlayChannel(channel)
@@ -154,6 +166,7 @@ private fun CenteredLoading() {
 private fun SourceForm(
     current: LiveSource?,
     canCancel: Boolean,
+    focusHandoff: Int,
     onSave: (LiveSource) -> Unit,
     onCancel: () -> Unit,
     onRemove: () -> Unit
@@ -163,6 +176,10 @@ private fun SourceForm(
     var username by rememberSaveable { mutableStateOf(current?.username.orEmpty()) }
     var password by rememberSaveable { mutableStateOf(current?.password.orEmpty()) }
     var guideUrl by rememberSaveable { mutableStateOf(current?.guideUrl.orEmpty()) }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(focusHandoff) {
+        if (focusHandoff > 0) runCatching { firstFocus.requestFocus() }
+    }
     val canSave = url.isNotBlank() &&
         (type == LiveSourceType.M3U || (username.isNotBlank() && password.isNotBlank()))
 
@@ -187,7 +204,8 @@ private fun SourceForm(
             PillButton(
                 label = stringResource(R.string.live_tv_type_m3u),
                 selected = type == LiveSourceType.M3U,
-                onClick = { type = LiveSourceType.M3U }
+                onClick = { type = LiveSourceType.M3U },
+                modifier = Modifier.focusRequester(firstFocus)
             )
             PillButton(
                 label = stringResource(R.string.live_tv_type_xtream),
@@ -244,6 +262,7 @@ private fun SourceForm(
 private fun ChannelBrowser(
     state: LiveTvState,
     controller: LiveTvController,
+    focusHandoff: Int,
     onEditSource: () -> Unit,
     onPlayChannel: (LiveChannel) -> Unit
 ) {
@@ -251,6 +270,10 @@ private fun ChannelBrowser(
     var selection by rememberSaveable { mutableStateOf(LiveTvSelection.ALL) }
     val channels = remember(state.channels, state.favorites, state.recent, state.offline, query, selection) {
         LiveTvController.visibleChannels(state, query, selection)
+    }
+    val firstFocus = remember { FocusRequester() }
+    LaunchedEffect(focusHandoff) {
+        if (focusHandoff > 0) runCatching { firstFocus.requestFocus() }
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
     LaunchedEffect(selection, state.channels) {
@@ -287,7 +310,8 @@ private fun ChannelBrowser(
                 PillButton(
                     label = stringResource(R.string.live_tv_all),
                     selected = selection == LiveTvSelection.ALL,
-                    onClick = { selection = LiveTvSelection.ALL }
+                    onClick = { selection = LiveTvSelection.ALL },
+                    modifier = Modifier.focusRequester(firstFocus)
                 )
             }
             item(key = "favorites") {
@@ -475,11 +499,13 @@ private fun PillButton(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
         enabled = enabled,
+        modifier = modifier,
         colors = ButtonDefaults.colors(
             containerColor = if (selected) NuvioTheme.colors.Secondary else NuvioTheme.colors.BackgroundCard,
             focusedContainerColor = NuvioTheme.colors.SecondaryVariant,
