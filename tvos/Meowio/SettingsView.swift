@@ -298,9 +298,9 @@ struct AiAssistantView: View {
             picks = try await AiClient.ask(prompt: prompt, key: settings.aiKey, model: settings.aiModel,
                                            watched: Array(watched.prefix(25)), saved: Array(saved.prefix(25)))
         } catch let f as AiClient.Failure {
-            error = AiClient.message(f)
+            self.error = AiClient.message(f)
         } catch {
-            error = AiClient.message(.unexpected)
+            self.error = AiClient.message(.unexpected)
         }
         busy = false
     }
