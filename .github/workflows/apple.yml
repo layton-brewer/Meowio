@@ -71,9 +71,62 @@ jobs:
           path: mobile/build/ios-ipa/Meowio-ios.ipa
           retention-days: 14
 
+  macos:
+    name: Build macOS DMG (unsigned, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Fetch desktop sources
+        run: |
+          brew install git-lfs || true
+          git lfs install
+          git clone --depth 1 https://github.com/NuvioMedia/NuvioDesktop.git desktop
+          cd desktop
+          git lfs pull --include="composeApp/src/desktopMain/native/macos/runtime/${{ matrix.arch }}/**" --exclude=""
+
+      - name: Apply Meowio branding and overlay
+        run: ./apple/macos/apply-overlay.sh desktop
+
+      - name: Build DMG
+        working-directory: desktop
+        run: |
+          printf 'NUVIO_SUPABASE_URL=\nNUVIO_SUPABASE_ANON_KEY=\nTRAKT_CLIENT_ID=\nTRAKT_CLIENT_SECRET=\nMDBLIST_CLIENT_ID=\n' > local.properties
+          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} --no-daemon --no-configuration-cache --max-workers=2
+          find composeApp/build -name "*.dmg"
+
+      - name: Collect DMG
+        run: |
+          mkdir -p out
+          dmg="$(find desktop/composeApp/build -name '*.dmg' | head -n 1)"
+          cp "$dmg" "out/Meowio-macos-${{ matrix.arch }}.dmg"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-macos-${{ matrix.arch }}
+          path: out/*.dmg
+          retention-days: 14
+
   publish:
     name: Publish Apple release
-    needs: [ios]
+    needs: [ios, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
