@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Toc
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -74,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.LayoutDirection
 import com.nuvio.app.core.ui.AppIconResource
-import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.themePalette
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.appIconPainter
@@ -548,13 +548,16 @@ private fun PlayerHeader(
                             onClick = onVideoSettingsClick,
                         )
                     }
-                    NuvioBackButton(
-                        onClick = onBack,
-                        containerColor = Color(0xFF242428).copy(alpha = 0.58f),
-                        contentColor = Color.White,
+                    // Use the same header icon button as the siblings above so the
+                    // close control always renders and is tappable. NuvioBackButton
+                    // self-suppresses under native OS navigation, which could leave
+                    // the player with no working back button on gesture-nav phones.
+                    PlayerHeaderIconButton(
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(Res.string.compose_player_close),
                         buttonSize = metrics.headerIconSize + 16.dp,
                         iconSize = metrics.headerIconSize,
-                        contentDescription = stringResource(Res.string.compose_player_close),
+                        onClick = onBack,
                     )
                 }
             }
