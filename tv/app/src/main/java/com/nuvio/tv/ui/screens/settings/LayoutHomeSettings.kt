@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -241,6 +242,20 @@ internal fun LayoutSidebarSection(
         selectedLocation = uiState.discoverLocation,
         rememberedLocation = uiState.lastNonOffDiscoverLocation,
         onLocationSelected = { location -> onEvent(LayoutSettingsEvent.SetDiscoverLocation(location)) }
+    )
+    LiveTvTabToggleRow()
+}
+
+@Composable
+private fun LiveTvTabToggleRow(
+    viewModel: com.nuvio.tv.ui.screens.livetv.LiveTvViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+) {
+    val state by viewModel.controller.state.collectAsState()
+    SettingsToggleRow(
+        title = stringResource(R.string.live_tv_show_tab),
+        subtitle = stringResource(R.string.live_tv_show_tab_sub),
+        checked = state.tabVisible,
+        onToggle = { viewModel.controller.setTabVisible(!state.tabVisible) }
     )
 }
 

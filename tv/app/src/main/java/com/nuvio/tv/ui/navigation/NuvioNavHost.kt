@@ -1261,6 +1261,27 @@ private fun PlaybackNavHost(
             )
         }
 
+        rootComposable(Screen.LiveTv.route) {
+            com.nuvio.tv.ui.screens.livetv.LiveTvScreen(
+                showBuiltInHeader = !hideBuiltInHeaders,
+                onPlayChannel = { channel ->
+                    navController.navigate(
+                        Screen.Player.createRoute(
+                            streamUrl = channel.url,
+                            title = channel.name,
+                            streamName = channel.name,
+                            headers = channel.headers.ifEmpty { null },
+                            // "channel" switches the player to its live layout. Leaving the ids
+                            // empty keeps live channels out of watch history and scrobbling.
+                            contentType = "channel",
+                            contentName = channel.name,
+                            logo = channel.logo
+                        )
+                    )
+                }
+            )
+        }
+
         rootComposable(Screen.Library.route) {
             LibraryScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
