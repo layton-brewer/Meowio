@@ -51,6 +51,7 @@ import com.nuvio.app.core.ui.NuvioSurfaceCard
 import com.nuvio.app.core.ui.PlatformBackHandler
 import kotlinx.coroutines.delay
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.live_tv_not_responding
 import nuvio.composeapp.generated.resources.app_brand_name
 import nuvio.composeapp.generated.resources.live_tv_all
 import nuvio.composeapp.generated.resources.live_tv_cancel
@@ -100,10 +101,17 @@ fun LiveTvScreen(
     PlatformBackHandler(enabled = editingSource && state.source != null) { editingSource = false }
 
     val showForm = state.ready && (state.source == null || editingSource)
-    val channels = remember(state.channels, state.favorites, state.recent, query, selection) {
+    val channels = remember(state.channels, state.favorites, state.recent, state.offline, query, selection) {
         LiveTvController.visibleChannels(state, query, selection)
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
+    LaunchedEffect(selection, state.channels) {
+        val group = selection
+        if (group != LiveTvSelection.ALL && group != LiveTvSelection.FAVORITES && group != LiveTvSelection.RECENT) {
+            controller.requestGroupGuide(group)
+            controller.requestGroupCheck(group)
+        }
+    }
     var firstGroupChosen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.groups, state.usingDefault) {
         if (firstGroupChosen || state.groups.isEmpty()) return@LaunchedEffect
@@ -217,7 +225,11 @@ fun LiveTvScreen(
                         ChannelRow(
                             channel = channel,
                             favorite = channel.id in state.favorites,
-                            nowTitle = LiveTvController.nowTitle(state, channel),
+                            nowTitle = if (LiveTvController.isOffline(state, channel)) {
+                                stringResource(Res.string.live_tv_not_responding)
+                            } else {
+                                LiveTvController.nowTitle(state, channel)
+                            },
                             nextTitle = LiveTvController.nextTitle(state, channel),
                             onClick = {
                                 controller.markWatched(channel.id)

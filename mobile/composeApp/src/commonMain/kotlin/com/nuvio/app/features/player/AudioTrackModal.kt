@@ -45,6 +45,13 @@ import nuvio.composeapp.generated.resources.compose_player_no_audio_tracks_avail
 import nuvio.composeapp.generated.resources.compose_player_reset
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import nuvio.composeapp.generated.resources.player_quality
+import nuvio.composeapp.generated.resources.player_quality_auto
 
 private const val AUDIO_DELAY_HOLD_STEP_MS = 50
 private const val AUDIO_DELAY_HOLD_FAST_STEP_MS = 100
@@ -70,6 +77,8 @@ fun AudioTrackModal(
     showCenterMix: Boolean = false,
     centerMixLevelDb: Int = 0,
     onCenterMixLevelChanged: (Int) -> Unit = {},
+    videoQualityHeights: List<Int> = emptyList(),
+    onVideoQualityCap: (Int?) -> Unit = {},
 ) {
     PlayerOverlayScaffold(
         visible = visible,
@@ -115,6 +124,9 @@ fun AudioTrackModal(
                     modifier = columnModifier,
                     verticalArrangement = Arrangement.Bottom,
                 ) {
+                    if (videoQualityHeights.isNotEmpty()) {
+                        VideoQualitySection(heights = videoQualityHeights, onCap = onVideoQualityCap)
+                    }
                     AudioTracksHeader()
                     if (audioTracks.isEmpty()) {
                         NoAudioTracksText()
@@ -438,6 +450,41 @@ private fun AudioTrackRow(
                     .padding(start = 8.dp)
                     .size(20.dp),
             )
+        }
+    }
+}
+
+/** Lets the viewer hold an adaptive stream to a resolution. Shown only when there is a choice. */
+@Composable
+private fun VideoQualitySection(heights: List<Int>, onCap: (Int?) -> Unit) {
+    // -1 stands for automatic, which is where every stream starts.
+    var selected by rememberSaveable(heights) { mutableStateOf(-1) }
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Text(
+            text = stringResource(Res.string.player_quality),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+        )
+        Row(
+            modifier = Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            (listOf(-1) + heights).forEach { height ->
+                val isSelected = height == selected
+                Text(
+                    text = if (height < 0) stringResource(Res.string.player_quality_auto) else "${height}p",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) Color.Black else Color.White,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(if (isSelected) Color.White else Color.White.copy(alpha = 0.14f))
+                        .clickable {
+                            selected = height
+                            onCap(height.takeIf { it > 0 })
+                        }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

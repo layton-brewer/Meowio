@@ -622,6 +622,8 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         onNextEpisodeAutoPlayCountdownChanged = { nextEpisodeAutoPlayCountdown = it },
         onNextEpisodeAutoPlaySourceNameChanged = { nextEpisodeAutoPlaySourceName = it },
         showAudioModal = showAudioModal,
+        videoQualityHeights = if (showAudioModal) playerController?.getVideoQualityHeights().orEmpty() else emptyList(),
+        onVideoQualityCap = { height -> playerController?.setVideoQualityCap(height) },
         audioTracks = serverAudioTracks.ifEmpty { audioTracks },
         selectedAudioIndex = serverAudioTracks.firstOrNull { it.isSelected }?.index ?: selectedAudioIndex,
         onAudioTrackSelected = { index ->
