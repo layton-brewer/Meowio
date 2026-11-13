@@ -4,7 +4,9 @@ on:
   push:
     branches: [main, claude/apple-builds]
     paths:
-      - "mobile/**"
+      - "mobile/iosApp/**"
+      - "mobile/composeApp/src/iosMain/**"
+      - "mobile/composeApp/src/iosFull/**"
       - "tvos/**"
       - "apple/**"
       - ".github/workflows/apple.yml"
@@ -33,12 +35,13 @@ jobs:
     needs: [release]
     name: Build iOS IPA (unsigned)
     runs-on: macos-26
-    timeout-minutes: 120
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: mobile
     env:
       GRADLE_OPTS: -Dfile.encoding=UTF-8
+      IOS_CONFIGURATION: Debug
       NUVIO_GRADLE_JVMARGS: -Xmx4608M -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=768M
       NUVIO_KOTLIN_NATIVE_JVMARGS: -Xmx4608M
     steps:
