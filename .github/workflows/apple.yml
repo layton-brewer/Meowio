@@ -1,0 +1,91 @@
+name: Apple builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/apple.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apple
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: Build iOS IPA (unsigned)
+    runs-on: macos-26
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      GRADLE_OPTS: -Dfile.encoding=UTF-8
+      NUVIO_GRADLE_JVMARGS: -Xmx4608M -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=768M
+      NUVIO_KOTLIN_NATIVE_JVMARGS: -Xmx4608M
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Kotlin Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('mobile/gradle/libs.versions.toml') }}
+          restore-keys: konan-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Fetch MPVKit
+        run: |
+          git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+
+      - name: Prepare iOS dependencies
+        run: ./scripts/prepare-ios-dependencies.sh
+
+      - name: Build unsigned IPA
+        run: ./scripts/build-ios-ipa.sh
+
+      - name: Rename IPA
+        run: |
+          ipa="$(ls build/ios-ipa/*.ipa | head -n 1)"
+          mv "$ipa" build/ios-ipa/Meowio-ios.ipa
+          shasum -a 256 build/ios-ipa/Meowio-ios.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-ios
+          path: mobile/build/ios-ipa/Meowio-ios.ipa
+          retention-days: 14
+
+  publish:
+    name: Publish Apple release
+    needs: [ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish rolling release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la dist
+          tag=apple-latest
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Meowio for Apple (iOS, macOS, tvOS)" --notes "Unsigned builds for sideloading. See the README for install steps." --prerelease
+          gh release upload "$tag" dist/* --clobber
