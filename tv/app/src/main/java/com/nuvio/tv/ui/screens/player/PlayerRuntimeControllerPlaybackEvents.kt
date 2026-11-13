@@ -2137,6 +2137,24 @@ fun PlayerRuntimeController.onEvent(
                 _uiState.update { it.copy(showAspectRatioIndicator = false) }
             }
         }
+        PlayerEvent.OnCycleVideoQuality -> {
+            if (_uiState.value.videoQualityHeights.isNotEmpty()) {
+                val cap = cycleVideoQuality()
+                val label = if (cap == null) {
+                    context.getString(com.nuvio.tv.R.string.player_quality_auto)
+                } else {
+                    context.getString(com.nuvio.tv.R.string.player_quality_value, cap)
+                }
+                _uiState.update {
+                    it.copy(showAspectRatioIndicator = true, aspectRatioIndicatorText = label)
+                }
+                hideAspectRatioIndicatorJob?.cancel()
+                hideAspectRatioIndicatorJob = scope.launch {
+                    delay(1500)
+                    _uiState.update { it.copy(showAspectRatioIndicator = false) }
+                }
+            }
+        }
         PlayerEvent.OnSwitchInternalPlayerEngine -> {
             logSwitchTrace(
                 stage = "event-switch-engine",

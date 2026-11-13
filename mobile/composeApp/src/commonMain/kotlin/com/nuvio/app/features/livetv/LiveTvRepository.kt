@@ -24,8 +24,13 @@ object LiveTvRepository {
 
     val controller = LiveTvController(
         storage = storage,
-        loader = LiveTvLoader(fetchText = ::fetchText, nowMs = { Clock.System.now().toEpochMilliseconds() }),
+        loader = LiveTvLoader(
+            fetchText = ::fetchText,
+            nowMs = { Clock.System.now().toEpochMilliseconds() },
+            streamText = ::liveTvStreamText,
+        ),
         scope = scope,
+        probe = { channel -> liveTvStreamAnswers(channel.url, channel.headers) },
     )
 
     fun ensureLoaded() = controller.start()

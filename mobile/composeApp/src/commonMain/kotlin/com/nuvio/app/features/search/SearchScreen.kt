@@ -131,6 +131,14 @@ fun SearchScreen(
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     var query by rememberSaveable { mutableStateOf("") }
     var lastRequestedQuery by rememberSaveable { mutableStateOf<String?>(null) }
+    // A title picked in the AI assistant arrives here to be searched for.
+    val assistantTitle by com.nuvio.app.features.ai.AiSearchHandoff.pendingTitle.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(assistantTitle) {
+        assistantTitle?.let { title ->
+            com.nuvio.app.features.ai.AiSearchHandoff.pendingTitle.value = null
+            query = title
+        }
+    }
     var observedOfflineState by remember { mutableStateOf(false) }
     val discoverInFocus by remember(query, listState) {
         derivedStateOf {
