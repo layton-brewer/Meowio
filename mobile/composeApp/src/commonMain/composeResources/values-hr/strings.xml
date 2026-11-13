@@ -1731,7 +1731,7 @@
     <string name="updates_debug_test_title">Testiraj natpis ažuriranja</string>
     <string name="updates_install_failed">Nije moguće pokrenuti instalaciju</string>
     <string name="updates_latest_version">Koristite najnoviju verziju.</string>
-    <string name="updates_message_allow_installs">Omogućite instalaciju aplikacija za Nuvio, zatim se vratite i nastavite.</string>
+    <string name="updates_message_allow_installs">Omogućite instalaciju aplikacija za Meowio, zatim se vratite i nastavite.</string>
     <string name="updates_message_downloading">Preuzimanje ažuriranja...</string>
     <string name="updates_message_no_updates">Nema pronađenih ažuriranja.</string>
     <string name="updates_message_ready">Nova verzija je spremna za instalaciju.</string>

@@ -1596,7 +1596,7 @@
     <string name="updates_debug_test_title">Баннер тестового обновления</string>
     <string name="updates_install_failed">Невозможно начать установку</string>
     <string name="updates_latest_version">Вы используете последнюю версию.</string>
-    <string name="updates_message_allow_installs">Включите установку приложений для Nuvio, затем вернитесь и продолжите.</string>
+    <string name="updates_message_allow_installs">Включите установку приложений для Meowio, затем вернитесь и продолжите.</string>
     <string name="updates_message_downloading">Загрузка обновления...</string>
     <string name="updates_message_no_updates">Обновлений не найдено.</string>
     <string name="updates_message_ready">Новая версия готова к установке.</string>
