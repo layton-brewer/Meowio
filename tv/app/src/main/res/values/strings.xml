@@ -2499,6 +2499,15 @@
     <string name="nav_home">Home</string>
     <string name="nav_discover">Discover</string>
     <string name="nav_search">Search</string>
+    <string name="backup_title">Backup and restore</string>
+    <string name="backup_open">Back up or restore settings</string>
+    <string name="backup_open_sub">Save this profile\'s settings, add-ons and collections to your phone or computer, or bring them back.</string>
+    <string name="backup_qr">Scan with your phone to save a backup or restore one</string>
+    <string name="backup_web_intro">Download a backup of this TV\'s settings, add-ons and collections, or choose a backup file to restore. Logins and API keys are not included.</string>
+    <string name="backup_web_download">Download backup</string>
+    <string name="backup_web_restore">Restore from a file</string>
+    <string name="backup_restored">Backup restored</string>
+    <string name="backup_restore_failed">That file is not a backup from this app</string>
     <string name="nav_live_tv">Live TV</string>
     <string name="live_tv_setup_title">Use your own channels</string>
     <string name="live_tv_setup_body">%1$s comes with free public channels. Enter a playlist link or an Xtream login from your TV provider to use those instead.</string>
