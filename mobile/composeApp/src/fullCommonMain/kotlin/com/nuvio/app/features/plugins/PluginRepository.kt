@@ -177,7 +177,9 @@ actual object PluginRepository {
     actual suspend fun addRepository(rawUrl: String): AddPluginRepositoryResult {
         initialize()
         val manifestUrl = try {
-            normalizeManifestUrl(rawUrl)
+            // A CloudStream repository is kept at the address as given; Nuvio ones end in /manifest.json.
+            val asGiven = normalizeScheme(rawUrl)
+            if (CloudStreamBridge.isRepository(asGiven)) asGiven else normalizeManifestUrl(rawUrl)
         } catch (error: IllegalArgumentException) {
             return AddPluginRepositoryResult.Error(error.message ?: getString(Res.string.plugins_error_enter_valid_url))
         }
@@ -376,6 +378,12 @@ actual object PluginRepository {
             mediaType = mediaType,
         )
 
+        if (scraper.isCloudStream()) {
+            return runCatching {
+                CloudStreamBridge.execute(scraper, resolvedTmdbId, normalizePluginType(mediaType), season, episode)
+            }
+        }
+
         return runCatching {
             PluginRuntime.executePlugin(
                 code = scraper.code,
@@ -407,6 +415,9 @@ actual object PluginRepository {
         previousScrapers: Map<String, PluginScraper>,
     ): Pair<PluginRepositoryItem, List<PluginScraper>> {
         val storageProfileId = currentProfileId
+        if (!manifestUrl.substringBefore("?").endsWith("/manifest.json")) {
+            CloudStreamBridge.loadRepository(manifestUrl, previousScrapers)?.let { return it }
+        }
         return withContext(Dispatchers.Default) {
             val payload = httpGetText(manifestUrl)
             val manifest = PluginManifestParser.parse(payload)
@@ -642,6 +653,13 @@ actual object PluginRepository {
         val query = url.substringAfter("?", "")
         val withSuffix = if (path.endsWith("/manifest.json")) path else "$path/manifest.json"
         return if (query.isEmpty()) withSuffix else "$withSuffix?$query"
+    }
+
+    private fun normalizeScheme(rawUrl: String): String {
+        val trimmed = rawUrl.trim()
+        require(trimmed.isNotEmpty()) { runBlocking { getString(Res.string.plugins_error_enter_repo_url) } }
+        val withScheme = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
+        return withScheme.substringBefore("#")
     }
 
     private fun normalizeManifestUrl(rawUrl: String): String {
