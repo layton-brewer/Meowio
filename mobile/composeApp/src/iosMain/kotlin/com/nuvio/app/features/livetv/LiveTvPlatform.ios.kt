@@ -2,6 +2,7 @@ package com.nuvio.app.features.livetv
 
 import com.nuvio.app.core.storage.ProfileScopedKey
 import platform.Foundation.NSLocale
+import platform.Foundation.NSLocaleCountryCode
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.currentLocale
 
@@ -23,7 +24,7 @@ internal actual object LiveTvPlatformStorage {
 internal actual fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray? = null
 
 internal actual fun liveTvCountryCode(): String? =
-    NSLocale.currentLocale.countryCode
+    NSLocale.currentLocale.objectForKey(NSLocaleCountryCode) as? String
 
 internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean = false
 
