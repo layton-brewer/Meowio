@@ -54,6 +54,17 @@ Prefer to choose for yourself? Change **Stream selection** to **Manual** in the 
 
 Channel availability depends on the source and your region. Built-in Live TV does not provide an on-demand movie or series library.
 
+### More features
+
+- **CloudStream extensions on the phone:** The phone app can run CloudStream extensions as an additional source of streams. This is new and has had less testing than the rest of the app.
+- **Downloads on TV:** Save titles for offline viewing on Android TV.
+- **Quality picker:** Choose a stream quality yourself when you do not want the automatic pick.
+- **Watch stats:** See statistics about what you watch.
+- **AI assistant:** Ask for suggestions on what to watch. It uses your own API key.
+- **Settings backup and restore:** Export your settings on one device and restore them on another.
+- **More themes:** Three additional color themes on both apps.
+- **Kept up to date with Nuvio:** Meowio tracks upstream releases. The current build includes changes from NuvioTV 1.2.0-beta.1 and NuvioMobile 0.6.12-beta, with Meowio's silent failover still running before upstream's optional fallback.
+
 ### A different look and everyday controls
 
 - **Frosted-glass interface:** Translucent panels, subtle borders, and highlights across menus, dialogs, title details, episode cards, and player controls. Background blur is used where supported.
