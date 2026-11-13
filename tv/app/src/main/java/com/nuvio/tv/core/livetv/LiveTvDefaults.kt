@@ -9,16 +9,38 @@ object LiveTvDefaults {
 
     val source = LiveSource(type = LiveSourceType.M3U, url = PLAYLIST_URL)
 
-    private val groupByCountry = mapOf(
-        "US" to "USA", "GB" to "UK", "CA" to "Canada", "AU" to "Australia", "IE" to "Ireland",
-        "DE" to "Germany", "FR" to "France", "ES" to "Spain", "IT" to "Italy", "PL" to "Poland",
-        "NL" to "Netherlands", "BE" to "Belgium", "AT" to "Austria", "CH" to "Switzerland",
-        "SE" to "Sweden", "NO" to "Norway", "DK" to "Denmark", "FI" to "Finland", "PT" to "Portugal",
-        "BR" to "Brazil", "MX" to "Mexico", "AR" to "Argentina", "CL" to "Chile", "IN" to "India",
-        "JP" to "日本 / Japan", "KR" to "Korea", "CN" to "China", "TR" to "Turkey", "GR" to "Greece",
-        "RU" to "Russia", "UA" to "Ukraine", "HU" to "Hungary", "CZ" to "Czech Republic", "RO" to "Romania",
+    /** Group name in the built-in list to the country tag its guide files are named with. */
+    private val guideTagByGroup = mapOf(
+        "USA" to "US", "UK" to "UK", "Canada" to "CA", "Australia" to "AU", "Ireland" to "IE",
+        "Germany" to "DE", "France" to "FR", "Spain" to "ES", "Italy" to "IT", "Poland" to "PL",
+        "Netherlands" to "NL", "Belgium" to "BE", "Austria" to "AT", "Switzerland" to "CH",
+        "Sweden" to "SE", "Norway" to "NO", "Denmark" to "DK", "Finland" to "FI", "Portugal" to "PT",
+        "Brazil" to "BR", "Mexico" to "MX", "Argentina" to "AR", "Chile" to "CL", "India" to "IN",
+        "日本 / Japan" to "JP", "Korea" to "KR", "Turkey" to "TR", "Greece" to "GR", "Hungary" to "HU",
+        "Czech Republic" to "CZ", "Romania" to "RO", "Croatia" to "HR", "Albania" to "AL",
+        "Bosnia and Herzegovina" to "BA", "Saudi Arabia" to "SA", "Nigeria" to "NG", "Egypt" to "EG",
+        "Lithuania" to "LT", "Latvia" to "LV", "Serbia" to "RS", "Slovakia" to "SK", "Israel" to "IL",
+        "Peru" to "PE", "Cyprus" to "CY", "Costa Rica" to "CR", "Bulgaria" to "BG", "Kenya" to "KE",
+        "Hong Kong" to "HK", "Malta" to "MT", "Indonesia" to "ID", "Dominican Republic" to "DO",
     )
 
+    /** Groups without a guide file that still deserve to open first in their country. */
+    private val extraGroupByCountry = mapOf("CN" to "China", "RU" to "Russia", "UA" to "Ukraine")
+
     /** The built-in list's group for a two-letter country code, or null when it has none. */
-    fun groupForCountry(countryCode: String?): String? = groupByCountry[countryCode?.trim()?.uppercase()]
+    fun groupForCountry(countryCode: String?): String? {
+        val code = countryCode?.trim()?.uppercase() ?: return null
+        val tag = if (code == "GB") "UK" else code
+        return guideTagByGroup.entries.firstOrNull { it.value == tag }?.key ?: extraGroupByCountry[code]
+    }
+
+    /**
+     * The guide file for [group] among the many a worldwide playlist announces. They are named
+     * by country, for example `epg_ripper_US1.xml.gz`.
+     */
+    fun guideUrlForGroup(group: String, guideUrls: List<String>): String? {
+        val tag = guideTagByGroup[group] ?: return null
+        val pattern = Regex("""_${tag}\d\.xml(\.gz)?$""")
+        return guideUrls.firstOrNull { pattern.containsMatchIn(it.substringBefore('?')) }
+    }
 }

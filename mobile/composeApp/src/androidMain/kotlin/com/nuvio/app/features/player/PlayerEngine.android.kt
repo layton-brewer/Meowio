@@ -1037,6 +1037,25 @@ private fun ExoPlayerSurface(
                 override fun getAudioTracks(): List<AudioTrack> =
                     audioTrackCache.tracks(exoPlayer, context)
 
+                override fun getVideoQualityHeights(): List<Int> {
+                    val heights = sortedSetOf<Int>()
+                    exoPlayer.currentTracks.groups.forEach { group ->
+                        if (group.type != C.TRACK_TYPE_VIDEO) return@forEach
+                        for (i in 0 until group.length) {
+                            if (group.isTrackSupported(i)) {
+                                group.getTrackFormat(i).height.takeIf { it > 0 }?.let(heights::add)
+                            }
+                        }
+                    }
+                    return if (heights.size > 1) heights.toList().reversed() else emptyList()
+                }
+
+                override fun setVideoQualityCap(maxHeight: Int?) {
+                    exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters.buildUpon().apply {
+                        if (maxHeight == null) clearVideoSizeConstraints() else setMaxVideoSize(Int.MAX_VALUE, maxHeight)
+                    }.build()
+                }
+
                 override suspend fun getMediaInfo(): PlayerMediaInfo {
                     val video = exoPlayer.videoFormat
                     val audio = exoPlayer.audioFormat

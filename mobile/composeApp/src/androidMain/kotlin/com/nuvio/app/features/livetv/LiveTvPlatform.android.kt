@@ -48,3 +48,61 @@ internal actual fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray? {
 
 internal actual fun liveTvCountryCode(): String? =
     java.util.Locale.getDefault().country.takeIf(String::isNotBlank)
+
+internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        runCatching {
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 30_000
+            connection.readTimeout = 120_000
+            connection.instanceFollowRedirects = true
+            try {
+                if (connection.responseCode !in 200..299) return@runCatching false
+                connection.inputStream.use { raw ->
+                    val pushback = java.io.PushbackInputStream(raw, 2)
+                    val magic = ByteArray(2)
+                    val read = pushback.read(magic, 0, 2)
+                    if (read > 0) pushback.unread(magic, 0, read)
+                    val gzip = read == 2 && magic[0] == 0x1f.toByte() && magic[1] == 0x8b.toByte()
+                    val reader = (if (gzip) GZIPInputStream(pushback) else pushback).reader(Charsets.UTF_8)
+                    val buffer = CharArray(64 * 1024)
+                    var total = 0L
+                    try {
+                        while (total < 600L * 1024 * 1024) {
+                            val count = reader.read(buffer)
+                            if (count < 0) break
+                            onChunk(String(buffer, 0, count))
+                            total += count
+                        }
+                    } catch (e: IOException) {
+                        // Keep what was read from a download that was cut off.
+                        if (total == 0L) throw e
+                    }
+                }
+                true
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(false)
+    }
+
+internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String, String>): Boolean? =
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) return@withContext null
+        try {
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 6_000
+            connection.readTimeout = 6_000
+            connection.instanceFollowRedirects = true
+            headers.forEach { (name, value) -> runCatching { connection.setRequestProperty(name, value) } }
+            try {
+                connection.responseCode in 200..299
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: IOException) {
+            false
+        } catch (e: Exception) {
+            null
+        }
+    }

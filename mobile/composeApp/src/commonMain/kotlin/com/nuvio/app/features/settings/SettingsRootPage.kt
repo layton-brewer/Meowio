@@ -2,9 +2,13 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -27,6 +31,34 @@ internal fun LazyListScope.settingsRootContent(
                             isTablet = isTablet,
                             onPageClick = onPageClick,
                         )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        var showInsights by androidx.compose.runtime.saveable.rememberSaveable {
+                            androidx.compose.runtime.mutableStateOf(false)
+                        }
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.insights_title),
+                            description = stringResource(Res.string.insights_open_sub),
+                            icon = Icons.Default.Insights,
+                            isTablet = isTablet,
+                            onClick = { showInsights = true },
+                        )
+                        if (showInsights) {
+                            com.nuvio.app.features.insights.InsightsDialog(onDismiss = { showInsights = false })
+                        }
+                        SettingsGroupDivider(isTablet = isTablet)
+                        var showAssistant by androidx.compose.runtime.saveable.rememberSaveable {
+                            androidx.compose.runtime.mutableStateOf(false)
+                        }
+                        SettingsNavigationRow(
+                            title = stringResource(Res.string.ai_title),
+                            description = stringResource(Res.string.ai_open_sub),
+                            icon = Icons.Default.AutoAwesome,
+                            isTablet = isTablet,
+                            onClick = { showAssistant = true },
+                        )
+                        if (showAssistant) {
+                            com.nuvio.app.features.ai.AiAssistantDialog(onDismiss = { showAssistant = false })
+                        }
                         if (onSwitchProfileClick != null) {
                             SettingsGroupDivider(isTablet = isTablet)
                             SettingsNavigationRow(
