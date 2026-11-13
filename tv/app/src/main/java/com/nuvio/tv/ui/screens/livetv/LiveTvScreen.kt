@@ -253,6 +253,12 @@ private fun ChannelBrowser(
         LiveTvController.visibleChannels(state, query, selection)
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
+    LaunchedEffect(selection, state.channels) {
+        val group = selection
+        if (group != LiveTvSelection.ALL && group != LiveTvSelection.FAVORITES && group != LiveTvSelection.RECENT) {
+            controller.requestGroupGuide(group)
+        }
+    }
     var firstGroupChosen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.groups, state.usingDefault) {
         if (firstGroupChosen || state.groups.isEmpty()) return@LaunchedEffect

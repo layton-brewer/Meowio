@@ -61,6 +61,8 @@ class LiveTvController(
     private var loadJob: Job? = null
     private var channelsRequested = false
     private val guideRequested = HashSet<String>()
+    private val groupGuideRequested = HashSet<String>()
+    private var playlist: LivePlaylist? = null
 
     /** Reads the saved settings. Safe to call more than once. */
     fun start() {
@@ -93,6 +95,7 @@ class LiveTvController(
         loadJob = null
         channelsRequested = false
         guideRequested.clear()
+        groupGuideRequested.clear()
         _state.value = LiveTvState()
     }
 
@@ -125,6 +128,7 @@ class LiveTvController(
     fun removeSource() {
         loadJob?.cancel()
         guideRequested.clear()
+        groupGuideRequested.clear()
         _state.update {
             it.copy(
                 source = defaultSource,
@@ -172,14 +176,33 @@ class LiveTvController(
         }
     }
 
+    /**
+     * Loads the guide for one group of a worldwide playlist, such as the built-in channels, the
+     * first time that group is opened. Other playlists get their whole guide with the channels.
+     */
+    fun requestGroupGuide(group: String) {
+        val source = _state.value.source ?: return
+        val loaded = playlist ?: return
+        if (!loader.hasGuidePerGroup(source, loaded) || !groupGuideRequested.add(group)) return
+        scope.launch {
+            val guide = withContext(Dispatchers.Default) {
+                runCatching { loader.loadGroupGuide(source, loaded, group) }.getOrDefault(emptyMap())
+            }
+            if (guide.isNotEmpty() && playlist === loaded) _state.update { it.copy(guide = it.guide + guide) }
+        }
+    }
+
     private fun loadChannels() {
         val source = _state.value.source ?: return
         loadJob?.cancel()
         guideRequested.clear()
+        groupGuideRequested.clear()
+        playlist = null
         _state.update { it.copy(loading = true, error = null) }
         loadJob = scope.launch {
             try {
                 val playlist = withContext(Dispatchers.Default) { loader.loadPlaylist(source) }
+                this@LiveTvController.playlist = playlist
                 val groups = LiveTvFilters.groups(playlist.channels)
                 _state.update {
                     it.copy(loading = false, error = null, channels = playlist.channels, groups = groups, guide = emptyMap())
