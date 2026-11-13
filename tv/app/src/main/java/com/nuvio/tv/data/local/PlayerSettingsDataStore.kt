@@ -1123,8 +1123,11 @@ class PlayerSettingsDataStore @Inject constructor(
                     runCatching { FrameRateMatchingMode.valueOf(it) }.getOrNull()
                 } ?: if (prefs[frameRateMatchingKey] == true) FrameRateMatchingMode.START_STOP else FrameRateMatchingMode.OFF,
                 resolutionMatchingEnabled = prefs[resolutionMatchingEnabledKey] ?: false,
+                // Legacy stored "MANUAL" (never explicitly chosen in Meowio) migrates to Smart.
                 streamAutoPlayMode = prefs[streamAutoPlayModeKey]?.let {
-                    runCatching { StreamAutoPlayMode.valueOf(it) }.getOrDefault(StreamAutoPlayMode.SMART)
+                    if (it == "MANUAL_USER") StreamAutoPlayMode.MANUAL
+                    else runCatching { StreamAutoPlayMode.valueOf(it) }.getOrDefault(StreamAutoPlayMode.SMART)
+                        .takeUnless { mode -> mode == StreamAutoPlayMode.MANUAL }
                 } ?: StreamAutoPlayMode.SMART,
                 streamAutoPlaySource = prefs[streamAutoPlaySourceKey]?.let {
                     runCatching { StreamAutoPlaySource.valueOf(it) }.getOrDefault(StreamAutoPlaySource.ALL_SOURCES)
@@ -1514,7 +1517,7 @@ class PlayerSettingsDataStore @Inject constructor(
 
     suspend fun setStreamAutoPlayMode(mode: StreamAutoPlayMode) {
         store().edit { prefs ->
-            prefs[streamAutoPlayModeKey] = mode.name
+            prefs[streamAutoPlayModeKey] = if (mode == StreamAutoPlayMode.MANUAL) "MANUAL_USER" else mode.name
         }
     }
 
