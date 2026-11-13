@@ -24,12 +24,6 @@ Android will ask you to allow installs from unknown sources.
 
 You can switch back to the manual source list in Settings, under Playback, Stream selection.
 
-## Signing in
-
-Signing in with a normal Nuvio account works once the build knows the Nuvio account server address and key. Those two values are private settings, so they are stored as repository secrets and never in the code.
-
-Until the secrets are added, builds have no account server. Choose **Continue Without Account** on the first screen. Add-ons, debrid services and playback all work without an account.
-
 ## Repository secrets
 
 Add these under Settings → Secrets and variables → Actions. None of them are ever committed to the repository.
