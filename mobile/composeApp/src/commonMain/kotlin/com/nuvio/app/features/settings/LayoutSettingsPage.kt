@@ -11,6 +11,9 @@ import com.nuvio.app.core.ui.labelRes
 import com.nuvio.app.isIos
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.collections_header
+import nuvio.composeapp.generated.resources.live_tv_show_tab
+import nuvio.composeapp.generated.resources.live_tv_show_tab_sub
+import nuvio.composeapp.generated.resources.nav_live_tv
 import nuvio.composeapp.generated.resources.compose_settings_page_continue_watching
 import nuvio.composeapp.generated.resources.compose_settings_page_homescreen
 import nuvio.composeapp.generated.resources.compose_settings_page_meta_screen
@@ -158,6 +161,23 @@ internal fun LazyListScope.layoutSettingsContent(
                     glowEnabled = glowEnabled,
                     onGlowChanged = ThemeSettingsRepository::setNavBarGlowEnabled,
                     onDismiss = { showNavBarStyleSheet = false },
+                )
+            }
+        }
+    }
+    item {
+        val liveTvState by com.nuvio.app.features.livetv.LiveTvRepository.controller.state.collectAsStateWithLifecycle()
+        SettingsSection(
+            title = stringResource(Res.string.nav_live_tv),
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.live_tv_show_tab),
+                    description = stringResource(Res.string.live_tv_show_tab_sub),
+                    checked = liveTvState.tabVisible,
+                    isTablet = isTablet,
+                    onCheckedChange = com.nuvio.app.features.livetv.LiveTvRepository.controller::setTabVisible,
                 )
             }
         }
