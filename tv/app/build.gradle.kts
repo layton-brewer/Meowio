@@ -135,7 +135,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1078
+        versionCode = providers.gradleProperty("nuvio.app.versionCode").orNull?.toInt() ?: 1078
         // Release builds pass the Meowio release number so the in-app
         // updater can compare against release tags.
         versionName = providers.gradleProperty("nuvio.app.versionName").orNull ?: "1.2.0-beta.1"
