@@ -135,8 +135,12 @@ jobs:
         run: |
           brew install git-lfs || true
           git lfs install
-          git clone --depth 1 https://github.com/NuvioMedia/NuvioDesktop.git desktop
+          # Pinned so the Meowio overlay always lands on the sources it was merged against.
+          git init desktop
           cd desktop
+          git remote add origin https://github.com/NuvioMedia/NuvioDesktop.git
+          git fetch --depth 1 origin fca444b96ea03251fb21dc46ac5de035d3358806
+          git checkout --force FETCH_HEAD
           git lfs pull --include="composeApp/src/desktopMain/native/macos/runtime/${{ matrix.arch }}/**" --exclude=""
 
       - name: Apply Meowio branding and overlay
@@ -146,7 +150,7 @@ jobs:
         working-directory: desktop
         run: |
           printf 'NUVIO_SUPABASE_URL=\nNUVIO_SUPABASE_ANON_KEY=\nTRAKT_CLIENT_ID=\nTRAKT_CLIENT_SECRET=\nMDBLIST_CLIENT_ID=\n' > local.properties
-          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} --no-daemon --no-configuration-cache --max-workers=2
+          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.1.${{ github.run_number }} --no-daemon --no-configuration-cache --max-workers=2
           find composeApp/build -name "*.dmg"
 
       - name: Collect DMG
@@ -167,7 +171,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
+        run: |
+          gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
+          gh release edit apple-latest --title "Meowio for Apple 0.1.${{ github.run_number }}"
 
   tvos:
     needs: [release]
