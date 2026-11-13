@@ -96,7 +96,14 @@ internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String
             connection.instanceFollowRedirects = true
             headers.forEach { (name, value) -> runCatching { connection.setRequestProperty(name, value) } }
             try {
-                connection.responseCode in 200..299
+                // Only a missing stream or a failing server counts as down; other refusals (401, 403)
+                // often come from servers that dislike this check and still play in the player.
+                val code = connection.responseCode
+                when {
+                    code in 200..399 -> true
+                    code == 404 || code == 410 || code >= 500 -> false
+                    else -> null
+                }
             } finally {
                 connection.disconnect()
             }

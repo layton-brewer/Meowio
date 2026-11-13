@@ -59,13 +59,23 @@ class LiveTvRepository @Inject constructor(
             val request = Request.Builder().url(channel.url).apply {
                 channel.headers.forEach { (name, value) -> runCatching { header(name, value) } }
             }.build()
-            probeClient.newCall(request).execute().use { response -> response.isSuccessful }
+            probeClient.newCall(request).execute().use { response -> streamStatusAnswers(response.code) }
         } catch (e: IllegalArgumentException) {
             // Not an http link, so there is nothing to check.
             null
         } catch (e: java.io.IOException) {
             false
         }
+    }
+
+    /**
+     * Only a missing stream or a failing server counts as down. Other refusals, such as 401 or 403,
+     * often come from servers that dislike this check's request and still play in the player.
+     */
+    private fun streamStatusAnswers(code: Int): Boolean? = when {
+        code in 200..399 -> true
+        code == 404 || code == 410 || code >= 500 -> false
+        else -> null
     }
 
     private val probeClient by lazy {
