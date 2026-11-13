@@ -24,35 +24,6 @@ Android will ask you to allow installs from unknown sources.
 
 You can switch back to the manual source list in Settings, under Playback, Stream selection.
 
-## Repository secrets
-
-Add these under Settings → Secrets and variables → Actions. None of them are ever committed to the repository.
-
-| Secret | Purpose |
-| --- | --- |
-| `NUVIO_SUPABASE_URL` | Account server address (for sign-in) |
-| `NUVIO_SUPABASE_ANON_KEY` | Account server public key (for sign-in) |
-| `SIGNING_KEYSTORE_BASE64` | Base64 of the signing keystore, so every release installs over the last |
-| `SIGNING_KEY_ALIAS` | The key alias inside that keystore |
-| `SIGNING_PASSWORD` | The keystore/key password |
-
-Without the signing secrets the build still works, but each release gets a throwaway key and will not install on top of a previous version. See the signing note below.
-
-## A stable signing key
-
-Every Android app is signed, and Android only lets a new APK install over an older one when both carry the **same** signature. To create a keystore once and keep it forever:
-
-```sh
-keytool -genkeypair -v \
-  -keystore meowio-release.jks \
-  -alias meowio -keyalg RSA -keysize 2048 -validity 10000 \
-  -storepass "YOUR_PASSWORD" -keypass "YOUR_PASSWORD" \
-  -dname "CN=Meowio, O=Meowio, C=US"
-
-base64 -i meowio-release.jks   # copy this into SIGNING_KEYSTORE_BASE64
-```
-
-Then set `SIGNING_KEY_ALIAS` to `meowio` and `SIGNING_PASSWORD` to the password you chose. Keep `meowio-release.jks` backed up somewhere safe; if it is lost, future updates can no longer install over an installed copy.
 
 ## Repository layout
 
