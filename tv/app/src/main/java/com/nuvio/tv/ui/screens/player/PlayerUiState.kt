@@ -133,6 +133,8 @@ data class PlayerUiState(
     val subtitleAutoSyncLoading: Boolean = false,
     val subtitleAutoSyncLoadedTrackKey: String? = null,
     val showSpeedDialog: Boolean = false,
+    val videoQualityHeights: List<Int> = emptyList(),
+    val videoQualityCap: Int? = null,
     val showMoreDialog: Boolean = false,
     // Subtitle style settings
     val subtitleStyle: SubtitleStyleSettings = SubtitleStyleSettings(),
@@ -357,6 +359,7 @@ sealed class PlayerEvent {
     data class OnResetSubtitleDelay(val showOverlay: Boolean = true) : PlayerEvent()
     data object OnShowSpeedDialog : PlayerEvent()
     data object OnCycleSleepTimer : PlayerEvent()
+    data object OnCycleVideoQuality : PlayerEvent()
     data object OnShowMoreDialog : PlayerEvent()
     data object OnDismissMoreDialog : PlayerEvent()
     data object OnShowEpisodesPanel : PlayerEvent()

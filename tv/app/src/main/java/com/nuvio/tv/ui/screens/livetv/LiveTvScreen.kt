@@ -249,7 +249,7 @@ private fun ChannelBrowser(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var selection by rememberSaveable { mutableStateOf(LiveTvSelection.ALL) }
-    val channels = remember(state.channels, state.favorites, state.recent, query, selection) {
+    val channels = remember(state.channels, state.favorites, state.recent, state.offline, query, selection) {
         LiveTvController.visibleChannels(state, query, selection)
     }
     val askProviderForGuide = state.source?.type == LiveSourceType.XTREAM
@@ -257,6 +257,7 @@ private fun ChannelBrowser(
         val group = selection
         if (group != LiveTvSelection.ALL && group != LiveTvSelection.FAVORITES && group != LiveTvSelection.RECENT) {
             controller.requestGroupGuide(group)
+            controller.requestGroupCheck(group)
         }
     }
     var firstGroupChosen by rememberSaveable { mutableStateOf(false) }
@@ -359,7 +360,11 @@ private fun ChannelBrowser(
                         ChannelCard(
                             channel = channel,
                             favorite = channel.id in state.favorites,
-                            nowTitle = LiveTvController.nowTitle(state, channel),
+                            nowTitle = if (LiveTvController.isOffline(state, channel)) {
+                                stringResource(R.string.live_tv_not_responding)
+                            } else {
+                                LiveTvController.nowTitle(state, channel)
+                            },
                             nextTitle = LiveTvController.nextTitle(state, channel),
                             onClick = { onPlayChannel(channel) },
                             onLongClick = { controller.toggleFavorite(channel.id) }
