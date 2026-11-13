@@ -38,4 +38,4 @@ jobs:
         working-directory: desktop
         run: |
           printf 'NUVIO_SUPABASE_URL=\nNUVIO_SUPABASE_ANON_KEY=\nTRAKT_CLIENT_ID=\nTRAKT_CLIENT_SECRET=\nMDBLIST_CLIENT_ID=\n' > local.properties
-          ./gradlew :composeApp:compileKotlinDesktop --no-daemon --no-configuration-cache --max-workers=2 --continue
+          ./gradlew :composeApp:compileKotlinDesktop -x :composeMediaPlayer:buildNativeLinux --no-daemon --no-configuration-cache --max-workers=2 --continue
