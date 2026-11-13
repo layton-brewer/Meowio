@@ -2,7 +2,7 @@ name: Apple builds
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/apple-builds]
     paths:
       - "mobile/**"
       - ".github/workflows/apple.yml"
