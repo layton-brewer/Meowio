@@ -12,6 +12,8 @@ internal object PluginStorage {
     private var scraperCodeStore: PluginScraperCodeFileStore? = null
 
     fun initialize(context: Context) {
+        com.nuvio.app.features.plugins.cloudstream.CloudStreamRuntime.attach(context)
+        CloudStreamBridge.engine = AndroidCloudStreamEngine
         preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
         scraperCodeStore = PluginScraperCodeFileStore(context.filesDir.resolve(scraperCodeDirectoryName))
     }
