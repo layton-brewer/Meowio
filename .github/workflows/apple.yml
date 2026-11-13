@@ -5,6 +5,8 @@ on:
     branches: [main, claude/apple-builds]
     paths:
       - "mobile/**"
+      - "tvos/**"
+      - "apple/**"
       - ".github/workflows/apple.yml"
   workflow_dispatch:
 
@@ -16,7 +18,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure rolling release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view apple-latest >/dev/null 2>&1 || gh release create apple-latest --target "${{ github.sha }}" --title "Meowio for Apple (iOS, macOS, tvOS)" --notes "Unsigned builds for sideloading. See the README for install steps." --prerelease
+
   ios:
+    needs: [release]
     name: Build iOS IPA (unsigned)
     runs-on: macos-26
     timeout-minutes: 120
@@ -84,7 +98,15 @@ jobs:
           path: mobile/build/ios-ipa/Meowio-ios.ipa
           retention-days: 14
 
+      - name: Upload to apple-latest release
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload apple-latest mobile/build/ios-ipa/Meowio-ios.ipa --clobber
+
   macos:
+    needs: [release]
     name: Build macOS DMG (unsigned, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -137,7 +159,15 @@ jobs:
           path: out/*.dmg
           retention-days: 14
 
+      - name: Upload to apple-latest release
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
+
   tvos:
+    needs: [release]
     name: Build tvOS IPA (unsigned)
     runs-on: macos-26
     timeout-minutes: 60
@@ -178,21 +208,9 @@ jobs:
           path: tvos/Meowio-tvos.ipa
           retention-days: 14
 
-  publish:
-    name: Publish Apple release
-    needs: [ios, macos, tvos]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Publish rolling release
+      - name: Upload to apple-latest release
+        working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          ls -la dist
-          tag=apple-latest
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Meowio for Apple (iOS, macOS, tvOS)" --notes "Unsigned builds for sideloading. See the README for install steps." --prerelease
-          gh release upload "$tag" dist/* --clobber
+        run: gh release upload apple-latest tvos/Meowio-tvos.ipa --clobber
