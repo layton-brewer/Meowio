@@ -415,6 +415,15 @@
     <string name="compose_catalog_subtitle_trakt_library">Trakt Library</string>
     <string name="compose_catalog_subtitle_simkl_library">Simkl Watchlist</string>
     <string name="compose_nav_home">Home</string>
+    <string name="backup_title">Backup and restore</string>
+    <string name="backup_save">Save a backup file</string>
+    <string name="backup_save_sub">Saves this profile\'s settings, add-ons and collections. Logins and API keys are not included.</string>
+    <string name="backup_restore">Restore from a backup file</string>
+    <string name="backup_restore_sub">Replaces this profile\'s settings, add-ons and collections with the ones in the file.</string>
+    <string name="backup_saved">Backup saved</string>
+    <string name="backup_save_failed">The backup could not be saved</string>
+    <string name="backup_restored">Backup restored</string>
+    <string name="backup_restore_failed">That file is not a backup from this app</string>
     <string name="nav_live_tv">Live TV</string>
     <string name="live_tv_setup_title">Use your own channels</string>
     <string name="live_tv_setup_body">%1$s comes with free public channels. Enter a playlist link or an Xtream login from your TV provider to use those instead.</string>
