@@ -23,6 +23,23 @@ Choose the APK for your device. Both apps require **Android 7.0 or newer**.
 
 See [all releases](https://github.com/layton-brewer/Meowio/releases) for earlier versions. The APKs in this repository are Meowio; the upstream Nuvio store listings are separate apps.
 
+### Apple devices (unsigned builds)
+
+Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** builds, because there is no paid Apple developer account behind this project. Grab them from the rolling [Apple release](https://github.com/layton-brewer/Meowio/releases/tag/apple-latest).
+
+| Device | Download | How to install |
+| --- | --- | --- |
+| iPhone / iPad | `Meowio-ios.ipa` | Sideload with [AltStore](https://altstore.io), [Sideloadly](https://sideloadly.io) or SideStore using your own Apple ID. Free accounts must re-sign every 7 days. |
+| Mac (Apple Silicon) | `Meowio-macos-arm64.dmg` | Open the DMG and drag Meowio to Applications. First launch: right-click the app, choose **Open**, then **Open** again (or run `xattr -cr /Applications/Meowio.app`). |
+| Mac (Intel) | `Meowio-macos-x86_64.dmg` | Same as above. |
+| Apple TV | `Meowio-tvos.ipa` | Sideload with Sideloadly or Xcode (Window > Devices and Simulators) using your own Apple ID. |
+
+Notes:
+
+- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with Meowio branding; it does not yet include every Meowio-only feature.
+- The Apple TV app is a native SwiftUI app: browsing, search, Live TV, add-on sources, and auto-pick with silent failover and preloading. Add a stream add-on in **Settings** first. It plays direct and debrid HTTP streams (not raw torrents).
+- Apple does not allow notarized or App Store distribution without a developer account, so these cannot be installed with a plain tap.
+
 ## What's different from Nuvio?
 
 Meowio builds on Nuvio's media browsing and playback foundation. These are the additions and changed defaults in this fork, relative to the Nuvio versions it started from.
