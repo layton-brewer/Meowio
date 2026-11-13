@@ -70,7 +70,7 @@ data class PlayerSettingsUiState(
     val centerMixLevelDb: Int = 0,
     val decoderPriority: Int = 1,
     val mapDV7ToHevc: Boolean = false,
-    val tunnelingEnabled: Boolean = false,
+    val tunnelingEnabled: Boolean = true,
     val exoNativeMemoryEnabled: Boolean = false,
     val bufferEngineEnabled: Boolean = false,
     val minBufferMs: Int = PlaybackBufferSettings.DEFAULT_MIN_BUFFER_MS,
@@ -166,7 +166,7 @@ object PlayerSettingsRepository {
     private var centerMixLevelDb = 0
     private var decoderPriority = 1
     private var mapDV7ToHevc = false
-    private var tunnelingEnabled = false
+    private var tunnelingEnabled = true
     private var exoNativeMemoryEnabled = false
     private var bufferEngineEnabled = false
     private var minBufferMs = PlaybackBufferSettings.DEFAULT_MIN_BUFFER_MS
@@ -266,7 +266,7 @@ object PlayerSettingsRepository {
         centerMixLevelDb = 0
         decoderPriority = 1
         mapDV7ToHevc = false
-        tunnelingEnabled = false
+        tunnelingEnabled = true
         exoNativeMemoryEnabled = false
         bufferEngineEnabled = false
         minBufferMs = PlaybackBufferSettings.DEFAULT_MIN_BUFFER_MS
@@ -400,7 +400,7 @@ object PlayerSettingsRepository {
             .coerceIn(CENTER_MIX_LEVEL_MIN_DB, CENTER_MIX_LEVEL_MAX_DB)
         decoderPriority = PlayerSettingsStorage.loadDecoderPriority() ?: 1
         mapDV7ToHevc = PlayerSettingsStorage.loadMapDV7ToHevc() ?: false
-        tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: false
+        tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: true
         exoNativeMemoryEnabled = (PlayerSettingsStorage.loadExoNativeMemoryEnabled() ?: false) &&
             isExoNativeMemorySupported()
         vodCacheEnabled = PlayerSettingsStorage.loadVodCacheEnabled() ?: false
