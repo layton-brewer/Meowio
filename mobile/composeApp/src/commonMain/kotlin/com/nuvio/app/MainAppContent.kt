@@ -421,6 +421,7 @@ internal fun MainAppContent(
                 searchScrollToTopRequests.tryEmit(Unit)
             }
             AppScreenTab.Library -> libraryScrollToTopRequests.tryEmit(Unit)
+            AppScreenTab.LiveTv -> Unit
             AppScreenTab.Settings -> settingsRootActionRequests.tryEmit(Unit)
         }
     }
@@ -1393,6 +1394,27 @@ internal fun MainAppContent(
                                     )
                                 },
                                 onLibrarySectionViewAllClick = onLibrarySectionViewAllClick,
+                                onLiveChannelPlay = { channel ->
+                                    val playerLaunch = PlayerLaunch(
+                                        profileId = activePlaybackProfileId,
+                                        title = channel.name,
+                                        sourceUrl = channel.url,
+                                        sourceHeaders = channel.headers,
+                                        logo = channel.logo,
+                                        streamTitle = channel.name,
+                                        streamSubtitle = channel.group,
+                                        providerName = channel.group.orEmpty(),
+                                        contentType = com.nuvio.app.features.livetv.LiveTvContentType,
+                                        parentMetaId = "${com.nuvio.app.features.livetv.LiveTvContentType}:${channel.id}",
+                                        parentMetaType = com.nuvio.app.features.livetv.LiveTvContentType,
+                                    )
+                                    if (playerSettingsUiState.externalPlayerEnabled) {
+                                        coroutineScope.launch { openExternalPlayback(playerLaunch) }
+                                    } else {
+                                        val launchId = PlayerLaunchStore.put(playerLaunch)
+                                        navController.navigate(PlayerRoute(launchId = launchId, title = playerLaunch.title))
+                                    }
+                                },
                                 onCloudFilePlay = { item, file ->
                                     coroutineScope.launch {
                                         val resumeItem = WatchProgressRepository

@@ -1315,6 +1315,8 @@ object WatchProgressRepository {
         persist: Boolean,
         syncRemote: Boolean,
     ) {
+        // Live channels have no position worth resuming and do not belong in watch history.
+        if (session.parentMetaType == com.nuvio.app.features.livetv.LiveTvContentType) return
         val targetProfileId = session.profileId
         val positionMs = snapshot.positionMs.coerceAtLeast(0L)
         val durationMs = snapshot.durationMs.coerceAtLeast(0L)
