@@ -43,7 +43,7 @@ class LiveTvControllerTest {
     @Test
     fun `saving a source loads its channels and remembers it`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
-        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope)
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
         controller.ensureChannels()
         assertTrue(controller.state.value.ready)
         assertNull(controller.state.value.source)
@@ -61,7 +61,7 @@ class LiveTvControllerTest {
 
     @Test
     fun `a failed load reports why`() = runTest(UnconfinedTestDispatcher()) {
-        val controller = LiveTvController(MemoryStorage(), LiveTvLoader({ "<html>" }, { 0L }), backgroundScope)
+        val controller = LiveTvController(MemoryStorage(), LiveTvLoader({ "<html>" }, { 0L }), backgroundScope, defaultSource = null)
         controller.start()
         controller.setSource(source)
         Thread.sleep(200)
@@ -73,7 +73,7 @@ class LiveTvControllerTest {
     fun `favorites recent channels and the tab setting are kept`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
         storage.values["source"] = LiveTvCodec.encodeSource(source)
-        val first = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope)
+        val first = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
         first.ensureChannels()
         Thread.sleep(200)
         val ids = first.state.value.channels.map(LiveChannel::id)
@@ -83,7 +83,7 @@ class LiveTvControllerTest {
         first.markWatched(ids[0])
         first.setTabVisible(false)
 
-        val second = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope)
+        val second = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
         second.ensureChannels()
         Thread.sleep(200)
         val state = second.state.value
@@ -94,5 +94,36 @@ class LiveTvControllerTest {
         assertEquals(listOf("News One", "Sport Two"), LiveTvController.visibleChannels(state, "", LiveTvSelection.RECENT).map(LiveChannel::name))
         assertEquals(listOf("News One"), LiveTvController.visibleChannels(state, "", "News").map(LiveChannel::name))
         assertEquals(listOf("Sport Two"), LiveTvController.visibleChannels(state, "sport", LiveTvSelection.ALL).map(LiveChannel::name))
+    }
+
+    @Test
+    fun `built-in channels show until the user adds a source and come back when it is removed`() = runTest(UnconfinedTestDispatcher()) {
+        val storage = MemoryStorage()
+        val builtIn = LiveSource(LiveSourceType.M3U, "http://example.com/free.m3u")
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = builtIn)
+        controller.ensureChannels()
+        Thread.sleep(200)
+        assertTrue(controller.state.value.usingDefault)
+        assertEquals(2, controller.state.value.channels.size)
+        assertNull(storage.values["source"])
+
+        controller.setSource(source)
+        Thread.sleep(200)
+        assertFalse(controller.state.value.usingDefault)
+        assertEquals(source, controller.state.value.source)
+
+        controller.removeSource()
+        Thread.sleep(200)
+        assertTrue(controller.state.value.usingDefault)
+        assertEquals(builtIn, controller.state.value.source)
+        assertEquals(2, controller.state.value.channels.size)
+    }
+
+    @Test
+    fun `the device country picks the first group on the built-in channels`() {
+        val state = LiveTvState(usingDefault = true, groups = listOf("Italy", "USA"))
+        assertEquals("USA", LiveTvController.preferredGroup(state, "us"))
+        assertNull(LiveTvController.preferredGroup(state, "NZ"))
+        assertNull(LiveTvController.preferredGroup(state.copy(usingDefault = false), "US"))
     }
 }

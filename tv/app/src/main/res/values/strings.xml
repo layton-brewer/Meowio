@@ -2500,8 +2500,8 @@
     <string name="nav_discover">Discover</string>
     <string name="nav_search">Search</string>
     <string name="nav_live_tv">Live TV</string>
-    <string name="live_tv_setup_title">Add your channels</string>
-    <string name="live_tv_setup_body">Enter a playlist link or an Xtream login from your TV provider. %1$s does not come with any channels.</string>
+    <string name="live_tv_setup_title">Use your own channels</string>
+    <string name="live_tv_setup_body">%1$s comes with free public channels. Enter a playlist link or an Xtream login from your TV provider to use those instead.</string>
     <string name="live_tv_type_m3u">Playlist link</string>
     <string name="live_tv_type_xtream">Xtream login</string>
     <string name="live_tv_field_playlist">Playlist address (M3U)</string>
@@ -2511,7 +2511,7 @@
     <string name="live_tv_field_guide">Guide address (optional)</string>
     <string name="live_tv_save">Load channels</string>
     <string name="live_tv_cancel">Cancel</string>
-    <string name="live_tv_remove">Remove source</string>
+    <string name="live_tv_remove">Use built-in channels</string>
     <string name="live_tv_search">Search channels</string>
     <string name="live_tv_all">All</string>
     <string name="live_tv_favorites">Favorites</string>

@@ -19,3 +19,6 @@ internal actual object LiveTvPlatformStorage {
 
 // Guide files packed with gzip are skipped on iOS for now; plain guides and playlists work.
 internal actual fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray? = null
+
+internal actual fun liveTvCountryCode(): String? =
+    platform.Foundation.NSLocale.currentLocale.objectForKey(platform.Foundation.NSLocaleCountryCode) as? String

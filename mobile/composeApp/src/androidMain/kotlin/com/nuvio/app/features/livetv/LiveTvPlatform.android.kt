@@ -45,3 +45,6 @@ internal actual fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray? {
     }
     return out.toByteArray()
 }
+
+internal actual fun liveTvCountryCode(): String? =
+    java.util.Locale.getDefault().country.takeIf(String::isNotBlank)
