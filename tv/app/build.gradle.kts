@@ -180,7 +180,7 @@ android {
 
         // In-app updater (GitHub Releases)
         buildConfigField("String", "GITHUB_OWNER", "\"layton-brewer\"")
-        buildConfigField("String", "GITHUB_REPO", "\"nuvio-extended\"")
+        buildConfigField("String", "GITHUB_REPO", "\"meowio\"")
     }
 
     flavorDimensions += "distribution"
