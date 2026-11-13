@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: apple
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release:
