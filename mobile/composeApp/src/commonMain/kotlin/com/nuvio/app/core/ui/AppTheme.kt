@@ -6,6 +6,9 @@ import nuvio.composeapp.generated.resources.theme_crimson
 import nuvio.composeapp.generated.resources.theme_emerald
 import nuvio.composeapp.generated.resources.theme_ocean
 import nuvio.composeapp.generated.resources.theme_rose
+import nuvio.composeapp.generated.resources.theme_sunset
+import nuvio.composeapp.generated.resources.theme_aurora
+import nuvio.composeapp.generated.resources.theme_midnight
 import nuvio.composeapp.generated.resources.theme_violet
 import nuvio.composeapp.generated.resources.theme_white
 import nuvio.composeapp.generated.resources.theme_gold
@@ -29,6 +32,9 @@ enum class AppTheme {
     EMERALD,
     AMBER,
     ROSE,
+    SUNSET,
+    AURORA,
+    MIDNIGHT,
     WHITE,
 }
 
@@ -46,5 +52,8 @@ val AppTheme.labelRes: StringResource
         AppTheme.EMERALD -> Res.string.theme_emerald
         AppTheme.AMBER -> Res.string.theme_amber
         AppTheme.ROSE -> Res.string.theme_rose
+        AppTheme.SUNSET -> Res.string.theme_sunset
+        AppTheme.AURORA -> Res.string.theme_aurora
+        AppTheme.MIDNIGHT -> Res.string.theme_midnight
         AppTheme.WHITE -> Res.string.theme_white
     }

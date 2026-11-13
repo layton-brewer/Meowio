@@ -1222,6 +1222,14 @@ private fun PlaybackNavHost(
         rootComposable(Screen.Search.route) { backStackEntry ->
             val searchViewModel: com.nuvio.tv.ui.screens.search.SearchViewModel =
                 androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
+            val assistantTitle by com.nuvio.tv.core.ai.AiSearchHandoff.pendingTitle.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(assistantTitle) {
+                assistantTitle?.let { title ->
+                    com.nuvio.tv.core.ai.AiSearchHandoff.pendingTitle.value = null
+                    searchViewModel.onEvent(com.nuvio.tv.ui.screens.search.SearchEvent.QueryChanged(title))
+                    searchViewModel.onEvent(com.nuvio.tv.ui.screens.search.SearchEvent.SubmitSearch)
+                }
+            }
             SearchScreen(
                 viewModel = searchViewModel,
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
@@ -1316,6 +1324,44 @@ private fun PlaybackNavHost(
         }
 
         rootComposable(Screen.Settings.route) {
+            // A title picked in the AI assistant is looked up on the Search screen.
+            val assistantTitle by com.nuvio.tv.core.ai.AiSearchHandoff.pendingTitle.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(assistantTitle) {
+                if (assistantTitle != null) {
+                    navController.navigate(Screen.Search.route) { launchSingleTop = true }
+                }
+            }
+            val downloadsEntryPoint = androidx.compose.runtime.remember(navController.context) {
+                dagger.hilt.android.EntryPointAccessors.fromApplication(
+                    navController.context.applicationContext,
+                    com.nuvio.tv.core.downloads.TvDownloadEntryPoint::class.java
+                )
+            }
+            val pendingDownload by com.nuvio.tv.core.downloads.TvDownloadPlayback.pending.collectAsState()
+            androidx.compose.runtime.LaunchedEffect(pendingDownload) {
+                pendingDownload?.let { download ->
+                    com.nuvio.tv.core.downloads.TvDownloadPlayback.pending.value = null
+                    val file = downloadsEntryPoint.tvDownloadManager().fileFor(download)
+                    navController.navigate(
+                        Screen.Player.createRoute(
+                            streamUrl = android.net.Uri.fromFile(file).toString(),
+                            title = download.title,
+                            year = download.year,
+                            contentId = download.contentId,
+                            contentType = download.contentType,
+                            contentName = download.contentName,
+                            poster = download.poster,
+                            backdrop = download.backdrop,
+                            logo = download.logo,
+                            videoId = download.videoId,
+                            season = download.season,
+                            episode = download.episode,
+                            episodeTitle = download.episodeTitle,
+                            profileId = download.profileId
+                        )
+                    )
+                }
+            }
             SettingsScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToAddons = { navController.navigate(Screen.AddonManager.route) },

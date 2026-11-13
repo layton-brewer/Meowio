@@ -20,6 +20,8 @@ internal fun PlayerScreenModalHosts(
     onNextEpisodeAutoPlayCountdownChanged: (Int?) -> Unit,
     onNextEpisodeAutoPlaySourceNameChanged: (String?) -> Unit,
     showAudioModal: Boolean,
+    videoQualityHeights: List<Int> = emptyList(),
+    onVideoQualityCap: (Int?) -> Unit = {},
     audioTracks: List<AudioTrack>,
     selectedAudioIndex: Int,
     onAudioTrackSelected: (Int) -> Unit,
@@ -141,6 +143,8 @@ internal fun PlayerScreenModalHosts(
         showCenterMix = showCenterMix,
         centerMixLevelDb = centerMixLevelDb,
         onCenterMixLevelChanged = onCenterMixLevelChanged,
+        videoQualityHeights = videoQualityHeights,
+        onVideoQualityCap = onVideoQualityCap,
     )
 
     SubtitleModal(

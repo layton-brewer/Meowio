@@ -81,6 +81,56 @@ object ThemeColors {
         backgroundCard = Color(0xFF241A1F)
     )
 
+    private val sunsetGradient = listOf(Color(0xFFFFB347), Color(0xFFFF6B5E), Color(0xFFE0458F))
+    private val auroraGradient = listOf(Color(0xFF5EF2C2), Color(0xFF39B8E8), Color(0xFF8B6CFF))
+    private val midnightGradient = listOf(Color(0xFF7FA8FF), Color(0xFF5468FF), Color(0xFF8A4DFF))
+
+    val Sunset = ThemeColorPalette(
+        secondary = Color(0xFFFF6B5E),
+        secondaryVariant = Color(0xFFE0458F),
+        accentGradient = sunsetGradient,
+        focusRing = Color(0xFFFFB347),
+        focusRingGradient = sunsetGradient,
+        focusBackground = Color(0xFF3D211C),
+        background = Color(0xFF100B0B),
+        backgroundElevated = Color(0xFF1E1615),
+        backgroundCard = Color(0xFF281B1A),
+        surface = Color(0xFF231918),
+        surfaceVariant = Color(0xFF332321),
+        panel = Color(0xFF1E1615)
+    )
+
+    val Aurora = ThemeColorPalette(
+        secondary = Color(0xFF39B8E8),
+        secondaryVariant = Color(0xFF8B6CFF),
+        onSecondary = NuvioPrimitives.neutral925,
+        accentGradient = auroraGradient,
+        focusRing = Color(0xFF5EF2C2),
+        focusRingGradient = auroraGradient,
+        focusBackground = Color(0xFF16343A),
+        background = Color(0xFF090E10),
+        backgroundElevated = Color(0xFF131C1F),
+        backgroundCard = Color(0xFF172428),
+        surface = Color(0xFF152023),
+        surfaceVariant = Color(0xFF1F2F33),
+        panel = Color(0xFF131C1F)
+    )
+
+    val Midnight = ThemeColorPalette(
+        secondary = Color(0xFF5468FF),
+        secondaryVariant = Color(0xFF8A4DFF),
+        accentGradient = midnightGradient,
+        focusRing = Color(0xFF7FA8FF),
+        focusRingGradient = midnightGradient,
+        focusBackground = Color(0xFF1C2147),
+        background = Color(0xFF07080F),
+        backgroundElevated = Color(0xFF10121F),
+        backgroundCard = Color(0xFF161A2C),
+        surface = Color(0xFF131626),
+        surfaceVariant = Color(0xFF1E2238),
+        panel = Color(0xFF10121F)
+    )
+
     val White = ThemeColorPalette(
         secondary = NuvioPrimitives.neutral100,
         secondaryVariant = NuvioPrimitives.neutral200,
@@ -108,6 +158,9 @@ object ThemeColors {
             AppTheme.EMERALD -> Emerald
             AppTheme.AMBER -> Amber
             AppTheme.ROSE -> Rose
+            AppTheme.SUNSET -> Sunset
+            AppTheme.AURORA -> Aurora
+            AppTheme.MIDNIGHT -> Midnight
             AppTheme.WHITE -> White
         }
     }

@@ -39,7 +39,8 @@ class LiveTvRepository @Inject constructor(
     val controller = LiveTvController(
         storage = storage,
         loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis, streamText = ::streamText),
-        scope = scope
+        scope = scope,
+        probe = ::answers
     )
 
     init {
@@ -50,6 +51,29 @@ class LiveTvRepository @Inject constructor(
                 controller.start()
             }
         }
+    }
+
+    /** Opens a channel briefly to see whether its stream is there. */
+    private suspend fun answers(channel: com.nuvio.tv.core.livetv.LiveChannel): Boolean? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder().url(channel.url).apply {
+                channel.headers.forEach { (name, value) -> runCatching { header(name, value) } }
+            }.build()
+            probeClient.newCall(request).execute().use { response -> response.isSuccessful }
+        } catch (e: IllegalArgumentException) {
+            // Not an http link, so there is nothing to check.
+            null
+        } catch (e: java.io.IOException) {
+            false
+        }
+    }
+
+    private val probeClient by lazy {
+        client.newBuilder()
+            .connectTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+            .callTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
     }
 
     private suspend fun fetchText(url: String): String? = withContext(Dispatchers.IO) {
