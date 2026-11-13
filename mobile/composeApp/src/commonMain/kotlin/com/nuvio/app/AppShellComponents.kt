@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,14 @@ internal fun rememberGuardedPopBackStack(
     beforePop: () -> Unit = {},
 ): () -> Unit {
     var popHandled by remember(route) { mutableStateOf(false) }
+    // Re-arm the guard if the pop did not actually leave this screen, so a refused pop
+    // cannot leave every later tap on the back button doing nothing.
+    LaunchedEffect(popHandled) {
+        if (popHandled) {
+            kotlinx.coroutines.delay(1200)
+            popHandled = false
+        }
+    }
 
     return remember(navController, route, popHandled, beforePop) {
         {
