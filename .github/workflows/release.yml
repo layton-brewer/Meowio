@@ -89,7 +89,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pnuvio.app.versionName=0.1.${{ github.run_number }} --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pnuvio.app.versionName=0.1.${{ github.run_number }} -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/Meowio-tv.apk"

@@ -73,6 +73,10 @@ internal object VersionUtils {
     fun isRemoteNewer(remote: String?, local: String?): Boolean {
         val remoteVersion = parse(remote) ?: return false
         val localVersion = parse(local) ?: return false
+        // Meowio release tags are 0.1.N. A local build still carrying the
+        // upstream-style 1.x version (sideloaded before releases were numbered)
+        // would otherwise never see a Meowio release as newer.
+        if (remoteVersion.major == 0L && localVersion.major >= 1L) return true
         return remoteVersion > localVersion
     }
 }
