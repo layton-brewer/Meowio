@@ -472,6 +472,19 @@ kotlin {
                 if (androidDistribution == "full") {
                     implementation(files("libs/quickjs-kt-android-1.0.5-nuvio.aar"))
                     implementation(libs.ksoup)
+                    // CloudStream plugin runtime (spike): the same libraries the TV app uses.
+                    implementation("org.jsoup:jsoup:1.17.2")
+                    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
+                    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
+                    implementation("com.github.Blatzar:NiceHttp:0.4.16")
+                    implementation("org.conscrypt:conscrypt-android:2.5.2")
+                    implementation("com.github.recloudstream.cloudstream:library:v4.7.0") {
+                        exclude(group = "org.mozilla", module = "rhino")
+                        exclude(group = "com.github.AmarullisVFX", module = "newpipeextractor")
+                        exclude(group = "com.github.AmaryllisVFX", module = "newpipeextractor")
+                        exclude(group = "com.github.AmaryllisVFX.newpipeextractor")
+                        exclude(group = "info.debatty", module = "java-string-similarity")
+                    }
                 }
             }
         }
