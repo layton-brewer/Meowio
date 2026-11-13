@@ -150,7 +150,7 @@ jobs:
         working-directory: desktop
         run: |
           printf 'NUVIO_SUPABASE_URL=\nNUVIO_SUPABASE_ANON_KEY=\nTRAKT_CLIENT_ID=\nTRAKT_CLIENT_SECRET=\nMDBLIST_CLIENT_ID=\n' > local.properties
-          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} --no-daemon --no-configuration-cache --max-workers=2
+          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.1.${{ github.run_number }} --no-daemon --no-configuration-cache --max-workers=2
           find composeApp/build -name "*.dmg"
 
       - name: Collect DMG
@@ -171,7 +171,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
+        run: |
+          gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
+          gh release edit apple-latest --title "Meowio for Apple 0.1.${{ github.run_number }}"
 
   tvos:
     needs: [release]
