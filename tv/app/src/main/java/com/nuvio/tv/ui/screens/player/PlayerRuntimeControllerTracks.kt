@@ -41,6 +41,7 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
     var selectedVideoFormat: Format? = null
     var bestVideoTrackSupport = C.FORMAT_UNSUPPORTED_TYPE
     var selectedVideoTrackSupport = C.FORMAT_UNSUPPORTED_TYPE
+    val videoHeights = sortedSetOf<Int>()
 
     tracks.groups.forEachIndexed { groupIndex, trackGroup ->
         val trackType = trackGroup.type
@@ -56,6 +57,9 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
 
                 for (i in 0 until trackGroup.length) {
                     val support = trackGroup.getTrackSupport(i)
+                    if (trackGroup.isTrackSupported(i)) {
+                        trackGroup.getTrackFormat(i).height.takeIf { it > 0 }?.let(videoHeights::add)
+                    }
                     if (formatSupportRank(support) > formatSupportRank(bestVideoTrackSupport)) {
                         bestVideoTrackSupport = support
                     }
@@ -163,6 +167,12 @@ internal fun PlayerRuntimeController.updateAvailableTracks(tracks: Tracks) {
     }
 
     currentStreamHasVideoTrack = hasVideoTrack
+    val qualityHeights = if (videoHeights.size > 1) videoHeights.toList().reversed() else emptyList()
+    if (qualityHeights != _uiState.value.videoQualityHeights) {
+        // A different set of renditions means a different stream, so go back to automatic quality.
+        if (_uiState.value.videoQualityCap != null) applyVideoQualityCap(null)
+        _uiState.update { it.copy(videoQualityHeights = qualityHeights, videoQualityCap = null) }
+    }
     val effectiveVideoFormat = selectedVideoFormat ?: firstVideoFormat
     val isHdrVideo = effectiveVideoFormat?.isHdrVideoFormat() == true ||
         _exoPlayer?.videoFormat?.isHdrVideoFormat() == true
@@ -2038,4 +2048,28 @@ internal fun PlayerRuntimeController.applySubtitlePreferences(preferred: String,
 
         player.trackSelectionParameters = builder.build()
     }
+}
+
+/** Limits adaptive streams to [maxHeight] lines, or lets the player choose when null. */
+@UnstableApi
+internal fun PlayerRuntimeController.applyVideoQualityCap(maxHeight: Int?) {
+    val player = _exoPlayer ?: return
+    player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().apply {
+        if (maxHeight == null) clearVideoSizeConstraints() else setMaxVideoSize(Int.MAX_VALUE, maxHeight)
+    }.build()
+}
+
+/** Steps through Auto, then each available resolution from highest to lowest. */
+@UnstableApi
+internal fun PlayerRuntimeController.cycleVideoQuality(): Int? {
+    val heights = _uiState.value.videoQualityHeights
+    if (heights.isEmpty()) return null
+    val current = _uiState.value.videoQualityCap
+    val next = when (current) {
+        null -> heights.first()
+        else -> heights.getOrNull(heights.indexOf(current) + 1)
+    }
+    applyVideoQualityCap(next)
+    _uiState.update { it.copy(videoQualityCap = next) }
+    return next
 }

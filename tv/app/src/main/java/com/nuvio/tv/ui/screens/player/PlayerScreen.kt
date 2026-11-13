@@ -59,6 +59,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import com.nuvio.tv.core.player.SleepTimer
+import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.automirrored.filled.Toc
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -1664,6 +1665,11 @@ fun PlayerScreen(
                 onSwitchPlayerEngine = { viewModel.onEvent(PlayerEvent.OnSwitchInternalPlayerEngine) },
                 onReportPlaybackIssue = { viewModel.onEvent(PlayerEvent.OnReportPlaybackIssue) },
                 onCycleSleepTimer = { viewModel.onEvent(PlayerEvent.OnCycleSleepTimer) },
+                onCycleVideoQuality = if (uiState.videoQualityHeights.isNotEmpty()) {
+                    { viewModel.onEvent(PlayerEvent.OnCycleVideoQuality) }
+                } else {
+                    null
+                },
                 onToggleMoreActions = {
                     if (uiState.showMoreDialog) {
                         viewModel.onEvent(PlayerEvent.OnDismissMoreDialog)
@@ -2783,6 +2789,7 @@ private fun PlayerControlsOverlay(
     onReportPlaybackIssue: () -> Unit,
     onToggleMoreActions: () -> Unit,
     onCycleSleepTimer: () -> Unit,
+    onCycleVideoQuality: (() -> Unit)? = null,
     onOpenInExternalPlayer: (() -> Unit)?,
     onShowStreamInfo: () -> Unit,
     onResetHideTimer: () -> Unit,
@@ -3138,6 +3145,16 @@ private fun PlayerControlsOverlay(
                                     Color.White
                                 }
                             )
+                            onCycleVideoQuality?.let { cycleQuality ->
+                                ControlButton(
+                                    icon = Icons.Default.Hd,
+                                    contentDescription = stringResource(R.string.player_quality),
+                                    onClick = cycleQuality,
+                                    upFocusRequester = progressUpTarget,
+                                    onDownKey = onHideControls,
+                                    onFocused = onResetHideTimer
+                                )
+                            }
                             ControlButton(
                                 icon = Icons.Default.SwapHoriz,
                                 contentDescription = stringResource(R.string.cd_switch_player_engine),

@@ -24,3 +24,5 @@ internal actual fun liveTvCountryCode(): String? =
     platform.Foundation.NSLocale.currentLocale.objectForKey(platform.Foundation.NSLocaleCountryCode) as? String
 
 internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean = false
+
+internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String, String>): Boolean? = null

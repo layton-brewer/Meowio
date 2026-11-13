@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 /** Where Live TV keeps its settings. Each app stores them per profile, on the device only. */
@@ -34,6 +36,8 @@ data class LiveTvState(
     val recent: List<String> = emptyList(),
     /** What is on now and next, by channel id. */
     val guide: Map<String, LiveNowNext> = emptyMap(),
+    /** Built-in channels that did not answer when checked. They are listed last. */
+    val offline: Set<String> = emptySet(),
 )
 
 /** Which channels the list shows. Anything else is a group name. */
@@ -53,6 +57,8 @@ class LiveTvController(
     private val scope: CoroutineScope,
     /** Channels shown until the user adds a source of their own. */
     private val defaultSource: LiveSource? = LiveTvDefaults.source,
+    /** Whether a channel's stream answers: true, false, or null when that cannot be told. */
+    private val probe: (suspend (LiveChannel) -> Boolean?)? = null,
 ) {
     private val _state = MutableStateFlow(LiveTvState())
     val state: StateFlow<LiveTvState> = _state.asStateFlow()
@@ -62,6 +68,7 @@ class LiveTvController(
     private var channelsRequested = false
     private val guideRequested = HashSet<String>()
     private val groupGuideRequested = HashSet<String>()
+    private val groupCheckRequested = HashSet<String>()
     private var playlist: LivePlaylist? = null
 
     /** Reads the saved settings. Safe to call more than once. */
@@ -96,6 +103,7 @@ class LiveTvController(
         channelsRequested = false
         guideRequested.clear()
         groupGuideRequested.clear()
+        groupCheckRequested.clear()
         _state.value = LiveTvState()
     }
 
@@ -129,6 +137,7 @@ class LiveTvController(
         loadJob?.cancel()
         guideRequested.clear()
         groupGuideRequested.clear()
+        groupCheckRequested.clear()
         _state.update {
             it.copy(
                 source = defaultSource,
@@ -192,11 +201,38 @@ class LiveTvController(
         }
     }
 
+    /**
+     * Checks which channels of a group answer, the first time that group is opened, so the ones
+     * that do not can be listed last. Only the built-in channels are checked: a provider's own
+     * list often allows a single connection, and checking it could get the account blocked.
+     */
+    fun requestGroupCheck(group: String) {
+        val check = probe ?: return
+        val loaded = playlist ?: return
+        if (!_state.value.usingDefault || !groupCheckRequested.add(group)) return
+        val channels = loaded.channels.filter { it.group == group }.take(MAX_CHECKED_PER_GROUP)
+        if (channels.isEmpty()) return
+        scope.launch {
+            val gate = Semaphore(CHECK_PARALLELISM)
+            channels.map { channel ->
+                launch {
+                    val answered = gate.withPermit {
+                        withContext(Dispatchers.Default) { runCatching { check(channel) }.getOrNull() }
+                    }
+                    if (answered == false && playlist === loaded) {
+                        _state.update { it.copy(offline = it.offline + channel.id) }
+                    }
+                }
+            }
+        }
+    }
+
     private fun loadChannels() {
         val source = _state.value.source ?: return
         loadJob?.cancel()
         guideRequested.clear()
         groupGuideRequested.clear()
+        groupCheckRequested.clear()
         playlist = null
         _state.update { it.copy(loading = true, error = null) }
         loadJob = scope.launch {
@@ -205,7 +241,7 @@ class LiveTvController(
                 this@LiveTvController.playlist = playlist
                 val groups = LiveTvFilters.groups(playlist.channels)
                 _state.update {
-                    it.copy(loading = false, error = null, channels = playlist.channels, groups = groups, guide = emptyMap())
+                    it.copy(loading = false, error = null, channels = playlist.channels, groups = groups, guide = emptyMap(), offline = emptySet())
                 }
                 val guide = withContext(Dispatchers.Default) {
                     runCatching { loader.loadGuide(source, playlist) }.getOrDefault(emptyMap())
@@ -227,13 +263,24 @@ class LiveTvController(
 
     companion object {
         const val MAX_RECENT = 12
+        private const val MAX_CHECKED_PER_GROUP = 200
+        private const val CHECK_PARALLELISM = 6
         private const val KEY_SOURCE = "source"
         private const val KEY_FAVORITES = "favorites"
         private const val KEY_RECENT = "recent"
         private const val KEY_TAB_VISIBLE = "tab_visible"
 
         /** The channels to list for a search text and a [LiveTvSelection]. */
-        fun visibleChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when (selection) {
+        fun visibleChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> {
+            val channels = matchingChannels(state, query, selection)
+            if (state.offline.isEmpty()) return channels
+            // A stable sort keeps the playlist order within the working and the silent channels.
+            return channels.sortedBy { it.id in state.offline }
+        }
+
+        fun isOffline(state: LiveTvState, channel: LiveChannel): Boolean = channel.id in state.offline
+
+        private fun matchingChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when (selection) {
             LiveTvSelection.FAVORITES ->
                 LiveTvFilters.filter(state.channels, query, favoritesOnly = true, favorites = state.favorites)
             LiveTvSelection.RECENT -> {

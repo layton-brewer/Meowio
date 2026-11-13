@@ -30,6 +30,7 @@ object LiveTvRepository {
             streamText = ::liveTvStreamText,
         ),
         scope = scope,
+        probe = { channel -> liveTvStreamAnswers(channel.url, channel.headers) },
     )
 
     fun ensureLoaded() = controller.start()
