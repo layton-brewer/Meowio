@@ -4,9 +4,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.nuvio.app.core.ui.NuvioToastController
+import kotlinx.coroutines.delay
 import com.nuvio.app.features.party.PartyMedia
 import com.nuvio.app.features.player.ExternalPlayerIntentResult
 import com.nuvio.app.features.player.ExternalPlayerPlatform
@@ -29,7 +33,24 @@ internal fun PlayerDestination(
     openExternalStreamUrl: (String) -> Boolean,
     onOpenPartyMedia: (PartyMedia) -> Unit,
 ) {
-    val onBack = rememberGuardedPopBackStack(navController, route)
+    // Leaving the player must never silently do nothing: if the strict pop is refused
+    // (route mismatch during a transition) fall back to a plain pop, and re-arm the
+    // guard shortly after so a missed pop cannot lock the button for good.
+    var leaving by remember(route) { mutableStateOf(false) }
+    LaunchedEffect(leaving) {
+        if (leaving) {
+            delay(1200)
+            leaving = false
+        }
+    }
+    val onBack: () -> Unit = {
+        if (!leaving) {
+            leaving = true
+            if (!navController.popBackStack(expectedRoute = route)) {
+                navController.popBackStack()
+            }
+        }
+    }
     val launch = remember(route.launchId) { PlayerLaunchStore.get(route.launchId) }
     if (launch == null) {
         LaunchedEffect(route.launchId) {
