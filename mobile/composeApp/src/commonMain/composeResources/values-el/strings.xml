@@ -1283,7 +1283,7 @@
     <string name="updates_debug_test_title">Δοκιμή πλαισίου ενημέρωσης</string>
     <string name="updates_install_failed">Αδυναμία εκκίνησης εγκατάστασης</string>
     <string name="updates_latest_version">Χρησιμοποιείτε την τελευταία έκδοση.</string>
-    <string name="updates_message_allow_installs">Ενεργοποιήστε τις εγκαταστάσεις εφαρμογών για το Nuvio και επιστρέψτε για να συνεχίσετε.</string>
+    <string name="updates_message_allow_installs">Ενεργοποιήστε τις εγκαταστάσεις εφαρμογών για το Meowio και επιστρέψτε για να συνεχίσετε.</string>
     <string name="updates_message_downloading">Γίνεται λήψη ενημέρωσης...</string>
     <string name="updates_message_no_updates">Δεν βρέθηκαν ενημερώσεις.</string>
     <string name="updates_message_ready">Μια νέα έκδοση είναι έτοιμη για εγκατάσταση.</string>
