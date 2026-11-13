@@ -1676,7 +1676,7 @@
     <string name="updates_debug_test_title">اپ ڈیٹ بینر ٹیسٹ کریں</string>
     <string name="updates_install_failed">انسٹالیشن شروع نہیں ہو سکی</string>
     <string name="updates_latest_version">آپ تازہ ترین ورژن استعمال کر رہے ہیں۔</string>
-    <string name="updates_message_allow_installs">Nuvio کو ایپس انسٹال کرنے کی اجازت دیں، پھر واپس آ کر جاری رکھیں۔</string>
+    <string name="updates_message_allow_installs">Meowio کو ایپس انسٹال کرنے کی اجازت دیں، پھر واپس آ کر جاری رکھیں۔</string>
     <string name="updates_message_downloading">اپ ڈیٹ ڈاؤن لوڈ ہو رہی ہے...</string>
     <string name="updates_message_no_updates">کوئی اپ ڈیٹ نہیں ملی۔</string>
     <string name="updates_message_ready">نیا ورژن انسٹال کرنے کے لیے تیار ہے۔</string>

@@ -1758,7 +1758,7 @@
     <string name="updates_debug_test_title">Updatebanner testen</string>
     <string name="updates_install_failed">Kan installatie niet starten</string>
     <string name="updates_latest_version">Je gebruikt de nieuwste versie.</string>
-    <string name="updates_message_allow_installs">Schakel app-installaties in voor Nuvio en kom daarna terug om door te gaan.</string>
+    <string name="updates_message_allow_installs">Schakel app-installaties in voor Meowio en kom daarna terug om door te gaan.</string>
     <string name="updates_message_downloading">Update wordt gedownload...</string>
     <string name="updates_message_no_updates">Geen updates gevonden.</string>
     <string name="updates_message_ready">Een nieuwe versie staat klaar om te installeren.</string>
