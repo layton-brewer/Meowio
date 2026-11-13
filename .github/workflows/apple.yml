@@ -135,8 +135,12 @@ jobs:
         run: |
           brew install git-lfs || true
           git lfs install
-          git clone --depth 1 https://github.com/NuvioMedia/NuvioDesktop.git desktop
+          # Pinned so the Meowio overlay always lands on the sources it was merged against.
+          git init desktop
           cd desktop
+          git remote add origin https://github.com/NuvioMedia/NuvioDesktop.git
+          git fetch --depth 1 origin fca444b96ea03251fb21dc46ac5de035d3358806
+          git checkout --force FETCH_HEAD
           git lfs pull --include="composeApp/src/desktopMain/native/macos/runtime/${{ matrix.arch }}/**" --exclude=""
 
       - name: Apply Meowio branding and overlay

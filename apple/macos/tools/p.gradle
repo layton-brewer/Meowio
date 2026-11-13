@@ -1,0 +1,12 @@
+beforeSettings { settings ->
+  settings.pluginManagement.repositories {
+    maven { url = uri("https://dl.google.com/dl/android/maven2") }
+    maven { url = uri("https://repo.maven.apache.org/maven2") }
+  }
+}
+settingsEvaluated { settings ->
+  settings.dependencyResolutionManagement.repositories {
+    maven { url = uri("https://dl.google.com/dl/android/maven2") }
+    maven { url = uri("https://repo.maven.apache.org/maven2") }
+  }
+}
