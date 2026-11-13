@@ -94,18 +94,6 @@ final class RootComposeViewController: UIViewController {
         ])
         self.leadingConstraint = leadingConstraint
         self.trailingConstraint = trailingConstraint
-        if #available(iOS 27.1, *) {
-            registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) {
-                (controller: RootComposeViewController, _: UITraitCollection) in
-                controller.updateVerticalBar()
-            }
-            if hinge != nil {
-                view.addInteraction(UIHingeInteraction { [weak self] _, update in
-                    self?.isHalfOpen = update.hinge?.status == .partiallyOpen
-                    self?.updateFold()
-                })
-            }
-        }
         contentController.didMove(toParent: self)
     }
 
@@ -122,14 +110,8 @@ final class RootComposeViewController: UIViewController {
     }
 
     private func updateFold() {
-        guard let hinge else { return }
-        guard #available(iOS 27.1, *), isHalfOpen,
-              let fold = view.reservedRegions(kind: .division).first(where: { $0.frame.width > $0.frame.height })
-        else {
-            hinge.clear()
-            return
-        }
-        hinge.update(top: Double(fold.frame.minY), bottom: Double(fold.frame.maxY))
+        // Foldable hinge support needs the iOS 27 SDK; not available in this build.
+        hinge?.clear()
     }
 
     private func updateVerticalBar() {
@@ -143,17 +125,7 @@ final class RootComposeViewController: UIViewController {
     }
 
     private var verticalBarInsets: NSDirectionalEdgeInsets {
-        guard #available(iOS 27.1, *) else { return .zero }
-        let insets = view.safeAreaInsets
-        let isRightToLeft = view.effectiveUserInterfaceLayoutDirection == .rightToLeft
-        switch traitCollection.verticalBarEdge {
-        case .leading:
-            return NSDirectionalEdgeInsets(top: 0, leading: isRightToLeft ? insets.right : insets.left, bottom: 0, trailing: 0)
-        case .trailing:
-            return NSDirectionalEdgeInsets(top: 0, leading: 0, bottom: 0, trailing: isRightToLeft ? insets.left : insets.right)
-        default:
-            return .zero
-        }
+        .zero
     }
 
     override var childForHomeIndicatorAutoHidden: UIViewController? {
@@ -1031,11 +1003,7 @@ private struct DetailDestinationView: View {
 private extension View {
     @ViewBuilder
     func verticalBarDisabled(_ disabled: Bool) -> some View {
-        if #available(iOS 27.1, *), disabled {
-            toolbarVerticalBehavior(.disabled)
-        } else {
-            self
-        }
+        self
     }
 }
 
