@@ -20,7 +20,8 @@ sed -i.bak \
   "$gradle"
 rm -f "$gradle.bak"
 
-# App icon: build an .icns from the Meowio cat icon.
+# App icon: build an .icns from the Meowio cat icon (macOS tools only; skipped for Linux compile checks).
+command -v sips >/dev/null 2>&1 || exit 0
 set_dir="$(mktemp -d)/Meowio.iconset"
 mkdir -p "$set_dir"
 src="$here/../icon-1024.png"
