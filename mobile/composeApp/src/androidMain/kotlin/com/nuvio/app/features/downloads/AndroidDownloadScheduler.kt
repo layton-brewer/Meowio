@@ -36,7 +36,7 @@ import okhttp3.ConnectionPool
 
 internal class AndroidDownloadScheduler(val context: Context) {
     val store = AndroidDownloadStore(File(context.filesDir, "download-transfers"))
-    val directory = File(context.filesDir, "downloads")
+    val directory: File get() = DownloadLocation.directory(context)
     private val locks = ConcurrentHashMap<String, Mutex>()
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
