@@ -105,6 +105,7 @@ import com.nuvio.app.features.details.components.DetailActions
 import com.nuvio.app.features.downloads.AutoDownloader
 import com.nuvio.app.features.downloads.DownloadChoiceDialog
 import com.nuvio.app.features.downloads.DownloadPrefs
+import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.downloads.LocalDownloadAction
 import com.nuvio.app.features.details.components.CommentDetailSheet
 import com.nuvio.app.features.details.components.DetailAdditionalInfoSection
@@ -202,6 +203,7 @@ fun MetaDetailsScreen(
     modifier: Modifier = Modifier,
 ) {
     val playbackAvailability = rememberPlaybackAvailability()
+    val downloadsForDetails by DownloadsRepository.uiState.collectAsStateWithLifecycle()
     val shuffleProfile by remember {
         EpisodeShuffleRepository.ensureLoaded()
         EpisodeShuffleRepository.uiState
@@ -513,6 +515,38 @@ fun MetaDetailsScreen(
                         },
                     ) {
                         Text(stringResource(Res.string.action_retry))
+                    }
+                    val offlineDownloads = remember(id, downloadsForDetails) {
+                        downloadsForDetails.completedItems.filter { it.parentMetaId == id && it.isPlayable }
+                            .sortedWith(compareBy({ it.seasonNumber ?: 0 }, { it.episodeNumber ?: 0 }))
+                    }
+                    if (offlineDownloads.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Downloaded on this device",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        offlineDownloads.forEach { item ->
+                            Button(
+                                onClick = {
+                                    onPlay?.invoke(
+                                        item.contentType, item.videoId, item.parentMetaId, item.parentMetaType,
+                                        item.title, item.logo, item.poster, item.background,
+                                        item.seasonNumber, item.episodeNumber, item.episodeTitle,
+                                        item.episodeThumbnail, null, null,
+                                    )
+                                },
+                            ) {
+                                Text(
+                                    if (item.isEpisode) {
+                                        "Play S${item.seasonNumber}E${item.episodeNumber} ${item.episodeTitle.orEmpty()}".trim()
+                                    } else {
+                                        "Play ${item.title}"
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }

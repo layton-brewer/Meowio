@@ -124,7 +124,7 @@ internal fun LazyListScope.libraryDownloadsContent(
     onSortSelected: (DownloadSort) -> Unit,
     onManageClick: (() -> Unit)?,
     onOpenDownload: ((DownloadItem) -> Unit)?,
-    onOpenShow: ((showId: String, title: String) -> Unit)?,
+    onOpenShow: ((type: String, id: String, title: String) -> Unit)?,
     onLongPress: (DownloadPosterEntry) -> Unit,
 ) {
     item(key = "downloads-controls") {
@@ -190,11 +190,7 @@ internal fun LazyListScope.libraryDownloadsContent(
             onPosterClick = { preview ->
                 val entry = rowEntries.firstOrNull { it.preview.id == preview.id && it.preview.type == preview.type }
                 if (entry != null) {
-                    if (entry.preview.type == "series") {
-                        onOpenShow?.invoke(entry.preview.id, entry.preview.name)
-                    } else {
-                        entry.items.firstOrNull { it.isPlayable }?.let { onOpenDownload?.invoke(it) }
-                    }
+                    onOpenShow?.invoke(entry.preview.type, entry.preview.id, entry.preview.name)
                 }
             },
             onPosterLongClick = { preview ->

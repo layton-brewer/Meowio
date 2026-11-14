@@ -119,7 +119,7 @@ fun LibraryScreen(
     onPreviewLongClick: ((MetaPreview) -> Unit)? = null,
     onDownloadsClick: (() -> Unit)? = null,
     onOpenDownload: ((com.nuvio.app.features.downloads.DownloadItem) -> Unit)? = null,
-    onOpenDownloadShow: ((showId: String, title: String) -> Unit)? = null,
+    onOpenDownloadShow: ((type: String, id: String, title: String) -> Unit)? = null,
     disintegrationRequest: DisintegrationRequest<String>? = null,
 ) {
     val uiState by remember {
