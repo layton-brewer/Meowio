@@ -6,15 +6,19 @@
 
 **Pick something to watch. Let Meowio pick the stream.**
 
-A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for Android phones, tablets, and TV, with Smart auto-play, built-in free Live TV, and a frosted-glass interface.
+A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for Android phones and TV, iPhone/iPad, Apple TV, Mac and Windows, with Smart auto-play, built-in free Live TV, and a frosted-glass interface.
 
-[Download](https://github.com/layton-brewer/Meowio/releases/latest) · [What's different](#whats-different-from-nuvio) · [Get started](#get-started) · [Screenshots](#screenshots) · [Report an issue](https://github.com/layton-brewer/Meowio/issues)
+[Download](#download) · [What's different](#whats-different-from-nuvio) · [Get started](#get-started) · [Screenshots](#screenshots) · [FAQ](#faq) · [Legal](#legal-notes) · [Report an issue](https://github.com/layton-brewer/Meowio/issues)
 
 </div>
 
 ## Download
 
-Choose the APK for your device. Both apps require **Android 7.0 or newer**.
+Every platform is attached to the [latest release](https://github.com/layton-brewer/Meowio/releases/latest) as one set of files. Choose yours below.
+
+### Android
+
+Both Android apps require **Android 7.0 or newer**.
 
 | Device | Download |
 | --- | --- |
@@ -169,8 +173,25 @@ Channels and guide data come from the configured provider. Availability can chan
 **How do I update?**  
 Use the in-app updater or download the latest APK for the same device type from [Releases](https://github.com/layton-brewer/Meowio/releases/latest).
 
+**Does Meowio host or provide any movies or shows?**  
+No. See [Legal notes](#legal-notes).
+
+**Is it safe to install? Windows or macOS warns me.**  
+The Windows and Apple builds are not code-signed (that needs paid developer accounts), so the operating system shows a generic warning. The Android APKs are signed with the same key every release, so updates install over each other. The full source is in this repository, and the release files are built by the workflows in `.github/workflows`.
+
 **Are there iOS or desktop downloads?**  
 Yes. Every platform is on the [latest release](https://github.com/layton-brewer/Meowio/releases/latest): Android APKs, plus unsigned iPhone/iPad, Mac and Apple TV builds (see Apple devices above). Apple files can appear up to an hour after the Android ones.
+
+## Legal notes
+
+- **Meowio does not host, store, provide or link to any movies, series or other copyrighted content.** It is a media player and organizer. On-demand playback only works through add-ons, services and sources that *you* choose and configure, and you are responsible for making sure your use of them is lawful where you live and that you have the right to access the content.
+- The built-in Live TV list is the community [Free-TV/IPTV](https://github.com/Free-TV/IPTV) playlist of publicly available free channels. Meowio does not control those streams.
+- Downloads store streams that your own configured sources return, for personal offline viewing on your own device.
+- Meowio is an independent fork. It is **not** affiliated with, sponsored by or endorsed by the Nuvio team, Tapframe, Trakt, or any add-on or service provider. All product names belong to their owners.
+- Meowio collects no analytics of its own. Features that talk to a service (your add-ons, Trakt, update checks against this repository's GitHub releases, an AI provider with your own key) send requests to that service under its terms.
+- The software is provided "as is", without warranty of any kind, under the GPL v3 (see [LICENSE](LICENSE)).
+
+See [CREDITS.md](CREDITS.md) for upstream projects and licenses.
 
 ## Bugs and feedback
 
