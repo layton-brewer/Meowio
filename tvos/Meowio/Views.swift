@@ -510,6 +510,17 @@ struct DetailView: View {
                         Button { library.toggleSaved(meta) } label: {
                             Label(library.isSaved(meta) ? "Saved" : "My List", systemImage: library.isSaved(meta) ? "checkmark" : "plus")
                         }
+                        if meta.type != "movie", ordered.count > 1 {
+                            // Episode shuffle, like the Android TV app: plays a random episode of the show.
+                            Button {
+                                if let ep = ordered.randomElement() {
+                                    Task { await play(videoId: ep.id, title: ep.displayTitle) }
+                                }
+                            } label: {
+                                Label("Shuffle", systemImage: "shuffle")
+                            }
+                            .disabled(resolving)
+                        }
                         if meta.type == "movie" {
                             Button {
                                 if library.isWatched(meta.id) { library.markUnwatched(meta: meta, videoId: nil) }
