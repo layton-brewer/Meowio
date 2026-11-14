@@ -60,17 +60,17 @@ class AppUpdaterRepositoryTest {
         val response = """{
             "tag_name": "v0.1.9",
             "assets": [
-                {"name": "NuvioExtended-tv.apk", "browser_download_url": "https://example.com/tv.apk"},
-                {"name": "NuvioExtended-mobile.apk", "browser_download_url": "https://example.com/mobile.apk"}]
+                {"name": "Meowio-tv.apk", "browser_download_url": "https://example.com/tv.apk"},
+                {"name": "Meowio-mobile.apk", "browser_download_url": "https://example.com/mobile.apk"}]
         }"""
-        assertEquals("NuvioExtended-mobile.apk", select(response, UpdateChannel.STABLE)?.assetName)
+        assertEquals("Meowio-mobile.apk", select(response, UpdateChannel.STABLE)?.assetName)
     }
 
     @Test
     fun neverOffersTheTvBuildToAPhone() {
         val response = """{
             "tag_name": "v0.1.9",
-            "assets": [{"name": "NuvioExtended-tv.apk", "browser_download_url": "https://example.com/tv.apk"}]
+            "assets": [{"name": "Meowio-tv.apk", "browser_download_url": "https://example.com/tv.apk"}]
         }"""
         assertNull(select(response, UpdateChannel.STABLE))
     }
