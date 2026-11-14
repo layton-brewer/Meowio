@@ -92,7 +92,10 @@ jobs:
         run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.3 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/Meowio-tv.apk"
+        run: |
+          apk=app/build/outputs/apk/full/debug/app-full-universal-debug.apk
+          [ -f "$apk" ] || apk=app/build/outputs/apk/full/debug/app-full-debug.apk
+          cp "$apk" "$RUNNER_TEMP/Meowio-tv.apk"
 
       # Re-sign with the persistent key so the shipped APK always carries the
       # same signature regardless of how the build type signs by default.
