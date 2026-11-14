@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Rebrands a checkout of the desktop sources as Meowio.
+# Rebuilt so the Intel Mac build carries the latest desktop changes.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd -P)"
 root="$1"
