@@ -54,6 +54,8 @@ struct PlayRequest: Identifiable {
     var candidates: [StreamItem]
     var headers: [String: String] = [:]
     var isLive = false
+    /// Where to start, in seconds, for a title the user left part way.
+    var startAt: Double = 0
     /// Resolves the request for the episode after this one, when there is one.
     var nextEpisode: (@MainActor () async -> PlayRequest?)? = nil
 }
@@ -79,7 +81,9 @@ final class PlaybackController: ObservableObject {
     private var sleepTicker: Timer?
     private(set) var lastSeconds: Double = 0
     private(set) var lastDuration: Double = 0
-    var onProgress: ((PlayRequest, Double, Bool) -> Void)?
+    var onProgress: ((PlayRequest, Double, Double, Bool) -> Void)?
+    /// Position to start the source that is loading at: the resume point, or where the failed source stopped.
+    private var pendingStart: Double = 0
     var onPlayed: ((PlayRequest, StreamItem) -> Void)?
     var onClose: (() -> Void)?
 
@@ -108,7 +112,7 @@ final class PlaybackController: ObservableObject {
                 }
             }
         }
-        load(at: 0)
+        load(at: 0, keepPosition: false)
     }
 
     func stop() {
@@ -139,10 +143,10 @@ final class PlaybackController: ObservableObject {
         syncFromMPV()
         guard !request.isLive, lastSeconds > 5 else { return }
         let done = completed || (lastDuration > 0 && lastSeconds / lastDuration > 0.92)
-        onProgress?(request, lastSeconds, done)
+        onProgress?(request, lastSeconds, lastDuration, done)
     }
 
-    private func load(at i: Int) {
+    private func load(at i: Int, keepPosition: Bool = true) {
         guard request.candidates.indices.contains(i), let url = request.candidates[i].playableURL else {
             failedAll = true
             return
@@ -151,7 +155,13 @@ final class PlaybackController: ObservableObject {
         activeIndex = i
         failedAll = false
         cancellables.removeAll()
+        if keepPosition, !request.isLive {
+            let current = usingMPV ? mpv.position : player.currentTime().seconds
+            if current.isFinite, current > 5 { lastSeconds = current }
+        }
+        pendingStart = request.isLive ? 0 : (lastSeconds > 5 ? lastSeconds : request.startAt)
         let stream = request.candidates[i]
+        let headers = stream.headers(merging: request.headers)
         let hint = (stream.behaviorHints?.filename ?? url.lastPathComponent).lowercased()
         let mpvOnly = ["mkv", "avi", "webm", "flv", "wmv", "ts", "m2ts", "mpg", "mpeg"].contains((hint as NSString).pathExtension)
         if mpvOnly || triedMPV.contains(i) {
@@ -166,7 +176,7 @@ final class PlaybackController: ObservableObject {
             }
             mpv.onFailed = { [weak self] in self?.failover() }
             mpv.onEnded = { [weak self] in self?.ended() }
-            mpv.load(url: url.absoluteString, headers: request.headers)
+            mpv.load(url: url.absoluteString, headers: headers, start: pendingStart)
             armTimeout()
             return
         }
@@ -175,10 +185,10 @@ final class PlaybackController: ObservableObject {
             usingMPV = false
         }
         let asset: AVURLAsset
-        if request.headers.isEmpty {
+        if headers.isEmpty {
             asset = AVURLAsset(url: url)
         } else {
-            asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": request.headers])
+            asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
         let item = AVPlayerItem(asset: asset)
         item.publisher(for: \.status)
@@ -187,6 +197,10 @@ final class PlaybackController: ObservableObject {
                 guard let self else { return }
                 if status == .readyToPlay {
                     self.timeout?.cancel()
+                    if self.pendingStart > 0 {
+                        self.player.seek(to: CMTime(seconds: self.pendingStart, preferredTimescale: 600))
+                        self.pendingStart = 0
+                    }
                     self.player.play()
                     self.onPlayed?(self.request, self.request.candidates[self.index])
                 } else if status == .failed {
@@ -252,7 +266,7 @@ final class PlaybackController: ObservableObject {
                 switches = 0
                 lastSeconds = 0
                 lastDuration = 0
-                load(at: 0)
+                load(at: 0, keepPosition: false)
             }
         }
     }
@@ -344,8 +358,9 @@ struct PlayerScreen: View {
             }
         }
         .onAppear {
-            controller.onProgress = { request, seconds, completed in
-                library.recordPlay(meta: request.meta, videoId: request.videoId, seconds: seconds, completed: completed)
+            controller.onProgress = { request, seconds, duration, completed in
+                library.recordPlay(meta: request.meta, videoId: request.videoId, seconds: seconds,
+                                   duration: duration > 0 ? duration : nil, completed: completed)
             }
             controller.onPlayed = { request, stream in
                 if request.meta.type == "series" { streams.rememberRelease(parentId: request.meta.id, stream: stream) }

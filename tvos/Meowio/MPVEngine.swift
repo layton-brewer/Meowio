@@ -54,7 +54,7 @@ final class MPVEngine: NSObject {
         }, Unmanaged.passUnretained(self).toOpaque())
     }
 
-    func load(url: String, headers: [String: String]) {
+    func load(url: String, headers: [String: String], start: Double = 0) {
         start()
         guard let mpv else { onFailed?(); return }
         loaded = false
@@ -66,6 +66,7 @@ final class MPVEngine: NSObject {
             let joined = headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
             mpv_set_property_string(mpv, "http-header-fields", joined)
         }
+        mpv_set_property_string(mpv, "start", start > 0 ? String(format: "%.1f", start) : "none")
         command(["loadfile", url, "replace"])
     }
 
