@@ -630,7 +630,7 @@ struct DetailView: View {
         let list = await streams.candidates(type: meta.type, id: videoId, parentId: meta.id, settings: settings)
         resolving = false
         guard !list.isEmpty else {
-            message = "No playable sources found."
+            message = "No playable sources found. Check your add-ons in Settings, then try again, or use the Sources button."
             return
         }
         if forcePicker || settings.streamMode == .manual {

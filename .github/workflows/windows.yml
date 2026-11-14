@@ -1,6 +1,6 @@
 name: Windows build
 
-# Builds the Meowio Windows app (MSI) from the Nuvio Desktop sources with the Meowio overlay applied,
+# Builds the Meowio Windows app (EXE installer) from the Nuvio Desktop sources with the Meowio overlay applied,
 # then attaches it to the latest Meowio release so every download lives on one page.
 on:
   push:
@@ -20,8 +20,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  msi:
-    name: Build Windows MSI (x64)
+  exe:
+    name: Build Windows EXE (x64)
     runs-on: windows-2022
     timeout-minutes: 120
     env:
@@ -72,35 +72,35 @@ jobs:
           }
           "WEBVIEW2_ROOT=$webView2Root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Build MSI
+      - name: Build EXE
         working-directory: desktop
         shell: pwsh
         run: |
           "NUVIO_SUPABASE_URL=`nNUVIO_SUPABASE_ANON_KEY=`nTRAKT_CLIENT_ID=`nTRAKT_CLIENT_SECRET=`nMDBLIST_CLIENT_ID=`n" | Set-Content local.properties -NoNewline
           & .\gradlew.bat `
-            :composeApp:packageReleaseMsi `
+            :composeApp:packageReleaseExe `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
-            "-Pnuvio.desktop.versionName=0.1.${{ github.run_number }}" `
+            "-Pnuvio.desktop.versionName=0.2.0" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Collect MSI
+      - name: Collect EXE
         shell: bash
         run: |
           mkdir -p out
-          msi="$(find desktop/composeApp/build -name '*.msi' | head -n 1)"
-          echo "Found: $msi"
-          test -n "$msi"
-          cp "$msi" out/Meowio-windows-x64.msi
+          exe="$(find desktop/composeApp/build -path "*main-release/exe/*" -name "*.exe" | head -n 1)"
+          echo "Found: $exe"
+          test -n "$exe"
+          cp "$exe" out/Meowio-windows-x64.exe
           ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
           name: Meowio-windows-x64
-          path: out/Meowio-windows-x64.msi
+          path: out/Meowio-windows-x64.exe
           retention-days: 14
 
       - name: Attach to the latest Meowio release
@@ -109,4 +109,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload "$(gh release view --json tagName -q .tagName)" out/Meowio-windows-x64.msi --clobber
+        run: gh release upload "$(gh release view --json tagName -q .tagName)" out/Meowio-windows-x64.exe --clobber
