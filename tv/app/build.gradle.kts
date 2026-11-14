@@ -356,7 +356,7 @@ android {
             // Shipped builds target ARM only (phones, TVs and boxes). Dropping the x86
             // libraries roughly halves the native payload. Opt in with -Pmeowio.armOnly=true.
             if (providers.gradleProperty("meowio.armOnly").orNull == "true") {
-                excludes += listOf("lib/x86/**", "lib/x86_64/**")
+                excludes += listOf("**/x86/**", "**/x86_64/**")
             }
             // Keep one consistent native set across dependencies.
             pickFirsts += listOf(

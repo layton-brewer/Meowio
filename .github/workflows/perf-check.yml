@@ -33,7 +33,7 @@ jobs:
         run: |
           keytool -genkeypair -keystore "$RUNNER_TEMP/k.jks" -storepass android -alias androiddebugkey -keypass android -dname "CN=Android Debug" -keyalg RSA -keysize 2048 -validity 10000
           ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true --stacktrace
-      - run: ls -l app/build/outputs/apk/full/debug/*.apk; unzip -l app/build/outputs/apk/full/debug/app-full-universal-debug.apk | grep -c 'lib/x86' || true
+      - run: ls -l app/build/outputs/apk/full/debug/*.apk; unzip -l app/build/outputs/apk/full/debug/app-full-universal-debug.apk | grep 'lib/x86' | head -5; echo x86-entries-done
 
   mobile:
     runs-on: ubuntu-latest
@@ -48,4 +48,4 @@ jobs:
       - run: touch local.properties
       - name: Build
         run: ./gradlew :androidApp:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1536m" --max-workers=2 --stacktrace
-      - run: ls -l androidApp/build/outputs/apk/full/debug/*.apk; unzip -l androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk | grep -c 'lib/x86' || true
+      - run: ls -l androidApp/build/outputs/apk/full/debug/*.apk; unzip -l androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk | grep 'lib/x86' | head -5; echo x86-entries-done
