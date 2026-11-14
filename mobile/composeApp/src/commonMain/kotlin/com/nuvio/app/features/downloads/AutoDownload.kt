@@ -44,6 +44,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -68,6 +71,44 @@ object AutoDownloader {
     private val failovers = mutableMapOf<String, Failover>()
     private val runningBatches = mutableSetOf<String>()
     private var watcherStarted = false
+
+    /** Asks the app to open the source list for a title so the user can pick a source to download by hand. */
+    data class ManualSourceRequest(
+        val type: String,
+        val videoId: String,
+        val parentMetaId: String,
+        val parentMetaType: String,
+        val title: String,
+        val logo: String?,
+        val poster: String?,
+        val background: String?,
+        val seasonNumber: Int?,
+        val episodeNumber: Int?,
+        val episodeTitle: String?,
+        val episodeThumbnail: String?,
+    )
+
+    private val _manualSourceRequests = MutableSharedFlow<ManualSourceRequest>(extraBufferCapacity = 1)
+    val manualSourceRequests: SharedFlow<ManualSourceRequest> = _manualSourceRequests.asSharedFlow()
+
+    private fun requestManualSources(spec: Spec) {
+        _manualSourceRequests.tryEmit(
+            ManualSourceRequest(
+                type = spec.meta.type,
+                videoId = spec.videoId,
+                parentMetaId = spec.meta.id,
+                parentMetaType = spec.meta.type,
+                title = spec.meta.name,
+                logo = spec.meta.logo,
+                poster = spec.meta.poster,
+                background = spec.meta.background,
+                seasonNumber = spec.season,
+                episodeNumber = spec.episode,
+                episodeTitle = spec.episodeTitle,
+                episodeThumbnail = spec.episodeThumbnail,
+            ),
+        )
+    }
 
     private data class Spec(
         val meta: MetaDetails,
@@ -116,13 +157,12 @@ object AutoDownloader {
             }
             toast("Finding the best source for ${meta.name}…")
             val outcome = downloadOne(spec, preferredBingeGroup = null)
-            toast(
-                if (outcome != null) {
-                    "Downloading ${meta.name} (${outcome.summary})"
-                } else {
-                    "No debrid or direct link found to download for ${meta.name}."
-                },
-            )
+            if (outcome != null) {
+                toast("Downloading ${meta.name} (${outcome.summary})")
+            } else {
+                toast("No debrid or direct link found for ${meta.name}. Pick a source from the list.", durationMillis = 4500L)
+                requestManualSources(spec)
+            }
         }
     }
 
@@ -139,13 +179,12 @@ object AutoDownloader {
             }
             toast("Finding the best source for $label…")
             val outcome = downloadOne(spec, preferredBingeGroup = null)
-            toast(
-                if (outcome != null) {
-                    "Downloading $label (${outcome.summary})"
-                } else {
-                    "No debrid or direct link found to download for $label."
-                },
-            )
+            if (outcome != null) {
+                toast("Downloading $label (${outcome.summary})")
+            } else {
+                toast("No debrid or direct link found for $label. Pick a source from the list.", durationMillis = 4500L)
+                requestManualSources(spec)
+            }
         }
     }
 
