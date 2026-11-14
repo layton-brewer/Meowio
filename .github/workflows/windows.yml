@@ -1,0 +1,112 @@
+name: Windows build
+
+# Builds the Meowio Windows app (MSI) from the Nuvio Desktop sources with the Meowio overlay applied,
+# then attaches it to the latest Meowio release so every download lives on one page.
+on:
+  push:
+    branches: [main, claude/project-thread-gdrsat]
+    paths:
+      - "windows/**"
+      - "apple/macos/**"
+      - "mobile/composeApp/src/commonMain/kotlin/com/nuvio/app/features/downloads/**"
+      - ".github/workflows/windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  msi:
+    name: Build Windows MSI (x64)
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      WEBVIEW2_VERSION: 1.0.4078.44
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Fetch desktop sources
+        shell: bash
+        run: |
+          # Pinned so the Meowio overlay always lands on the sources it was merged against.
+          export GIT_LFS_SKIP_SMUDGE=1
+          git init desktop
+          cd desktop
+          git remote add origin https://github.com/NuvioMedia/NuvioDesktop.git
+          git fetch --depth 1 origin fca444b96ea03251fb21dc46ac5de035d3358806
+          git checkout --force FETCH_HEAD
+          unset GIT_LFS_SKIP_SMUDGE
+          git lfs install --local
+          git lfs pull --include="composeApp/src/desktopMain/native/windows/runtime/**" --exclude=""
+          size="$(wc -c < composeApp/src/desktopMain/native/windows/runtime/libmpv-2.dll)"
+          echo "libmpv-2.dll is $size bytes"
+          test "$size" -gt 1000000
+
+      - name: Apply Meowio branding and overlay
+        shell: bash
+        run: ./apple/macos/apply-overlay.sh desktop
+
+      - name: Install WebView2 SDK
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Web.WebView2 `
+            -Version $env:WEBVIEW2_VERSION `
+            -OutputDirectory "$env:RUNNER_TEMP\nuget" `
+            -DirectDownload `
+            -NonInteractive `
+            -NoCache
+          $webView2Root = Join-Path $env:RUNNER_TEMP "nuget\Microsoft.Web.WebView2.$env:WEBVIEW2_VERSION"
+          if (-not (Test-Path (Join-Path $webView2Root "build\native\x64\WebView2Loader.dll.lib"))) {
+            throw "WebView2 SDK was not found at $webView2Root"
+          }
+          "WEBVIEW2_ROOT=$webView2Root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build MSI
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          "NUVIO_SUPABASE_URL=`nNUVIO_SUPABASE_ANON_KEY=`nTRAKT_CLIENT_ID=`nTRAKT_CLIENT_SECRET=`nMDBLIST_CLIENT_ID=`n" | Set-Content local.properties -NoNewline
+          & .\gradlew.bat `
+            :composeApp:packageReleaseMsi `
+            "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
+            "-Pcompose.desktop.packaging.checkJdkVendor=false" `
+            "-Pnuvio.desktop.versionName=0.1.${{ github.run_number }}" `
+            --no-configuration-cache `
+            --no-daemon `
+            --stacktrace
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Collect MSI
+        shell: bash
+        run: |
+          mkdir -p out
+          msi="$(find desktop/composeApp/build -name '*.msi' | head -n 1)"
+          echo "Found: $msi"
+          test -n "$msi"
+          cp "$msi" out/Meowio-windows-x64.msi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-windows-x64
+          path: out/Meowio-windows-x64.msi
+          retention-days: 14
+
+      - name: Attach to the latest Meowio release
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$(gh release view --json tagName -q .tagName)" out/Meowio-windows-x64.msi --clobber
