@@ -1,0 +1,42 @@
+name: Apple TV compile check
+
+# Compile-only check for Apple TV work branches. Publishing is done by apple.yml on main.
+on:
+  push:
+    branches: ["claude/project-thread-cu44vx", "claude/tvos"]
+    paths:
+      - "tvos/**"
+      - ".github/workflows/tvos-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tvos-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tvos:
+    name: Compile Apple TV app
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: tvos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch MPVKit
+        run: git init -q MPVKit && git -C MPVKit fetch -q --depth 1 https://github.com/mpvkit/MPVKit.git d9194243bdc68b87d8989376ab52aee7da6c8e0b && git -C MPVKit checkout -q FETCH_HEAD
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
+            -sdk appletvos -destination 'generic/platform=tvOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build 2>&1 | tee build.log | grep -E "error:|BUILD" | head -120
+      - name: Warnings
+        if: always()
+        run: grep -E "warning:" build.log | grep -v MPVKit | sort -u | head -60 || true

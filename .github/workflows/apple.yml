@@ -192,6 +192,8 @@ jobs:
           xcodebuild -showsdks | grep -i tvos || true
           brew install xcodegen
 
+      - name: Fetch MPVKit
+        run: git init -q MPVKit && git -C MPVKit fetch -q --depth 1 https://github.com/mpvkit/MPVKit.git d9194243bdc68b87d8989376ab52aee7da6c8e0b && git -C MPVKit checkout -q FETCH_HEAD
       - name: Generate project
         run: xcodegen generate
 
@@ -200,6 +202,7 @@ jobs:
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
             -sdk appletvos -destination 'generic/platform=tvOS' \
             -derivedDataPath build \
+            MARKETING_VERSION=0.1.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
 
       - name: Package IPA

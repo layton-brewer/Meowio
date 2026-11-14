@@ -11,6 +11,8 @@ struct MetaItem: Identifiable, Codable, Hashable {
     var imdbRating: String?
     var genres: [String]?
     var videos: [Video]?
+    /// Add-on that listed this title, for titles that are not on Cinemeta. Filled in by the client.
+    var addonBase: String?
 
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
     var backgroundURL: URL? { (background ?? poster).flatMap(URL.init(string:)) }
@@ -46,6 +48,16 @@ struct StreamItem: Codable, Hashable {
         var notWebReady: Bool?
         var filename: String?
         var bingeGroup: String?
+        var proxyHeaders: ProxyHeaders?
+    }
+
+    struct ProxyHeaders: Codable, Hashable {
+        var request: [String: String]?
+    }
+
+    /// Extra request headers the add-on asks for, merged over the request's own.
+    func headers(merging base: [String: String]) -> [String: String] {
+        base.merging(behaviorHints?.proxyHeaders?.request ?? [:]) { _, new in new }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -83,4 +95,5 @@ struct WatchRecord: Codable, Identifiable, Hashable {
     var seconds: Double
     var completed: Bool
     var at: Date
+    var duration: Double? = nil
 }
