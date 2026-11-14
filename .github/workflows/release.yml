@@ -241,7 +241,6 @@ jobs:
 
           **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple files are attached by a separate build and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
 
-          ## What's changed
           NOTES
           sed -i 's/^          //' notes.md
           sed -i "s|REPO|${{ github.repository }}|g; s|TAG|$tag|g" notes.md
@@ -250,7 +249,6 @@ jobs:
             --target "${{ github.sha }}" \
             --title "Meowio $tag" \
             --notes-file notes.md \
-            --generate-notes \
             --latest
           # Carry the most recent Apple builds over so this page always offers every platform.
           mkdir -p apple
