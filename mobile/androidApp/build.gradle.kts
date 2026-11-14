@@ -67,6 +67,11 @@ android {
     }
 
     defaultConfig {
+        // Shipped builds target ARM only (phones, TVs and boxes); dropping the x86 libraries
+        // roughly halves the native payload. Opt in with -Pmeowio.armOnly=true.
+        if (providers.gradleProperty("meowio.armOnly").orNull == "true") {
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        }
         applicationId = "com.nuvio.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
