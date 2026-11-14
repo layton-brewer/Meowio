@@ -1498,7 +1498,7 @@ internal fun MainAppContent(
                                 },
                                 onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
                                 onOpenDownload = ::openDownloadedItem,
-                                onOpenDownloadShow = { showId, title -> navController.navigate(DownloadShowRoute(showId, title)) },
+                                onOpenDownloadShow = { type, id, title -> navController.navigate(DetailRoute(type = type, id = id, title = title)) },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
                                 onSwitchProfile = onSwitchProfile,
