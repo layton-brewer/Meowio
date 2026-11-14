@@ -89,7 +89,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pnuvio.app.versionName=0.1.${{ github.run_number }} -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pnuvio.app.versionName=0.2.0 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp app/build/outputs/apk/full/debug/app-full-universal-debug.apk "$RUNNER_TEMP/Meowio-tv.apk"
@@ -178,7 +178,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.1.${{ github.run_number }} -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.0 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -220,7 +220,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.1.${{ github.run_number }}"
+          tag="v0.2.0"
           cat > notes.md <<'NOTES'
           ## Download
 
@@ -234,13 +234,13 @@ jobs:
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
           | Mac, Intel | [Meowio-macos-x86_64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-x86_64.dmg) |
           | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
-          | Windows 10/11 (64-bit) | [Meowio-windows-x64.msi](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.msi) |
+          | Windows 10/11 (64-bit) | [Meowio-windows-x64.exe](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.exe) |
 
           ## Install
 
           **Android** needs Android 7.0 or newer. Installing over an existing Meowio keeps your data, and the in-app updater picks the right file for your device. On Android TV you can also install over adb once: `adb connect <tv-ip>:5555 && adb install -r Meowio-tv.apk`
 
-          **Windows:** run the `.msi` and follow the installer (Windows may show a SmartScreen warning because the app is not code-signed: choose More info, then Run anyway). Installing a newer `.msi` over an old one updates it in place, and the in-app updater does this for you.
+          **Windows:** run the `.exe` and follow the installer (Windows may show a SmartScreen warning because the app is not code-signed: choose More info, then Run anyway). Installing a newer `.exe` over an old one updates it in place, and the in-app updater does this for you.
 
           **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple and Windows files are attached by separate builds and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
 
@@ -257,7 +257,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.msi' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.exe' || true
           done
           if ls apple/* >/dev/null 2>&1; then
             gh release upload "$tag" apple/* --repo "${{ github.repository }}" --clobber

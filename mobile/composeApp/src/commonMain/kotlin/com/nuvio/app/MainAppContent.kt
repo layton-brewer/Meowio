@@ -841,6 +841,32 @@ internal fun MainAppContent(
             }
         }
 
+        // When no direct or debrid link can be downloaded automatically, show the source list so the
+        // user can pick one by hand (each source there has its own Download button).
+        LaunchedEffect(Unit) {
+            com.nuvio.app.features.downloads.AutoDownloader.manualSourceRequests.collect { request ->
+                val launchId = StreamLaunchStore.put(
+                    StreamLaunch(
+                        profileId = activePlaybackProfileId,
+                        type = request.type,
+                        videoId = request.videoId,
+                        parentMetaId = request.parentMetaId,
+                        parentMetaType = request.parentMetaType,
+                        title = request.title,
+                        logo = request.logo,
+                        poster = request.poster,
+                        background = request.background,
+                        seasonNumber = request.seasonNumber,
+                        episodeNumber = request.episodeNumber,
+                        episodeTitle = request.episodeTitle,
+                        episodeThumbnail = request.episodeThumbnail,
+                        manualSelection = true,
+                    ),
+                )
+                navController.navigate(StreamRoute(launchId = launchId, title = request.title))
+            }
+        }
+
         fun openDownloadedItem(item: DownloadItem) {
             val sourceUrl = DownloadsRepository.playableLocalFileUri(item) ?: return
             val resumeEntry = item.videoId
@@ -1472,6 +1498,7 @@ internal fun MainAppContent(
                                 },
                                 onDownloadsClick = { navController.navigate(DownloadsRoute(downloadsTitle)) },
                                 onOpenDownload = ::openDownloadedItem,
+                                onOpenDownloadShow = { showId, title -> navController.navigate(DownloadShowRoute(showId, title)) },
                                 onContinueWatchingClick = onContinueWatchingClick,
                                 onContinueWatchingLongPress = onContinueWatchingLongPress,
                                 onSwitchProfile = onSwitchProfile,

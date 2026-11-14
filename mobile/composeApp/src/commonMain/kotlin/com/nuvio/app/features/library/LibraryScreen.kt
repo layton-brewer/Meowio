@@ -114,6 +114,8 @@ fun LibraryScreen(
     onPreviewClick: ((MetaPreview) -> Unit)? = null,
     onPreviewLongClick: ((MetaPreview) -> Unit)? = null,
     onDownloadsClick: (() -> Unit)? = null,
+    onOpenDownload: ((com.nuvio.app.features.downloads.DownloadItem) -> Unit)? = null,
+    onOpenDownloadShow: ((showId: String, title: String) -> Unit)? = null,
     disintegrationRequest: DisintegrationRequest<String>? = null,
 ) {
     val uiState by remember {
@@ -153,6 +155,7 @@ fun LibraryScreen(
     val sourceMode = remember(sourceModeName, hasServers) {
         runCatching { LibraryViewMode.valueOf(sourceModeName) }.getOrDefault(LibraryViewMode.Saved)
             .takeUnless { it == LibraryViewMode.Servers && !hasServers }
+            ?.takeUnless { it == LibraryViewMode.Downloads && onDownloadsClick == null }
             ?: LibraryViewMode.Saved
     }
     var serverShelves by remember { mutableStateOf<List<LibraryServerShelf>?>(null) }
@@ -165,6 +168,17 @@ fun LibraryScreen(
     }
     var selectedCloudItemKey by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedLibrarySectionKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var downloadsTypeFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    var downloadsSortName by rememberSaveable { mutableStateOf(DownloadSort.AddedDesc.name) }
+    val downloadsSort = DownloadSort.entries.firstOrNull { it.name == downloadsSortName } ?: DownloadSort.AddedDesc
+    var downloadPendingDelete by remember { mutableStateOf<DownloadPosterEntry?>(null) }
+    val downloadsUiState by remember {
+        com.nuvio.app.features.downloads.DownloadsRepository.ensureLoaded()
+        com.nuvio.app.features.downloads.DownloadsRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val downloadEntries = remember(downloadsUiState, downloadsTypeFilter, downloadsSort) {
+        buildDownloadPosterEntries(downloadsUiState, downloadsTypeFilter, downloadsSort)
+    }
     var selectedLibraryType by rememberSaveable { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -295,6 +309,7 @@ fun LibraryScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        DownloadDeleteDialog(downloadPendingDelete) { downloadPendingDelete = null }
         val gridColumns = remember(maxWidth) { posterGridColumnCountForWidth(maxWidth) }
 
         NuvioScreen(
@@ -370,7 +385,7 @@ fun LibraryScreen(
                         LibrarySourceSwitch(
                             selectedMode = sourceMode,
                             showServers = hasServers,
-                            onDownloadsClick = onDownloadsClick,
+                            showDownloads = onDownloadsClick != null,
                             onModeSelected = { mode ->
                                 sourceModeName = mode.name
                             },
@@ -412,6 +427,20 @@ fun LibraryScreen(
                     onBackToItems = { selectedCloudItemKey = null },
                     onRefresh = { CloudLibraryRepository.refresh() },
                     onConnectCloudClick = onConnectCloudClick,
+                )
+            } else if (sourceMode == LibraryViewMode.Downloads) {
+                libraryDownloadsContent(
+                    state = downloadsUiState,
+                    entries = downloadEntries,
+                    selectedType = downloadsTypeFilter,
+                    sort = downloadsSort,
+                    columns = gridColumns,
+                    onTypeSelected = { downloadsTypeFilter = it },
+                    onSortSelected = { downloadsSortName = it.name },
+                    onManageClick = onDownloadsClick,
+                    onOpenDownload = onOpenDownload,
+                    onOpenShow = onOpenDownloadShow,
+                    onLongPress = { downloadPendingDelete = it },
                 )
             } else if (sourceMode == LibraryViewMode.Servers) {
                 serverLibraryContent(
@@ -734,7 +763,7 @@ private fun LazyListScope.cloudLibrarySkeletonItems() {
 private fun LibrarySourceSwitch(
     selectedMode: LibraryViewMode,
     showServers: Boolean,
-    onDownloadsClick: (() -> Unit)?,
+    showDownloads: Boolean,
     onModeSelected: (LibraryViewMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -752,12 +781,11 @@ private fun LibrarySourceSwitch(
             selected = selectedMode == LibraryViewMode.Cloud,
             onClick = { onModeSelected(LibraryViewMode.Cloud) },
         )
-        if (onDownloadsClick != null) {
-            // Opens the Downloads page (offline items, quality and location settings).
+        if (showDownloads) {
             LibraryChip(
                 label = "Downloads",
-                selected = false,
-                onClick = onDownloadsClick,
+                selected = selectedMode == LibraryViewMode.Downloads,
+                onClick = { onModeSelected(LibraryViewMode.Downloads) },
             )
         }
         if (showServers) {
@@ -1230,6 +1258,7 @@ private fun CloudLibrarySkeletonRow(
 private enum class LibraryViewMode {
     Saved,
     Cloud,
+    Downloads,
     Servers,
 }
 

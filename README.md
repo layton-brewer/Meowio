@@ -27,7 +27,7 @@ See [all releases](https://github.com/layton-brewer/Meowio/releases) for earlier
 
 | Device | Download | How to install |
 | --- | --- | --- |
-| Windows 10 / 11 | [Meowio-windows-x64.msi](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-windows-x64.msi) | Run the installer. The build is not code-signed, so Windows SmartScreen may warn: choose **More info**, then **Run anyway**. Installing a newer MSI over an old one updates it in place, and the in-app updater does this for you. |
+| Windows 10 / 11 | [Meowio-windows-x64.exe](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-windows-x64.exe) | Run the installer. The build is not code-signed, so Windows SmartScreen may warn: choose **More info**, then **Run anyway**. Installing a newer installer over an old one updates it in place, and the in-app updater does this for you. |
 
 The Windows app is built from the Nuvio Desktop codebase with the same Meowio features as the Mac app (Smart auto-play, silent failover, season packs, preloading, one-tap downloads, Live TV, backup/restore, themes and the glass UI).
 
