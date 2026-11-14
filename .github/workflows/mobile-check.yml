@@ -18,4 +18,4 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
       - run: touch local.properties
-      - run: ./gradlew :composeApp:compileFullDebugKotlinAndroid -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
+      - run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore --stacktrace
