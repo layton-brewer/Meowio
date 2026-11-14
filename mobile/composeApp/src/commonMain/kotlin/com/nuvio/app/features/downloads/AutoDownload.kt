@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -74,6 +76,7 @@ object AutoDownloader {
         val episode: Int?,
         val episodeTitle: String?,
         val episodeThumbnail: String?,
+        val options: DownloadOptions,
     ) {
         val key: String
             get() = if (season != null && episode != null) {
@@ -89,10 +92,12 @@ object AutoDownloader {
         val attempts: Int,
     )
 
-    private class Chosen(val stream: StreamItem)
+    private class Chosen(val stream: StreamItem) {
+        val summary: String get() = describeStream(stream)
+    }
 
     /** Downloads a movie (or any title without episodes) with the best available source. */
-    fun downloadMovie(meta: MetaDetails) {
+    fun downloadMovie(meta: MetaDetails, options: DownloadOptions = DownloadPrefs.options()) {
         val spec = Spec(
             meta = meta,
             videoId = meta.id,
@@ -100,6 +105,7 @@ object AutoDownloader {
             episode = null,
             episodeTitle = null,
             episodeThumbnail = null,
+            options = options,
         )
         scope.launch {
             DownloadsRepository.ensureLoaded()
@@ -112,7 +118,7 @@ object AutoDownloader {
             val outcome = downloadOne(spec, preferredBingeGroup = null)
             toast(
                 if (outcome != null) {
-                    "Downloading ${meta.name}"
+                    "Downloading ${meta.name} (${outcome.summary})"
                 } else {
                     "No debrid or direct link found to download for ${meta.name}."
                 },
@@ -121,8 +127,8 @@ object AutoDownloader {
     }
 
     /** Downloads a single episode with the best available source. */
-    fun downloadEpisode(meta: MetaDetails, video: MetaVideo) {
-        val spec = episodeSpec(meta, video)
+    fun downloadEpisode(meta: MetaDetails, video: MetaVideo, options: DownloadOptions = DownloadPrefs.options()) {
+        val spec = episodeSpec(meta, video, options)
         val label = episodeLabel(video)
         scope.launch {
             DownloadsRepository.ensureLoaded()
@@ -135,7 +141,7 @@ object AutoDownloader {
             val outcome = downloadOne(spec, preferredBingeGroup = null)
             toast(
                 if (outcome != null) {
-                    "Downloading $label"
+                    "Downloading $label (${outcome.summary})"
                 } else {
                     "No debrid or direct link found to download for $label."
                 },
@@ -147,7 +153,12 @@ object AutoDownloader {
      * Downloads every given episode of a season, one after another. Season packs and the same
      * release are preferred so the episodes match. At most three downloads run at once.
      */
-    fun downloadSeason(meta: MetaDetails, season: Int, episodes: List<MetaVideo>) {
+    fun downloadSeason(
+        meta: MetaDetails,
+        season: Int,
+        episodes: List<MetaVideo>,
+        options: DownloadOptions = DownloadPrefs.options(),
+    ) {
         val ordered = episodes.sortedBy { it.episode ?: Int.MAX_VALUE }
         if (ordered.isEmpty()) {
             toast("No episodes available to download for season $season")
@@ -169,7 +180,7 @@ object AutoDownloader {
                 var missing = 0
                 var bingeGroup: String? = null
                 for (video in ordered) {
-                    val spec = episodeSpec(meta, video)
+                    val spec = episodeSpec(meta, video, options)
                     if (hasActiveOrDone(spec.key)) {
                         skipped++
                         continue
@@ -197,7 +208,7 @@ object AutoDownloader {
         }
     }
 
-    private fun episodeSpec(meta: MetaDetails, video: MetaVideo): Spec {
+    private fun episodeSpec(meta: MetaDetails, video: MetaVideo, options: DownloadOptions): Spec {
         val playbackVideoId = buildPlaybackVideoId(
             parentMetaId = meta.id,
             seasonNumber = video.season,
@@ -211,6 +222,7 @@ object AutoDownloader {
             episode = video.episode,
             episodeTitle = video.title.takeIf { it.isNotBlank() },
             episodeThumbnail = video.thumbnail,
+            options = options,
         )
     }
 
@@ -244,6 +256,7 @@ object AutoDownloader {
             streams = streams,
             isSeries = spec.season != null && spec.episode != null,
             preferredBingeGroup = preferredBingeGroup,
+            options = spec.options,
         )
         if (candidates.isEmpty()) return null
         return enqueueFirstWorking(spec, candidates, attempts = 0)
@@ -288,9 +301,10 @@ object AutoDownloader {
         streams: List<StreamItem>,
         isSeries: Boolean,
         preferredBingeGroup: String?,
+        options: DownloadOptions,
     ): List<StreamItem> {
         val debrid = DebridSettingsRepository.snapshot()
-        return StreamAutoPlaySelector.evaluateAutoPlayStream(
+        val evaluation = StreamAutoPlaySelector.evaluateAutoPlayStream(
             streams = streams,
             mode = StreamAutoPlayMode.SMART,
             regexPattern = "",
@@ -303,7 +317,10 @@ object AutoDownloader {
             debridEnabled = debrid.canResolvePlayableLinks,
             activeResolverProviderId = debrid.activeResolverProviderId,
             isSeries = isSeries,
-        ).readyStreams
+        )
+        val ready = evaluation.readyStreams
+        if (ready.isEmpty()) return ready
+        return applyQuality(ready, options)
     }
 
     private suspend fun enqueueFirstWorking(spec: Spec, candidates: List<StreamItem>, attempts: Int): Chosen? {
@@ -395,7 +412,10 @@ private fun String.isDownloadableUrl(): Boolean {
 /** Set by the details screen; the action row shows a Download button when it is non-null. */
 val LocalDownloadAction = compositionLocalOf<(() -> Unit)?> { null }
 
-/** Asks whether to download one episode or the whole season, then starts the downloads. */
+/**
+ * The download dialog: quality and size limit for everything, plus This episode / Entire season
+ * for series. The choices are remembered as the default for next time.
+ */
 @Composable
 fun DownloadChoiceDialog(
     meta: MetaDetails,
@@ -403,6 +423,12 @@ fun DownloadChoiceDialog(
     todayIsoDate: String,
     onDismiss: () -> Unit,
 ) {
+    val isSeries = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
+    val saved = remember { DownloadPrefs.current }
+    var quality by remember { mutableStateOf(saved.quality) }
+    var maxSizeGb by remember { mutableStateOf(saved.maxSizeGb) }
+    var askEachTime by remember { mutableStateOf(saved.askEachTime) }
+
     val seasons = remember(meta.videos) {
         val all = meta.videos.mapNotNull { it.season }.distinct().sorted()
         val regular = all.filter { it > 0 }
@@ -419,52 +445,108 @@ fun DownloadChoiceDialog(
         preferredEpisode?.takeIf { it.season == season } ?: seasonEpisodes.firstOrNull()
     }
 
+    fun options(): DownloadOptions {
+        DownloadPrefs.save(quality, maxSizeGb, askEachTime)
+        return DownloadOptions(quality, maxSizeGb)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Download") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
-                    text = "Meowio picks the best source automatically and switches if one fails.",
+                    text = "Meowio picks the best debrid source for your choice and switches if one fails.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (seasons.size > 1) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        seasons.forEach { value ->
-                            FilterChip(
-                                selected = value == season,
-                                onClick = { season = value },
-                                label = { Text(if (value == 0) "Specials" else "Season $value") },
-                            )
-                        }
+                ChipGroup(title = "Quality") {
+                    DownloadQuality.entries.forEach { value ->
+                        FilterChip(
+                            selected = value == quality,
+                            onClick = { quality = value },
+                            label = { Text(value.label) },
+                        )
                     }
                 }
-                DownloadChoiceRow(
-                    title = "This episode",
-                    subtitle = singleEpisode?.let { episodeChoiceLabel(it) } ?: "No episode available",
-                    enabled = singleEpisode != null,
-                    onClick = {
-                        singleEpisode?.let { AutoDownloader.downloadEpisode(meta, it) }
-                        onDismiss()
-                    },
-                )
-                DownloadChoiceRow(
-                    title = "Entire season",
-                    subtitle = if (seasonEpisodes.isEmpty()) {
-                        "No released episodes"
+                Text(
+                    text = if (quality == DownloadQuality.SMALLEST_GOOD) {
+                        "Up to 1080p, no remuxes, smaller file preferred."
                     } else {
-                        "${if (season == 0) "Specials" else "Season $season"} · ${seasonEpisodes.size} episode${if (seasonEpisodes.size == 1) "" else "s"}"
+                        "Picks ${quality.label} when a source has it, otherwise the closest smaller one."
                     },
-                    enabled = seasonEpisodes.isNotEmpty(),
-                    onClick = {
-                        AutoDownloader.downloadSeason(meta, season, seasonEpisodes)
-                        onDismiss()
-                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                ChipGroup(title = "Size limit per file") {
+                    listOf(0 to "No limit", 2 to "2 GB", 5 to "5 GB", 10 to "10 GB").forEach { (gb, label) ->
+                        FilterChip(
+                            selected = gb == maxSizeGb,
+                            onClick = { maxSizeGb = gb },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                if (!isSeries) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { askEachTime = !askEachTime },
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Checkbox(checked = !askEachTime, onCheckedChange = { askEachTime = !it })
+                        Text(
+                            text = "Don't ask again for movies (use these choices)",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    DownloadChoiceRow(
+                        title = "Download movie",
+                        subtitle = "${quality.label}${if (maxSizeGb > 0) " · up to $maxSizeGb GB" else ""}",
+                        enabled = true,
+                        onClick = {
+                            AutoDownloader.downloadMovie(meta, options())
+                            onDismiss()
+                        },
+                    )
+                } else {
+                    if (seasons.size > 1) {
+                        ChipGroup(title = "Season") {
+                            seasons.forEach { value ->
+                                FilterChip(
+                                    selected = value == season,
+                                    onClick = { season = value },
+                                    label = { Text(if (value == 0) "Specials" else "Season $value") },
+                                )
+                            }
+                        }
+                    }
+                    DownloadChoiceRow(
+                        title = "This episode",
+                        subtitle = singleEpisode?.let { episodeChoiceLabel(it) } ?: "No episode available",
+                        enabled = singleEpisode != null,
+                        onClick = {
+                            singleEpisode?.let { AutoDownloader.downloadEpisode(meta, it, options()) }
+                            onDismiss()
+                        },
+                    )
+                    DownloadChoiceRow(
+                        title = "Entire season",
+                        subtitle = if (seasonEpisodes.isEmpty()) {
+                            "No released episodes"
+                        } else {
+                            "${if (season == 0) "Specials" else "Season $season"} · ${seasonEpisodes.size} episode${if (seasonEpisodes.size == 1) "" else "s"}"
+                        },
+                        enabled = seasonEpisodes.isNotEmpty(),
+                        onClick = {
+                            AutoDownloader.downloadSeason(meta, season, seasonEpisodes, options())
+                            onDismiss()
+                        },
+                    )
+                }
             }
         },
         confirmButton = {},
@@ -472,6 +554,23 @@ fun DownloadChoiceDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+@Composable
+private fun ChipGroup(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            content()
+        }
+    }
 }
 
 private fun episodeChoiceLabel(video: MetaVideo): String {
@@ -504,4 +603,138 @@ private fun DownloadChoiceRow(
             )
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Quality choice
+// ---------------------------------------------------------------------------------------------
+
+/** What the user wants to store. The default is deliberately not the biggest file. */
+enum class DownloadQuality(val label: String, val maxHeight: Int?) {
+    /** Up to 1080p, never a remux, and the smaller file when several look equally good. */
+    SMALLEST_GOOD("Auto: smallest good", 1080),
+    UHD_2160("4K", 2160),
+    FHD_1080("1080p", 1080),
+    HD_720("720p", 720),
+    SD_480("480p", 480),
+}
+
+/** [maxSizeGb] of 0 means no size limit. */
+data class DownloadOptions(
+    val quality: DownloadQuality = DownloadQuality.SMALLEST_GOOD,
+    val maxSizeGb: Int = 0,
+)
+
+/** The user's saved download choices. When [askEachTime] is off a movie downloads without a dialog. */
+object DownloadPrefs {
+    data class State(
+        val quality: DownloadQuality = DownloadQuality.SMALLEST_GOOD,
+        val maxSizeGb: Int = 0,
+        val askEachTime: Boolean = true,
+    )
+
+    private val _state = kotlinx.coroutines.flow.MutableStateFlow(load())
+    val state: kotlinx.coroutines.flow.StateFlow<State> = _state
+
+    val current: State get() = _state.value
+
+    fun options(): DownloadOptions = DownloadOptions(current.quality, current.maxSizeGb)
+
+    fun save(quality: DownloadQuality, maxSizeGb: Int, askEachTime: Boolean) {
+        val next = State(quality, maxSizeGb, askEachTime)
+        _state.value = next
+        runCatching { DownloadPrefsStorage.save("${next.quality.name}|${next.maxSizeGb}|${next.askEachTime}") }
+    }
+
+    private fun load(): State = runCatching {
+        val parts = DownloadPrefsStorage.load()?.split("|") ?: return@runCatching State()
+        State(
+            quality = DownloadQuality.entries.firstOrNull { it.name == parts.getOrNull(0) }
+                ?: DownloadQuality.SMALLEST_GOOD,
+            maxSizeGb = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+            askEachTime = parts.getOrNull(2)?.toBooleanStrictOrNull() ?: true,
+        )
+    }.getOrDefault(State())
+}
+
+private val REMUX_REGEX = Regex("remux", RegexOption.IGNORE_CASE)
+private val SIZE_REGEX = Regex("(\\d+(?:[.,]\\d+)?)\\s?(GB|GiB|MB|MiB)", RegexOption.IGNORE_CASE)
+
+private fun StreamItem.qualityText(): String = listOfNotNull(
+    name,
+    title,
+    description,
+    behaviorHints.filename,
+    clientResolve?.filename,
+).joinToString("\n")
+
+private fun StreamItem.heightOrNull(): Int? =
+    com.nuvio.app.features.streams.StreamSmartRanker.parseHeightText(qualityText())
+
+/** File size in bytes when the source reports it (add-on hint or a size printed in its text). */
+internal fun StreamItem.reportedSizeBytes(): Long? {
+    behaviorHints.videoSize?.takeIf { it > 0L }?.let { return it }
+    val match = SIZE_REGEX.find(qualityText()) ?: return null
+    val value = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+    val unit = match.groupValues[2].lowercase()
+    val multiplier = if (unit.startsWith("g")) 1_073_741_824.0 else 1_048_576.0
+    return (value * multiplier).toLong().takeIf { it > 0L }
+}
+
+private fun formatSize(bytes: Long): String {
+    val gb = bytes / 1_073_741_824.0
+    return if (gb >= 1.0) {
+        "${(gb * 10).toLong() / 10.0} GB"
+    } else {
+        "${bytes / 1_048_576} MB"
+    }
+}
+
+private fun describeStream(stream: StreamItem): String {
+    val height = stream.heightOrNull()?.let { if (it >= 2160) "4K" else "${it}p" }
+    val size = stream.reportedSizeBytes()?.let(::formatSize)
+    return listOfNotNull(height, size).joinToString(" · ").ifBlank { "best available source" }
+}
+
+/**
+ * Reorders already-ranked candidates for the chosen quality and size limit. Streams that break a
+ * limit are dropped while any that fit remain; if none fit, the smallest ones are tried instead of
+ * failing outright.
+ */
+private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions): List<StreamItem> {
+    val maxHeight = options.quality.maxHeight ?: 2160
+    val sizeCap = options.maxSizeGb.takeIf { it > 0 }?.let { it * 1_073_741_824L }
+    val smart = options.quality == DownloadQuality.SMALLEST_GOOD
+
+    var pool = ranked
+    // Remuxes are huge; skip them unless nothing else exists (or 4K was asked for explicitly).
+    if (smart || options.quality != DownloadQuality.UHD_2160) {
+        pool.filterNot { REMUX_REGEX.containsMatchIn(it.qualityText()) }.takeIf { it.isNotEmpty() }?.let { pool = it }
+    } else {
+        pool = pool.sortedBy { if (REMUX_REGEX.containsMatchIn(it.qualityText())) 1 else 0 }
+    }
+
+    val withinHeight = pool.filter { (it.heightOrNull() ?: 0) <= maxHeight }
+    pool = if (withinHeight.isNotEmpty()) {
+        withinHeight
+    } else {
+        pool.sortedBy { it.heightOrNull() ?: Int.MAX_VALUE }
+    }
+
+    if (sizeCap != null) {
+        val withinSize = pool.filter { (it.reportedSizeBytes() ?: 0L) <= sizeCap }
+        pool = if (withinSize.isNotEmpty()) {
+            withinSize
+        } else {
+            pool.sortedBy { it.reportedSizeBytes() ?: Long.MAX_VALUE }
+        }
+    }
+
+    if (smart && pool.size > 1) {
+        // Same resolution as the best pick: prefer the smaller file.
+        val bestHeight = pool.first().heightOrNull()
+        val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
+        pool = sameHeight.sortedBy { it.reportedSizeBytes() ?: Long.MAX_VALUE } + others
+    }
+    return pool
 }
