@@ -24,12 +24,14 @@ jobs:
     name: Prepare release
     runs-on: ubuntu-latest
     steps:
-      - name: Ensure rolling release exists
+      - name: Check a Meowio release exists
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release view apple-latest >/dev/null 2>&1 || gh release create apple-latest --target "${{ github.sha }}" --title "Meowio for Apple (iOS, macOS, tvOS)" --notes "Unsigned builds for sideloading. See the README for install steps." --prerelease
+          # Apple builds attach to the current Latest "Meowio vX.Y.Z" release so every
+          # download lives on one page. The target is resolved again at upload time.
+          gh release view --json tagName -q .tagName
 
   ios:
     needs: [release]
@@ -101,12 +103,12 @@ jobs:
           path: mobile/build/ios-ipa/Meowio-ios.ipa
           retention-days: 14
 
-      - name: Upload to apple-latest release
+      - name: Attach to the latest Meowio release
         working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload apple-latest mobile/build/ios-ipa/Meowio-ios.ipa --clobber
+        run: gh release upload "$(gh release view --json tagName -q .tagName)" mobile/build/ios-ipa/Meowio-ios.ipa --clobber
 
   macos:
     needs: [release]
@@ -166,14 +168,13 @@ jobs:
           path: out/*.dmg
           retention-days: 14
 
-      - name: Upload to apple-latest release
+      - name: Attach to the latest Meowio release
         working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release upload apple-latest out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
-          gh release edit apple-latest --title "Meowio for Apple 0.1.${{ github.run_number }}"
+          gh release upload "$(gh release view --json tagName -q .tagName)" out/Meowio-macos-${{ matrix.arch }}.dmg --clobber
 
   tvos:
     needs: [release]
@@ -220,9 +221,9 @@ jobs:
           path: tvos/Meowio-tvos.ipa
           retention-days: 14
 
-      - name: Upload to apple-latest release
+      - name: Attach to the latest Meowio release
         working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release upload apple-latest tvos/Meowio-tvos.ipa --clobber
+        run: gh release upload "$(gh release view --json tagName -q .tagName)" tvos/Meowio-tvos.ipa --clobber

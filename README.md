@@ -25,7 +25,7 @@ See [all releases](https://github.com/layton-brewer/Meowio/releases) for earlier
 
 ### Apple devices (unsigned builds)
 
-Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** builds, because there is no paid Apple developer account behind this project. Grab them from the rolling [Apple release](https://github.com/layton-brewer/Meowio/releases/tag/apple-latest).
+Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** builds, because there is no paid Apple developer account behind this project. Grab them from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest), where the Android and Apple files sit together.
 
 | Device | Download | How to install |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** bui
 
 Notes:
 
-- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with the Meowio features merged in (Smart auto-play, silent failover, season packs, preloading, pinned sources, sleep timer, Live TV, backup/restore, quality picker, themes, insights, AI assistant, glass UI). Its updater follows the `apple-latest` release.
+- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with the Meowio features merged in (Smart auto-play, silent failover, season packs, preloading, pinned sources, sleep timer, Live TV, backup/restore, quality picker, themes, insights, AI assistant, glass UI). Its updater follows the latest release.
 - The Apple TV app is a native SwiftUI app with the same features: Smart auto-play with silent failover and preloading for every season, season-pack and same-release preference, pinned sources, resume where you left off (also across a source switch), sleep timer, quality picker, Live TV with now/next guide and dead-stream pruning, themes, insights and AI assistant (your own key). It has a Netflix-style Home with Continue Watching and rows from your add-ons' catalogs. MKV and other formats AVPlayer can't open play through a built-in mpv engine, with audio and subtitle track menus. For settings backup, open **Settings > Backup and restore** and visit the address it shows from a phone or computer on the same network to download or upload a backup file. Add a stream add-on in **Settings** first. It plays direct and debrid HTTP streams (not raw torrents); downloads are Android TV only.
 - **Platform differences:** CloudStream plugins run only on Android phones, TV downloads only on Android TV, and audio passthrough/decoder defaults only on Android. Apple devices use the system decoders instead.
 - Apple does not allow notarized or App Store distribution without a developer account, so these cannot be installed with a plain tap.
@@ -162,7 +162,7 @@ Channels and guide data come from the configured provider. Availability can chan
 Use the in-app updater or download the latest APK for the same device type from [Releases](https://github.com/layton-brewer/Meowio/releases/latest).
 
 **Are there iOS or desktop downloads?**  
-Yes. Android APKs are published on the main releases. iPhone/iPad, Mac and Apple TV builds are unsigned and published on the rolling `apple-latest` release (see Apple devices above).
+Yes. Every platform is on the [latest release](https://github.com/layton-brewer/Meowio/releases/latest): Android APKs, plus unsigned iPhone/iPad, Mac and Apple TV builds (see Apple devices above). Apple files can appear up to an hour after the Android ones.
 
 ## Bugs and feedback
 

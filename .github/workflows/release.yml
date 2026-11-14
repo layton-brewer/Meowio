@@ -222,22 +222,29 @@ jobs:
         run: |
           tag="v0.1.${{ github.run_number }}"
           cat > notes.md <<'NOTES'
-          ## Install
+          ## Download
+
+          Pick the file for your device. Everything is on this page.
 
           | Device | File |
           | --- | --- |
-          | Android phone or tablet | `Meowio-mobile.apk` |
-          | Android TV, Google TV, Fire TV (Android-based) | `Meowio-tv.apk` |
+          | Android TV, Google TV, Fire TV (Android-based) | [Meowio-tv.apk](https://github.com/REPO/releases/download/TAG/Meowio-tv.apk) |
+          | Android phone or tablet | [Meowio-mobile.apk](https://github.com/REPO/releases/download/TAG/Meowio-mobile.apk) |
+          | iPhone / iPad | [Meowio-ios.ipa](https://github.com/REPO/releases/download/TAG/Meowio-ios.ipa) |
+          | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
+          | Mac, Intel | [Meowio-macos-x86_64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-x86_64.dmg) |
+          | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
 
-          Requires Android 7.0 or newer. Installing over an existing Meowio keeps your data and settings; the in-app updater picks the right file for your device.
+          ## Install
 
-          **Android TV, one time over adb:** `adb connect <tv-ip>:5555 && adb install -r Meowio-tv.apk`
+          **Android** needs Android 7.0 or newer. Installing over an existing Meowio keeps your data, and the in-app updater picks the right file for your device. On Android TV you can also install over adb once: `adb connect <tv-ip>:5555 && adb install -r Meowio-tv.apk`
 
-          Looking for iPhone, Mac or Apple TV builds? See the [Meowio for Apple](https://github.com/${{ github.repository }}/releases/tag/apple-latest) release.
+          **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple files are attached by a separate build and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
 
           ## What's changed
           NOTES
           sed -i 's/^          //' notes.md
+          sed -i "s|REPO|${{ github.repository }}|g; s|TAG|$tag|g" notes.md
           gh release create "$tag" apks/*.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
@@ -245,3 +252,12 @@ jobs:
             --notes-file notes.md \
             --generate-notes \
             --latest
+          # Carry the most recent Apple builds over so this page always offers every platform.
+          mkdir -p apple
+          for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
+            gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' || true
+          done
+          if ls apple/* >/dev/null 2>&1; then
+            gh release upload "$tag" apple/* --repo "${{ github.repository }}" --clobber
+          fi
