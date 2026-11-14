@@ -152,6 +152,10 @@ private fun LazyListScope.downloadsRootContent(
     onOpenShow: (showId: String, title: String) -> Unit,
     onDeleteDownload: (String) -> Unit,
 ) {
+    if (uiState.items.isNotEmpty()) {
+        item { StorageSummary(uiState) }
+    }
+
     val activeItems = uiState.activeItems
     val completedMovies = uiState.completedItems.filterNot(DownloadItem::isEpisode)
     val completedShows = uiState.completedItems
@@ -484,6 +488,24 @@ private fun downloadDisplaySubtitle(
         item.episodeTitle?.trim().orEmpty().takeIf { it.isNotBlank() && it != displayTitle },
         item.title.trim().takeIf { it.isNotBlank() && it != displayTitle },
     ).filterNotNull().joinToString(" • ")
+}
+
+@Composable
+private fun StorageSummary(uiState: DownloadsUiState) {
+    val usedBytes = uiState.items.sumOf { item ->
+        if (item.status == DownloadStatus.Completed) {
+            item.totalBytes ?: item.downloadedBytes
+        } else {
+            item.downloadedBytes
+        }
+    }
+    val savedCount = uiState.completedItems.size
+    Text(
+        text = "$savedCount saved for offline viewing \u00B7 ${formatBytes(usedBytes)} used on this device",
+        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

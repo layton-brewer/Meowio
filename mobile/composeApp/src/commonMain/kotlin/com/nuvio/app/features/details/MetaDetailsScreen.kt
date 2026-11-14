@@ -102,6 +102,9 @@ import com.nuvio.app.core.ui.rememberHeroStretchState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.features.details.components.DetailActions
+import com.nuvio.app.features.downloads.AutoDownloader
+import com.nuvio.app.features.downloads.DownloadChoiceDialog
+import com.nuvio.app.features.downloads.LocalDownloadAction
 import com.nuvio.app.features.details.components.CommentDetailSheet
 import com.nuvio.app.features.details.components.DetailAdditionalInfoSection
 import com.nuvio.app.features.details.components.DetailCastSection
@@ -887,6 +890,22 @@ fun MetaDetailsScreen(
                         }
                     }
                 }
+                var showDownloadChoice by remember(type, id) { mutableStateOf(false) }
+                val onDownloadClick: () -> Unit = {
+                    if (meta.type == "series" || hasEpisodes) {
+                        showDownloadChoice = true
+                    } else {
+                        AutoDownloader.downloadMovie(meta)
+                    }
+                }
+                if (showDownloadChoice) {
+                    DownloadChoiceDialog(
+                        meta = meta,
+                        preferredEpisode = seriesActionVideo,
+                        todayIsoDate = todayIsoDate,
+                        onDismiss = { showDownloadChoice = false },
+                    )
+                }
                 val manualPlayHandler = onPlayManually
                 val showManualPlayOption = manualPlayHandler != null && StreamAutoPlayPolicy.isEffectivelyEnabled(playerSettingsUiState)
                 val onPrimaryPlayLongClick: (() -> Unit)? = manualPlayHandler
@@ -1179,7 +1198,10 @@ fun MetaDetailsScreen(
                                     )
                                 }
                             }
-                            CompositionLocalProvider(LocalOnBackdrop provides backgroundMode.usesBackdropBackground) {
+                            CompositionLocalProvider(
+                            LocalOnBackdrop provides backgroundMode.usesBackdropBackground,
+                            LocalDownloadAction provides onDownloadClick,
+                        ) {
                                 LazyColumn(
                                     state = listState,
                                     modifier = Modifier

@@ -10,15 +10,27 @@ icons="$root/composeApp/src/desktopMain/resources/icons"
 # desktop sources. Files here replace the pinned desktop copies; new files are added.
 cp -R "$here/overlay/." "$root/composeApp/src/"
 
+# One-tap downloads and the Downloads screen live in the phone app's sources and are shared as-is,
+# so the phone, Mac and Windows apps always behave the same.
+shared="$here/../../mobile/composeApp/src/commonMain/kotlin/com/nuvio/app/features/downloads"
+for f in AutoDownload.kt DownloadsScreen.kt; do
+  cp "$shared/$f" "$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/downloads/$f"
+done
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \
   -e 's/vendor = "Nuvio Media"/vendor = "Meowio"/' \
   -e 's/"Nuvio-macOS-/"Meowio-macOS-/' \
+  -e 's/"Nuvio-Windows-/"Meowio-Windows-/' \
   -e 's/"Nuvio-\$desktopReleasePackageVersion/"Meowio-$desktopReleasePackageVersion/' \
   -e 's/menuGroup = "Nuvio"/menuGroup = "Meowio"/' \
   "$gradle"
 rm -f "$gradle.bak"
+
+# App icon for Windows (and the in-app logo): the Meowio cat.
+cp "$here/../icon-1024.png" "$icons/nuvio-app-icon-transparent.png"
+cp "$here/../../windows/meowio.ico" "$icons/nuvio-app-icon-transparent.ico"
 
 # App icon: build an .icns from the Meowio cat icon (macOS tools only; skipped for Linux compile checks).
 command -v sips >/dev/null 2>&1 || exit 0
@@ -30,4 +42,3 @@ for s in 16 32 128 256 512; do
   sips -z $((s*2)) $((s*2)) "$src" --out "$set_dir/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns "$set_dir" -o "$icons/nuvio-app-icon-transparent.icns"
-cp "$src" "$icons/nuvio-app-icon-transparent.png"

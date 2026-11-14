@@ -234,12 +234,15 @@ jobs:
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
           | Mac, Intel | [Meowio-macos-x86_64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-x86_64.dmg) |
           | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
+          | Windows 10/11 (64-bit) | [Meowio-windows-x64.msi](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.msi) |
 
           ## Install
 
           **Android** needs Android 7.0 or newer. Installing over an existing Meowio keeps your data, and the in-app updater picks the right file for your device. On Android TV you can also install over adb once: `adb connect <tv-ip>:5555 && adb install -r Meowio-tv.apk`
 
-          **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple files are attached by a separate build and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
+          **Windows:** run the `.msi` and follow the installer (Windows may show a SmartScreen warning because the app is not code-signed: choose More info, then Run anyway). Installing a newer `.msi` over an old one updates it in place, and the in-app updater does this for you.
+
+          **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple and Windows files are attached by separate builds and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
 
           NOTES
           sed -i 's/^          //' notes.md
@@ -254,7 +257,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.msi' || true
           done
           if ls apple/* >/dev/null 2>&1; then
             gh release upload "$tag" apple/* --repo "${{ github.repository }}" --clobber
