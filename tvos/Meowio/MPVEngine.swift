@@ -54,7 +54,7 @@ final class MPVEngine: NSObject {
         }, Unmanaged.passUnretained(self).toOpaque())
     }
 
-    func load(url: String, headers: [String: String], start: Double = 0) {
+    func load(url: String, headers: [String: String], start startAt: Double = 0) {
         start()
         guard let mpv else { onFailed?(); return }
         loaded = false
@@ -66,7 +66,7 @@ final class MPVEngine: NSObject {
             let joined = headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
             mpv_set_property_string(mpv, "http-header-fields", joined)
         }
-        mpv_set_property_string(mpv, "start", start > 0 ? String(format: "%.1f", start) : "none")
+        mpv_set_property_string(mpv, "start", startAt > 0 ? String(format: "%.1f", startAt) : "none")
         command(["loadfile", url, "replace"])
     }
 
@@ -80,6 +80,54 @@ final class MPVEngine: NSObject {
     }
     func togglePause() { setFlag("pause", !isPaused) }
     func seek(by seconds: Double) { command(["seek", String(seconds), "relative"]) }
+
+    func seek(to seconds: Double) { command(["seek", String(format: "%.1f", max(0, seconds)), "absolute"]) }
+
+    /// An audio or subtitle track in the file that is playing.
+    struct Track: Identifiable, Hashable {
+        let id: Int
+        let type: String
+        let title: String
+        let selected: Bool
+    }
+
+    /// Audio and subtitle tracks, read from mpv's track list.
+    func tracks() -> [Track] {
+        let count = Int(string("track-list/count") ?? "") ?? 0
+        var out: [Track] = []
+        for i in 0..<count {
+            guard let type = string("track-list/\(i)/type"), type == "audio" || type == "sub",
+                  let id = Int(string("track-list/\(i)/id") ?? "") else { continue }
+            let lang = string("track-list/\(i)/lang")
+            let title = string("track-list/\(i)/title")
+            let codec = string("track-list/\(i)/codec")
+            let channels = string("track-list/\(i)/demux-channel-count")
+            var parts: [String] = []
+            if let lang, !lang.isEmpty { parts.append(Locale.current.localizedString(forLanguageCode: lang) ?? lang) }
+            if let title, !title.isEmpty { parts.append(title) }
+            if let codec, !codec.isEmpty { parts.append(codec.uppercased()) }
+            if type == "audio", let channels, let n = Int(channels), n > 0 { parts.append(n > 2 ? "\(n - 1).1" : (n == 2 ? "Stereo" : "Mono")) }
+            let label = parts.isEmpty ? "Track \(id)" : parts.joined(separator: " · ")
+            out.append(Track(id: id, type: type, title: label, selected: string("track-list/\(i)/selected") == "yes"))
+        }
+        return out
+    }
+
+    func select(_ track: Track) {
+        guard let mpv else { return }
+        mpv_set_property_string(mpv, track.type == "audio" ? "aid" : "sid", String(track.id))
+    }
+
+    func subtitlesOff() {
+        guard let mpv else { return }
+        mpv_set_property_string(mpv, "sid", "no")
+    }
+
+    private func string(_ name: String) -> String? {
+        guard let mpv, let c = mpv_get_property_string(mpv, name) else { return nil }
+        defer { mpv_free(c) }
+        return String(cString: c)
+    }
 
     func stop() {
         guard let m = mpv else { return }

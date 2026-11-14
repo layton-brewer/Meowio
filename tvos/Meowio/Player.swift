@@ -371,52 +371,152 @@ struct PlayerScreen: View {
     }
 }
 
-/// Controls for mpv playback: select pauses, left and right skip, up opens the quality and sleep menus.
+/// Controls for mpv playback, laid out like the system player: click to pause, left and right to skip,
+/// swipe up or down for quality, audio, subtitles and the sleep timer.
 struct MPVPlayerLayer: View {
     @ObservedObject var controller: PlaybackController
     @ObservedObject var sleep: SleepTimer
     @State private var showMenu = false
+    @State private var showBar = true
+    @State private var tracks: [MPVEngine.Track] = []
+    @State private var hideTask: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .bottom) {
             MPVSurface(engine: controller.mpv).ignoresSafeArea()
-            if showMenu {
-                HStack(spacing: 30) {
-                    if controller.request.candidates.count > 1 {
-                        Menu("Quality") {
-                            ForEach(Array(controller.request.candidates.prefix(25).enumerated()), id: \.offset) { i, s in
-                                Button("\(s.label) \(s.addonName ?? "")") { controller.choose(index: i) }
-                            }
-                        }
-                    }
-                    if !controller.request.isLive {
-                        Menu(sleep.label) {
-                            Button("Off") { SleepTimer.shared.cancel() }
-                            ForEach(SleepTimer.minuteOptions, id: \.self) { m in
-                                Button("\(m) minutes") { SleepTimer.shared.start(minutes: m) }
-                            }
-                            Button("End of episode") { SleepTimer.shared.endOfEpisode() }
-                        }
-                    }
-                    Button("Back 10s") { controller.mpv.seek(by: -10) }
-                    Button("Forward 30s") { controller.mpv.seek(by: 30) }
-                    Button("Hide") { showMenu = false }
+            if showBar || showMenu {
+                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                VStack(alignment: .leading, spacing: 18) {
+                    if showMenu { menuPanel }
+                    progressBar
                 }
-                .padding(30)
-                .glass()
-                .padding(60)
+                .padding(.horizontal, 80)
+                .padding(.bottom, 60)
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: showBar)
+        .animation(.easeInOut(duration: 0.2), value: showMenu)
         .focusable(!showMenu)
-        .onPlayPauseCommand { controller.mpv.togglePause() }
-        .onTapGesture { controller.mpv.togglePause() }
+        .onPlayPauseCommand { controller.mpv.togglePause(); poke() }
+        .onTapGesture { controller.mpv.togglePause(); poke() }
         .onMoveCommand { direction in
+            guard !showMenu else { return }
             switch direction {
-            case .left: controller.mpv.seek(by: -10)
-            case .right: controller.mpv.seek(by: 30)
-            case .up: showMenu = true
-            default: break
+            case .left: controller.mpv.seek(by: -10); poke()
+            case .right: controller.mpv.seek(by: 10); poke()
+            case .up, .down: openMenu()
+            @unknown default: break
             }
         }
+        .onExitCommand(perform: showMenu ? { showMenu = false; poke() } : nil)
+        .onAppear { poke() }
+    }
+
+    private var progressBar: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let pos = controller.mpv.position
+            let dur = controller.mpv.duration
+            VStack(alignment: .leading, spacing: 12) {
+                Text(controller.request.title).font(.title3.bold()).lineLimit(1)
+                if !controller.request.isLive, dur > 0 {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.25))
+                            Capsule().fill(.white).frame(width: geo.size.width * min(1, max(0, pos / dur)))
+                        }
+                    }
+                    .frame(height: 8)
+                    HStack {
+                        Text(Self.clock(pos))
+                        if controller.mpv.isPaused { Image(systemName: "pause.fill") }
+                        Spacer()
+                        Text("-" + Self.clock(max(0, dur - pos)))
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                } else if controller.request.isLive {
+                    Label("Live", systemImage: "dot.radiowaves.left.and.right").font(.caption).foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    private var menuPanel: some View {
+        HStack(spacing: 30) {
+            if controller.request.candidates.count > 1 {
+                Menu {
+                    ForEach(Array(controller.request.candidates.prefix(25).enumerated()), id: \.offset) { i, s in
+                        Button { controller.choose(index: i) } label: {
+                            if i == controller.activeIndex { Label("\(s.label) \(s.addonName ?? "")", systemImage: "checkmark") }
+                            else { Text("\(s.label) \(s.addonName ?? "")") }
+                        }
+                    }
+                } label: { Label("Quality", systemImage: "sparkles.tv") }
+            }
+            let audio = tracks.filter { $0.type == "audio" }
+            if audio.count > 1 {
+                Menu {
+                    ForEach(audio) { t in
+                        Button { controller.mpv.select(t); refreshTracks() } label: {
+                            if t.selected { Label(t.title, systemImage: "checkmark") } else { Text(t.title) }
+                        }
+                    }
+                } label: { Label("Audio", systemImage: "speaker.wave.2") }
+            }
+            let subs = tracks.filter { $0.type == "sub" }
+            if !subs.isEmpty {
+                Menu {
+                    Button("Off") { controller.mpv.subtitlesOff(); refreshTracks() }
+                    ForEach(subs) { t in
+                        Button { controller.mpv.select(t); refreshTracks() } label: {
+                            if t.selected { Label(t.title, systemImage: "checkmark") } else { Text(t.title) }
+                        }
+                    }
+                } label: { Label("Subtitles", systemImage: "captions.bubble") }
+            }
+            if !controller.request.isLive {
+                Menu {
+                    Button("Off") { SleepTimer.shared.cancel() }
+                    ForEach(SleepTimer.minuteOptions, id: \.self) { m in
+                        Button("\(m) minutes") { SleepTimer.shared.start(minutes: m) }
+                    }
+                    Button("End of episode") { SleepTimer.shared.endOfEpisode() }
+                } label: { Label(sleep.label, systemImage: "moon.zzz") }
+                Button { controller.mpv.seek(by: -30) } label: { Label("30s", systemImage: "gobackward.30") }
+                Button { controller.mpv.seek(by: 30) } label: { Label("30s", systemImage: "goforward.30") }
+            }
+        }
+        .padding(24)
+        .glass()
+    }
+
+    private func openMenu() {
+        refreshTracks()
+        showMenu = true
+        showBar = true
+        hideTask?.cancel()
+    }
+
+    private func refreshTracks() { tracks = controller.mpv.tracks() }
+
+    /// Shows the progress bar for a few seconds after any remote press.
+    private func poke() {
+        showBar = true
+        hideTask?.cancel()
+        hideTask = Task {
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if Task.isCancelled { return }
+            if !showMenu && !controller.mpv.isPaused { showBar = false }
+        }
+    }
+
+    static func clock(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+        let s = Int(seconds)
+        return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+                         : String(format: "%d:%02d", s / 60, s % 60)
     }
 }
