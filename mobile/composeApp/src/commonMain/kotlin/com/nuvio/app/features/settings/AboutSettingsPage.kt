@@ -109,7 +109,7 @@ internal fun LazyListScope.settingsFooterContent(isTablet: Boolean) {
                 .padding(horizontal = 20.dp, vertical = if (isTablet) 20.dp else 16.dp),
         ) {
             MemberBrandWordmark(
-                height = if (isTablet) 30.dp else 26.dp,
+                height = if (isTablet) 40.dp else 36.dp,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             androidx.compose.foundation.layout.Spacer(

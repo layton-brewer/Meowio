@@ -408,7 +408,7 @@
     
     <string name="about_title">Относно</string>
     <string name="about_subtitle">Информация за приложението, актуализации и правни връзки</string>
-    <string name="about_made_with_love">Направено с ❤️ от Tapframe и приятели</string>
+    <string name="about_made_with_love">Направено с ❤️ от Layton Brewer и приятели</string>
     <string name="about_version">Версия %1$s</string>
     <string name="about_update_banner_title">Банер за автоматична актуализация</string>
     <string name="about_update_banner_subtitle">Показване на банер, когато е налична нова версия</string>
