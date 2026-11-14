@@ -95,10 +95,13 @@ final class MPVEngine: NSObject {
 
     private func command(_ args: [String]) {
         guard let mpv else { return }
-        var cstrings: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) }
+        let owned: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) }
+        defer { for p in owned { free(p) } }
+        var cstrings: [UnsafePointer<CChar>?] = owned.map { $0.map { UnsafePointer($0) } }
         cstrings.append(nil)
-        mpv_command(mpv, &cstrings)
-        for p in cstrings { free(p) }
+        cstrings.withUnsafeMutableBufferPointer { buf in
+            _ = mpv_command(mpv, buf.baseAddress)
+        }
     }
 
     private func readEvents() {

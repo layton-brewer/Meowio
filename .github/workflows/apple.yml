@@ -193,7 +193,7 @@ jobs:
           brew install xcodegen
 
       - name: Fetch MPVKit
-        run: git clone --depth 1 https://github.com/mpvkit/MPVKit.git MPVKit
+        run: git init -q MPVKit && git -C MPVKit fetch -q --depth 1 https://github.com/mpvkit/MPVKit.git d9194243bdc68b87d8989376ab52aee7da6c8e0b && git -C MPVKit checkout -q FETCH_HEAD
       - name: Generate project
         run: xcodegen generate
 
