@@ -22,6 +22,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Download
+import com.nuvio.app.features.downloads.LocalDownloadAction
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
@@ -94,7 +96,22 @@ fun DetailActionButtons(
         animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "detail_action_menu_progress",
     )
-    val hasSecondaryActions = secondaryActions.isNotEmpty()
+    val downloadClick = LocalDownloadAction.current
+    val downloadAction = downloadClick?.let {
+        DetailSecondaryAction(
+            label = "Download",
+            icon = Icons.Default.Download,
+            onClick = it,
+        )
+    }
+    // Download takes the pinned slot beside Play unless Shuffle is active there.
+    val shownPinned = pinnedAction ?: downloadAction
+    val allSecondaryActions = if (pinnedAction != null && downloadAction != null) {
+        secondaryActions + downloadAction
+    } else {
+        secondaryActions
+    }
+    val hasSecondaryActions = allSecondaryActions.isNotEmpty()
 
     Box(
         modifier = modifier
@@ -152,24 +169,24 @@ fun DetailActionButtons(
                 }
             }
 
-            if (pinnedAction != null) {
+            if (shownPinned != null) {
                 Spacer(modifier = Modifier.width(12.dp))
                 DetailIconAction(
-                    label = pinnedAction.label,
-                    icon = pinnedAction.icon,
-                    active = pinnedAction.isActive,
+                    label = shownPinned.label,
+                    icon = shownPinned.icon,
+                    active = shownPinned.isActive,
                     progress = 1f,
                     size = iconButtonSize,
                     onClick = {
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pinnedAction.onClick()
+                        shownPinned.onClick()
                     },
                 )
             }
 
             if (hasSecondaryActions) {
                 Spacer(modifier = Modifier.width(12.dp))
-                secondaryActions.forEachIndexed { index, action ->
+                allSecondaryActions.forEachIndexed { index, action ->
                     Box(
                         modifier = Modifier
                             .width(iconButtonSize * menuProgress)
@@ -200,7 +217,7 @@ fun DetailActionButtons(
                         }
                     }
 
-                    if (index != secondaryActions.lastIndex) {
+                    if (index != allSecondaryActions.lastIndex) {
                         Spacer(modifier = Modifier.width(12.dp * menuProgress))
                     }
                 }
