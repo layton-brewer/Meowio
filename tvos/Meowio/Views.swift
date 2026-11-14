@@ -277,12 +277,18 @@ struct HeroHeader: View {
     }
 }
 
+struct AddonRow: Identifiable {
+    var catalog: AddonClient.AddonCatalog
+    var items: [MetaItem]
+    var id: String { catalog.rowId }
+}
+
 struct HomeView: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var settings: SettingsStore
     @State private var movies: [MetaItem] = []
     @State private var series: [MetaItem] = []
-    @State private var addonRows: [(AddonClient.AddonCatalog, [MetaItem])] = []
+    @State private var addonRows: [AddonRow] = []
     @State private var loaded = false
     @State private var focusedItem: MetaItem?
     @State private var heroItem: MetaItem?
@@ -310,8 +316,8 @@ struct HomeView: View {
                         ContinueShelf(onFocus: focus)
                         Shelf(title: "Popular Movies", items: movies, onFocus: focus)
                         Shelf(title: "Popular Series", items: series, onFocus: focus)
-                        ForEach(addonRows, id: \.0.rowId) { row in
-                            Shelf(title: row.0.title, items: row.1, onFocus: focus)
+                        ForEach(addonRows) { row in
+                            Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
                         }
                         if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
                             Text("Couldn't load the catalog. Check your connection.").padding(60)
@@ -333,11 +339,11 @@ struct HomeView: View {
         }
         .task(id: settings.addons) {
             let catalogs = await AddonClient.addonCatalogs(settings.addons)
-            var rows: [(AddonClient.AddonCatalog, [MetaItem])] = []
+            var rows: [AddonRow] = []
             for c in catalogs.prefix(12) {
                 let items = await AddonClient.items(in: c)
                 // Skip rows that only repeat Cinemeta's popular lists.
-                if !items.isEmpty, c.base != AddonClient.cinemeta { rows.append((c, Array(items.prefix(40)))) }
+                if !items.isEmpty, c.base != AddonClient.cinemeta { rows.append(AddonRow(catalog: c, items: Array(items.prefix(40)))) }
             }
             addonRows = rows
         }
