@@ -19,6 +19,8 @@ internal actual object DownloadsPlatformDownloader {
     private var downloadScheduler: AndroidDownloadScheduler? = null
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    internal fun contextOrNull(): Context? = appContext
+
     fun initialize(context: Context) {
         scheduler(context)
     }
@@ -94,14 +96,14 @@ internal actual object DownloadsPlatformDownloader {
                 ?.name
                 ?.takeIf { it.isNotBlank() }
             ?: return null
-        val downloadsDir = File(context.filesDir, "downloads")
+        val downloadsDir = DownloadLocation.directory(context)
         val localFile = File(downloadsDir, fileName)
         return localFile.takeIf { it.exists() }?.toURI()?.toString()
     }
 
     actual fun openDownloadsDirectory(): Boolean {
         val context = appContext ?: return false
-        val downloadsDir = File(context.filesDir, "downloads").apply { mkdirs() }
+        val downloadsDir = DownloadLocation.directory(context).apply { mkdirs() }
         val uri = runCatching {
             FileProvider.getUriForFile(
                 context,

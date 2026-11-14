@@ -158,6 +158,7 @@ private fun LazyListScope.downloadsRootContent(
     onOpenShow: (showId: String, title: String) -> Unit,
     onDeleteDownload: (String) -> Unit,
 ) {
+    item { DownloadLocationRow() }
     if (uiState.items.isNotEmpty()) {
         item { StorageSummary(uiState) }
     }
