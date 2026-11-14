@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -180,12 +179,6 @@ internal fun MainTabsDestination(
                 null
             },
             FloatingNavigationItem(
-                selected = selectedTab == AppScreenTab.Downloads,
-                onClick = { onTabSelected(AppScreenTab.Downloads) },
-                icon = Icons.Filled.Download,
-                label = "Downloads",
-            ),
-            FloatingNavigationItem(
                 selected = selectedTab == AppScreenTab.Settings,
                 onClick = { onTabSelected(AppScreenTab.Settings) },
                 label = stringResource(if (isDesktop) Res.string.compose_nav_settings else Res.string.compose_nav_profile),
@@ -239,12 +232,6 @@ internal fun MainTabsDestination(
                                 contentDescription = stringResource(Res.string.nav_live_tv),
                             )
                         }
-                        NavItem(
-                            selected = selectedTab == AppScreenTab.Downloads,
-                            onClick = { onTabSelected(AppScreenTab.Downloads) },
-                            icon = Icons.Filled.Download,
-                            contentDescription = "Downloads",
-                        )
                         NavItem(
                             selected = selectedTab == AppScreenTab.Settings,
                             onClick = { onTabSelected(AppScreenTab.Settings) },

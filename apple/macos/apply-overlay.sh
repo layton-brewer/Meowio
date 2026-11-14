@@ -13,9 +13,15 @@ cp -R "$here/overlay/." "$root/composeApp/src/"
 # One-tap downloads and the Downloads screen live in the phone app's sources and are shared as-is,
 # so the phone, Mac and Windows apps always behave the same.
 shared="$here/../../mobile/composeApp/src/commonMain/kotlin/com/nuvio/app/features/downloads"
-for f in AutoDownload.kt DownloadPrefsStorage.kt DownloadsScreen.kt; do
+for f in AutoDownload.kt DownloadPrefsStorage.kt DownloadsScreen.kt DownloadLocation.kt DownloadLocationUi.kt; do
   cp "$shared/$f" "$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/downloads/$f"
 done
+
+# New downloads follow the user's chosen download folder (Settings in the Downloads screen).
+dl="$root/composeApp/src/desktopMain/kotlin/com/nuvio/app/features/downloads/DownloadsPlatformDownloader.desktop.kt"
+sed -i.bak 's|get() = File(DesktopStorage.rootDir.resolve("downloads").also { it.createDirectories() }.toUri())|get() = DownloadLocation.directory()|' "$dl"
+grep -q 'DownloadLocation.directory()' "$dl" || { echo "download folder patch did not apply" >&2; exit 1; }
+rm -f "$dl.bak"
 
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
