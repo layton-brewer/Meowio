@@ -36,7 +36,9 @@ sed -i.bak \
   -e 's/"Nuvio-Windows-/"Meowio-Windows-/' \
   -e 's/"Nuvio-\$desktopReleasePackageVersion/"Meowio-$desktopReleasePackageVersion/' \
   -e 's/menuGroup = "Nuvio"/menuGroup = "Meowio"/' \
+  -e 's/TargetFormat.Msi,/TargetFormat.Msi, TargetFormat.Exe,/' \
   "$gradle"
+grep -q 'TargetFormat.Exe' "$gradle" || { echo "EXE target patch did not apply" >&2; exit 1; }
 rm -f "$gradle.bak"
 
 # App icon for Windows (and the in-app logo): the Meowio cat.
