@@ -16,13 +16,13 @@ class AbiSelectorTest {
     @Test
     fun `picks the tv build from a release that also carries the phone build`() {
         val chosen = AbiSelector.chooseBestApkAsset(
-            listOf(asset("NuvioExtended-mobile.apk"), asset("NuvioExtended-tv.apk"))
+            listOf(asset("Meowio-mobile.apk"), asset("Meowio-tv.apk"))
         )
-        assertEquals("NuvioExtended-tv.apk", chosen?.name)
+        assertEquals("Meowio-tv.apk", chosen?.name)
     }
 
     @Test
     fun `never offers the phone build to a tv`() {
-        assertNull(AbiSelector.chooseBestApkAsset(listOf(asset("NuvioExtended-mobile.apk"))))
+        assertNull(AbiSelector.chooseBestApkAsset(listOf(asset("Meowio-mobile.apk"))))
     }
 }
