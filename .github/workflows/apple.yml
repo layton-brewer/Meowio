@@ -54,7 +54,7 @@ jobs:
     needs: [release]
     name: Build iOS IPA (unsigned)
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: mobile
@@ -135,7 +135,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" mobile/build/ios-ipa/Meowio-ios.ipa --clobber && exit 0; sleep 30; done
           exit 1
 
@@ -143,7 +143,7 @@ jobs:
     needs: [release]
     name: Build macOS DMG (unsigned, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -210,7 +210,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" "out/Meowio-macos-${{ matrix.arch }}.dmg" --clobber && exit 0; sleep 30; done
           exit 1
 
@@ -218,7 +218,7 @@ jobs:
     needs: [release]
     name: Build tvOS IPA (unsigned)
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: tvos
@@ -279,6 +279,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" tvos/Meowio-tvos.ipa --clobber && exit 0; sleep 30; done
           exit 1
