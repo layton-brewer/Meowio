@@ -50,13 +50,30 @@ final class LibraryStore: ObservableObject {
         persist()
     }
 
+    /// Where to pick up a title or episode that was left part way, or 0 to start at the beginning.
+    func resumePoint(for itemId: String) -> Double {
+        guard let r = records.last(where: { $0.id == itemId }), !r.completed, r.seconds > 30 else { return 0 }
+        return max(0, r.seconds - 5)
+    }
+
+    /// How far through a title or episode the user got, 0...1, for progress bars.
+    func progress(for itemId: String) -> Double? {
+        guard let r = records.last(where: { $0.id == itemId }), !r.completed, let d = r.duration, d > 0 else { return nil }
+        return min(1, max(0, r.seconds / d))
+    }
+
+    func removeContinue(_ id: String) {
+        continueWatching.removeAll { $0.id == id }
+        persist()
+    }
+
     /// Stores how far an item was played, for the watch statistics.
-    func recordPlay(meta: MetaItem, videoId: String?, seconds: Double, completed: Bool) {
+    func recordPlay(meta: MetaItem, videoId: String?, seconds: Double, duration: Double? = nil, completed: Bool) {
         let itemId = videoId ?? meta.id
         let isEpisode = videoId != nil && meta.type == "series"
         records.removeAll { $0.id == itemId }
         records.append(WatchRecord(id: itemId, contentId: meta.id, title: meta.name, isEpisode: isEpisode,
-                                   seconds: seconds, completed: completed, at: Date()))
+                                   seconds: seconds, completed: completed, at: Date(), duration: duration))
         if records.count > 2000 { records.removeFirst(records.count - 2000) }
         persist()
     }

@@ -49,12 +49,14 @@ jobs:
         working-directory: tvos
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch MPVKit
+        run: git init -q MPVKit && git -C MPVKit fetch -q --depth 1 https://github.com/mpvkit/MPVKit.git d9194243bdc68b87d8989376ab52aee7da6c8e0b && git -C MPVKit checkout -q FETCH_HEAD
       - run: brew install xcodegen
       - run: xcodegen generate
       - name: Build
         run: |
           set -o pipefail
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Debug \
-            -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' \
+            -sdk appletvos -destination 'generic/platform=tvOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build 2>&1 | grep -E "error:|BUILD|warning: unre" | head -80
