@@ -23,7 +23,7 @@ on:
 
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
-  MEOWIO_TAG: v0.2.12
+  MEOWIO_TAG: v0.2.13
 
 permissions:
   contents: write
@@ -36,7 +36,7 @@ jobs:
   exe:
     name: Build Windows EXE (x64)
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
       WEBVIEW2_VERSION: 1.0.4078.44
     steps:
@@ -98,7 +98,7 @@ jobs:
             :composeApp:packageReleaseExe `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
-            "-Pnuvio.desktop.versionName=0.2.12" `
+            "-Pnuvio.desktop.versionName=0.2.13" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace
@@ -127,7 +127,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          # Wait up to 80 minutes for this version's release page (the Android build creates it), then attach.
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" out/Meowio-windows-x64.exe --clobber && exit 0; sleep 30; done
           exit 1

@@ -27,7 +27,7 @@ on:
 
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
-  MEOWIO_TAG: v0.2.12
+  MEOWIO_TAG: v0.2.13
 
 permissions:
   contents: write
@@ -54,7 +54,7 @@ jobs:
     needs: [release]
     name: Build iOS IPA (unsigned)
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: mobile
@@ -135,7 +135,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" mobile/build/ios-ipa/Meowio-ios.ipa --clobber && exit 0; sleep 30; done
           exit 1
 
@@ -143,7 +143,7 @@ jobs:
     needs: [release]
     name: Build macOS DMG (unsigned, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -185,7 +185,7 @@ jobs:
           NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
         run: |
           printf 'NUVIO_SUPABASE_URL=%s\nNUVIO_SUPABASE_ANON_KEY=%s\nTRAKT_CLIENT_ID=\nTRAKT_CLIENT_SECRET=\nMDBLIST_CLIENT_ID=\n' "$NUVIO_SUPABASE_URL" "$NUVIO_SUPABASE_ANON_KEY" > local.properties
-          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.2.12 --no-daemon --no-configuration-cache --max-workers=2
+          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.2.13 --no-daemon --no-configuration-cache --max-workers=2
           find composeApp/build -name "*.dmg"
 
       - name: Collect DMG
@@ -210,7 +210,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" "out/Meowio-macos-${{ matrix.arch }}.dmg" --clobber && exit 0; sleep 30; done
           exit 1
 
@@ -218,7 +218,7 @@ jobs:
     needs: [release]
     name: Build tvOS IPA (unsigned)
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 150
     defaults:
       run:
         working-directory: tvos
@@ -252,7 +252,7 @@ jobs:
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
             -sdk appletvos -destination 'generic/platform=tvOS' \
             -derivedDataPath build \
-            MARKETING_VERSION=0.2.12 CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=0.2.13 CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
 
       - name: Package IPA
@@ -279,6 +279,6 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           # Wait for this version's release page (the Android build creates it), then attach.
-          for i in $(seq 1 40); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
           for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" tvos/Meowio-tvos.ipa --clobber && exit 0; sleep 30; done
           exit 1
