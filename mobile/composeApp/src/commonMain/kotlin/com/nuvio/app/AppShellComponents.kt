@@ -181,6 +181,7 @@ internal fun AppTabHost(
                     onCatalogClick = actions.onCatalogClick,
                     onPreviewClick = actions.onPosterClick,
                     onPreviewLongClick = actions.onPosterLongClick,
+                    onDownloadsClick = actions.onDownloadsClick,
                     disintegrationRequest = state.libraryDisintegrationRequest,
                 )
             }
@@ -189,13 +190,6 @@ internal fun AppTabHost(
                 com.nuvio.app.features.livetv.LiveTvScreen(
                     modifier = Modifier.fillMaxSize(),
                     onPlayChannel = actions.onLiveChannelPlay,
-                )
-            }
-
-            AppScreenTab.Downloads -> {
-                com.nuvio.app.features.downloads.DownloadsScreen(
-                    onBack = null,
-                    onOpenDownload = actions.onOpenDownload,
                 )
             }
 
