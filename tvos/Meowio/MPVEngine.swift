@@ -149,17 +149,6 @@ final class TVMetalLayer: CAMetalLayer {
             if Int(newValue.width) > 1 && Int(newValue.height) > 1 { super.drawableSize = newValue }
         }
     }
-
-    override var wantsExtendedDynamicRangeContent: Bool {
-        get { super.wantsExtendedDynamicRangeContent }
-        set {
-            if Thread.isMainThread {
-                super.wantsExtendedDynamicRangeContent = newValue
-            } else {
-                DispatchQueue.main.async { super.wantsExtendedDynamicRangeContent = newValue }
-            }
-        }
-    }
 }
 
 /// Hosts the engine's layer.
