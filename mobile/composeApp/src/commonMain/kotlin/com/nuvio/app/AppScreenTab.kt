@@ -20,8 +20,7 @@ internal fun AppScreenTab.toNativeNavigationTab(): NativeNavigationTab = when (t
     AppScreenTab.Home -> NativeNavigationTab.Home
     AppScreenTab.Search -> NativeNavigationTab.Search
     AppScreenTab.Library -> NativeNavigationTab.Library
-    // The native tab bar has no Live TV slot yet, so it shows Home as selected there.
-    AppScreenTab.LiveTv -> NativeNavigationTab.Home
+    AppScreenTab.LiveTv -> NativeNavigationTab.LiveTv
     AppScreenTab.Settings -> NativeNavigationTab.Settings
 }
 
@@ -29,5 +28,6 @@ internal fun NativeNavigationTab.toAppScreenTab(): AppScreenTab = when (this) {
     NativeNavigationTab.Home -> AppScreenTab.Home
     NativeNavigationTab.Search -> AppScreenTab.Search
     NativeNavigationTab.Library -> AppScreenTab.Library
+    NativeNavigationTab.LiveTv -> AppScreenTab.LiveTv
     NativeNavigationTab.Settings -> AppScreenTab.Settings
 }

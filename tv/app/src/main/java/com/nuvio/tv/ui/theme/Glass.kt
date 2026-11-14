@@ -49,8 +49,14 @@ object NuvioGlass {
     /** Fill for the selected, unfocused control in a group. */
     val ControlSelectedFill = Color.White.copy(alpha = 0.22f)
 
-    val Rim: Brush = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.07f))
+    /** Lit from the top left, with a faint catch light on the bottom right edge. */
+    val Rim: Brush = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = 0.38f),
+            Color.White.copy(alpha = 0.10f),
+            Color.White.copy(alpha = 0.05f),
+            Color.White.copy(alpha = 0.16f)
+        )
     )
 
     fun panel(alpha: Float): Color = Base.copy(alpha = alpha)
@@ -69,9 +75,9 @@ fun Modifier.nuvioGlassPanel(
 /** The highlight and rim only, for surfaces that already paint their own fill. */
 fun Modifier.nuvioGlassEdge(shape: Shape): Modifier = this
     .drawWithCache {
-        val sheenHeight = size.height * 0.5f
+        val sheenHeight = size.height * 0.55f
         val sheen = Brush.verticalGradient(
-            colors = listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
+            colors = listOf(Color.White.copy(alpha = 0.10f), Color.Transparent),
             startY = 0f,
             endY = sheenHeight
         )

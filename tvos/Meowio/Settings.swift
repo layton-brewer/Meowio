@@ -182,7 +182,21 @@ struct GlassBackground: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius))
-            .overlay(RoundedRectangle(cornerRadius: radius).stroke(Color.white.opacity(0.14), lineWidth: 1))
+            // Soft highlight along the top, like light catching the glass.
+            .overlay(
+                RoundedRectangle(cornerRadius: radius)
+                    .fill(LinearGradient(colors: [Color.white.opacity(0.11), Color.clear], startPoint: .top, endPoint: .center))
+                    .allowsHitTesting(false)
+            )
+            // Rim lit from the top left with a faint catch light on the opposite corner.
+            .overlay(
+                RoundedRectangle(cornerRadius: radius)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.38), Color.white.opacity(0.08), Color.white.opacity(0.16)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 1)
+            )
     }
 }
 
