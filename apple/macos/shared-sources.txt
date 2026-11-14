@@ -47,3 +47,9 @@ commonMain/kotlin/com/nuvio/app/features/streams/StreamSmartRanker.kt
 commonMain/kotlin/com/nuvio/app/features/watchprogress/WatchProgressRepository.kt
 fullCommonMain/kotlin/com/nuvio/app/features/plugins/CloudStreamBridge.kt
 commonMain/kotlin/com/nuvio/app/features/settings/TrackingSettingsPage.kt
+commonMain/kotlin/com/nuvio/app/features/library/LibraryRepository.kt
+commonMain/kotlin/com/nuvio/app/features/settings/DebridSettingsPage.kt
+commonMain/kotlin/com/nuvio/app/features/party/PartyRepository.kt
+commonMain/kotlin/com/nuvio/app/features/servers/mediabrowser/MediaBrowserProvider.kt
+commonMain/kotlin/com/nuvio/app/features/servers/mediabrowser/MediaBrowserClient.kt
+commonMain/kotlin/com/nuvio/app/core/i18n/LocalizedUiText.kt
