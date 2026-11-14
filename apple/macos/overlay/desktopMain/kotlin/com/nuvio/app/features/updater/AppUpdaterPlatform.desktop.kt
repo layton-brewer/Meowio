@@ -57,7 +57,7 @@ actual object AppUpdaterPlatform {
         repo = "Meowio",
         channelBranch = null,
         includePrereleases = true,
-        releaseTag = "apple-latest",
+        releaseTag = null,
         userAgent = "Meowio",
     )
 
