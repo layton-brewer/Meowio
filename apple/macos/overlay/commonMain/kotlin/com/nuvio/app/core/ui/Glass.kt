@@ -44,12 +44,18 @@ object NuvioGlass {
     /** Opacity of a dense surface floating over video, which can never be blurred. */
     const val ThickOverVideoAlpha = 0.80f
 
-    val Rim: Brush = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.06f)),
+    /** Lit from the top left, with a faint catch light on the bottom right edge. */
+    val Rim: Brush = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = 0.38f),
+            Color.White.copy(alpha = 0.10f),
+            Color.White.copy(alpha = 0.05f),
+            Color.White.copy(alpha = 0.16f),
+        ),
     )
 
     val RegularFill: Brush = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = 0.11f), Color.White.copy(alpha = 0.05f)),
+        listOf(Color.White.copy(alpha = 0.13f), Color.White.copy(alpha = 0.05f)),
     )
 
     val OverMediaFill: Brush = Brush.verticalGradient(
@@ -81,9 +87,9 @@ fun Modifier.nuvioGlass(
 /** The highlight and rim only, for surfaces that already paint their own fill. */
 fun Modifier.nuvioGlassEdge(shape: Shape): Modifier = this
     .drawWithCache {
-        val sheenHeight = size.height * 0.5f
+        val sheenHeight = size.height * 0.55f
         val sheen = Brush.verticalGradient(
-            colors = listOf(Color.White.copy(alpha = 0.07f), Color.Transparent),
+            colors = listOf(Color.White.copy(alpha = 0.11f), Color.Transparent),
             startY = 0f,
             endY = sheenHeight,
         )
