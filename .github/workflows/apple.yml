@@ -202,6 +202,7 @@ jobs:
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
             -sdk appletvos -destination 'generic/platform=tvOS' \
             -derivedDataPath build \
+            MARKETING_VERSION=0.1.${{ github.run_number }} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
 
       - name: Package IPA
