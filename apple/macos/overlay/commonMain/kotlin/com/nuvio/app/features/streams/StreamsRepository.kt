@@ -450,6 +450,16 @@ object StreamsRepository {
                 null
             }
 
+            if (isDirectAutoPlayFlow && playerSettings.streamAutoPlayTimeoutSeconds != Int.MAX_VALUE) {
+                // Never load forever: if a source hangs, give up waiting and show the source list.
+                launch {
+                    delay(45_000L)
+                    if (!autoSelectTriggered) {
+                        settleAutoPlay(evaluateAutoPlay())
+                    }
+                }
+            }
+
             StreamSearchSessions.search(
                 profileId = ProfileRepository.activeProfileId,
                 targets = searchTargets,
