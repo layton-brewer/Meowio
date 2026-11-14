@@ -33,19 +33,41 @@ object LiveTvCodec {
     fun encodeVpn(settings: LiveVpnSettings): String = buildJsonObject {
         put("enabled", settings.enabled.toString())
         put("type", settings.type.name)
-        put("wireGuardConfig", settings.wireGuardConfig)
+        put("profiles", JsonArray(settings.profiles.map { profile ->
+            buildJsonObject {
+                put("id", profile.id)
+                put("name", profile.name)
+                put("config", profile.config)
+            }
+        }))
+        put("selectedProfileId", settings.selectedProfileId)
+        put("protectHttps", settings.protectHttps.toString())
         put("proxyUrl", settings.proxyUrl)
     }.toString()
 
     fun decodeVpn(text: String?): LiveVpnSettings {
         if (text.isNullOrBlank()) return LiveVpnSettings()
         val json = runCatching { Json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return LiveVpnSettings()
-        return LiveVpnSettings(
+        val profiles = (json["profiles"] as? JsonArray).orEmpty().mapNotNull { element ->
+            val item = element as? JsonObject ?: return@mapNotNull null
+            val config = item.text("config")
+            if (config.isBlank()) null else LiveVpnProfile(
+                id = item.text("id").ifBlank { "wg" + config.hashCode().toUInt().toString(36) },
+                name = item.text("name").ifBlank { "WireGuard" },
+                config = config,
+            )
+        }.distinctBy { it.id }
+        val settings = LiveVpnSettings(
             enabled = json.text("enabled") == "true",
             type = LiveVpnType.entries.firstOrNull { it.name == json.text("type") } ?: LiveVpnType.WIREGUARD,
-            wireGuardConfig = json.text("wireGuardConfig"),
+            profiles = profiles,
+            selectedProfileId = json.text("selectedProfileId"),
+            protectHttps = json.text("protectHttps") != "false",
             proxyUrl = json.text("proxyUrl"),
         )
+        // Settings saved before profiles held one WireGuard file of their own.
+        val legacy = json.text("wireGuardConfig")
+        return if (legacy.isNotBlank() && profiles.isEmpty()) settings.withProfile("WireGuard", legacy) else settings
     }
 
     private fun sourceJson(source: LiveSource) = buildJsonObject {

@@ -74,15 +74,13 @@ class LiveTvRelayTest {
     @Test
     fun `refuses to play around a vpn that does not connect`() {
         val tried = AtomicBoolean(false)
-        val relay = LiveTvRelay(client, wireGuard = LiveTvRelay.WireGuardStarter {
+        val relay = LiveTvRelay(client, wireGuard = LiveTvRelay.WireGuardStarter { _, _ ->
             tried.set(true)
             throw IOException("no route")
         })
         val channel = LiveChannel(id = "1", name = "News", url = server.url("/live/index.m3u8").toString())
-        val vpn = LiveVpnSettings(
-            enabled = true,
-            wireGuardConfig = "[Interface]\nPrivateKey = a\n[Peer]\nPublicKey = b\nEndpoint = h:1",
-        )
+        val vpn = LiveVpnSettings(enabled = true)
+            .withProfile("Provider", "[Interface]\nPrivateKey = a\n[Peer]\nPublicKey = b\nEndpoint = h:1")
         val address = relay.open(channel, emptyList(), vpn)
         get(address).use { assertEquals(502, it.code) }
         assertTrue(tried.get())

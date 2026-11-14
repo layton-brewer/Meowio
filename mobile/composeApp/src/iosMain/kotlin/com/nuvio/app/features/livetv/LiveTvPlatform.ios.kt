@@ -61,3 +61,6 @@ internal actual fun liveTvPlaybackTarget(
 }
 
 internal actual fun liveTvWireGuardAvailable(): Boolean = false
+
+internal actual fun liveTvWireGuardProblem(config: String): String? =
+    "WireGuard is not available in this app yet. Use an HTTP proxy instead."

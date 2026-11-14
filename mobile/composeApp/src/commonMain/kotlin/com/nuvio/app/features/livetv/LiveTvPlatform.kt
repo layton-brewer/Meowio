@@ -42,3 +42,9 @@ internal expect fun liveTvPlaybackTarget(
 
 /** True when this platform can run a WireGuard tunnel for the Live TV VPN. */
 internal expect fun liveTvWireGuardAvailable(): Boolean
+
+/**
+ * Null when [config] is a WireGuard file the Live TV VPN can use here, otherwise the reason it
+ * cannot (on platforms without WireGuard, that it is not available).
+ */
+internal expect fun liveTvWireGuardProblem(config: String): String?
