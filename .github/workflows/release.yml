@@ -221,9 +221,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v0.1.${{ github.run_number }}"
+          cat > notes.md <<'NOTES'
+          ## Install
+
+          | Device | File |
+          | --- | --- |
+          | Android phone or tablet | `Meowio-mobile.apk` |
+          | Android TV, Google TV, Fire TV (Android-based) | `Meowio-tv.apk` |
+
+          Requires Android 7.0 or newer. Installing over an existing Meowio keeps your data and settings; the in-app updater picks the right file for your device.
+
+          **Android TV, one time over adb:** `adb connect <tv-ip>:5555 && adb install -r Meowio-tv.apk`
+
+          Looking for iPhone, Mac or Apple TV builds? See the [Meowio for Apple](https://github.com/${{ github.repository }}/releases/tag/apple-latest) release.
+
+          ## What's changed
+          NOTES
+          sed -i 's/^          //' notes.md
           gh release create "$tag" apks/*.apk \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "Meowio $tag" \
-            --notes "Phone: Meowio-mobile.apk. Android TV: Meowio-tv.apk. Built from commit ${{ github.sha }}." \
+            --notes-file notes.md \
+            --generate-notes \
             --latest
