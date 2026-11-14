@@ -104,6 +104,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import com.nuvio.app.features.details.components.DetailActions
 import com.nuvio.app.features.downloads.AutoDownloader
 import com.nuvio.app.features.downloads.DownloadChoiceDialog
+import com.nuvio.app.features.downloads.DownloadPrefs
 import com.nuvio.app.features.downloads.LocalDownloadAction
 import com.nuvio.app.features.details.components.CommentDetailSheet
 import com.nuvio.app.features.details.components.DetailAdditionalInfoSection
@@ -892,7 +893,7 @@ fun MetaDetailsScreen(
                 }
                 var showDownloadChoice by remember(type, id) { mutableStateOf(false) }
                 val onDownloadClick: () -> Unit = {
-                    if (meta.type == "series" || hasEpisodes) {
+                    if (meta.type == "series" || hasEpisodes || DownloadPrefs.current.askEachTime) {
                         showDownloadChoice = true
                     } else {
                         AutoDownloader.downloadMovie(meta)

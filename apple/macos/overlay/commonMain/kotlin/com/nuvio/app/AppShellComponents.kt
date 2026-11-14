@@ -182,6 +182,7 @@ internal data class AppTabActions(
     val onLiveChannelPlay: (com.nuvio.app.features.livetv.LiveChannel) -> Unit = {},
     val onConnectCloudClick: (() -> Unit)? = null,
     val onDownloadsClick: () -> Unit = {},
+    val onOpenDownload: (com.nuvio.app.features.downloads.DownloadItem) -> Unit = {},
     val onContinueWatchingClick: ((ContinueWatchingItem) -> Unit)? = null,
     val onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     val onSwitchProfile: (() -> Unit)? = null,
@@ -297,6 +298,13 @@ internal fun AppTabHost(
                 com.nuvio.app.features.livetv.LiveTvScreen(
                     modifier = Modifier.fillMaxSize(),
                     onPlayChannel = actions.onLiveChannelPlay,
+                )
+            }
+
+            AppScreenTab.Downloads -> {
+                com.nuvio.app.features.downloads.DownloadsScreen(
+                    onBack = null,
+                    onOpenDownload = actions.onOpenDownload,
                 )
             }
 

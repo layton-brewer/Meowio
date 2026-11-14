@@ -47,7 +47,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun DownloadsScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenDownload: (DownloadItem) -> Unit,
     initialShowId: String? = null,
     onNavigateToShow: ((showId: String, title: String) -> Unit)? = null,
@@ -85,11 +85,15 @@ fun DownloadsScreen(
                 } else {
                     selectedShowTitle ?: stringResource(Res.string.downloads_show_downloads)
                 },
-                onBack = {
-                    if (selectedShowId != null) {
-                        onBackFromShow?.invoke() ?: run { selectedShowId = null }
-                    } else {
-                        onBack()
+                onBack = if (selectedShowId == null && onBack == null) {
+                    null
+                } else {
+                    {
+                        if (selectedShowId != null) {
+                            onBackFromShow?.invoke() ?: run { selectedShowId = null }
+                        } else {
+                            onBack?.invoke()
+                        }
                     }
                 },
                 actions = {
