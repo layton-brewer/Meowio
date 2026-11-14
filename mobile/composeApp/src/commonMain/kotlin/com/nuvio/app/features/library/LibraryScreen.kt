@@ -365,14 +365,12 @@ fun LibraryScreen(
                                         }
                                     }
                                 }
-                                if (onDownloadsClick != null) {
-                                    LibraryDownloadsButton(onClick = onDownloadsClick)
-                                }
                             },
                         )
                         LibrarySourceSwitch(
                             selectedMode = sourceMode,
                             showServers = hasServers,
+                            onDownloadsClick = onDownloadsClick,
                             onModeSelected = { mode ->
                                 sourceModeName = mode.name
                             },
@@ -736,6 +734,7 @@ private fun LazyListScope.cloudLibrarySkeletonItems() {
 private fun LibrarySourceSwitch(
     selectedMode: LibraryViewMode,
     showServers: Boolean,
+    onDownloadsClick: (() -> Unit)?,
     onModeSelected: (LibraryViewMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -753,6 +752,14 @@ private fun LibrarySourceSwitch(
             selected = selectedMode == LibraryViewMode.Cloud,
             onClick = { onModeSelected(LibraryViewMode.Cloud) },
         )
+        if (onDownloadsClick != null) {
+            // Opens the Downloads page (offline items, quality and location settings).
+            LibraryChip(
+                label = "Downloads",
+                selected = false,
+                onClick = onDownloadsClick,
+            )
+        }
         if (showServers) {
             LibraryChip(
                 label = stringResource(Res.string.library_source_servers),

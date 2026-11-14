@@ -83,7 +83,7 @@ Channel availability depends on the source and your region. Built-in Live TV doe
 ### More features
 
 - **CloudStream extensions on the phone:** The phone app can run CloudStream extensions as an additional source of streams. This is new and has had less testing than the rest of the app.
-- **One-tap downloads (phone, Mac, Windows):** Press **Download** on a title page. Movies download the best source automatically. For a series you choose **This episode** or **Entire season**; Meowio finds the best source for each episode (preferring the same release), and if a download fails it quietly switches to the next best source. Everything lands in the **Downloads** tab next to **Live TV**, which shows what is saved for offline viewing and how much space it uses, and lets you delete items. Downloads use debrid (direct link) sources only; anything else is skipped in favor of the next source.
+- **One-tap downloads (phone, Mac, Windows):** Press **Download** on a title page. Movies download the best source automatically. For a series you choose **This episode** or **Entire season**; Meowio finds the best source for each episode (preferring the same release), and if a download fails it quietly switches to the next best source. Everything lands in **Library > Downloads** (the chip next to Saved and Cloud), which shows what is saved for offline viewing and how much space it uses, and lets you delete items. Downloads use debrid (direct link) sources only; anything else is skipped in favor of the next source.
 - **Quality picker:** Choose a stream quality yourself when you do not want the automatic pick.
 - **Watch stats:** See statistics about what you watch.
 - **AI assistant:** Ask for suggestions on what to watch. It uses your own API key.
