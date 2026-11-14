@@ -177,7 +177,7 @@ class LiveTvController(
 
     fun setVpn(settings: LiveVpnSettings) {
         val cleanedSettings = settings.copy(
-            wireGuardConfig = LiveVpnGuard.normalizeWireGuard(settings.wireGuardConfig),
+            profiles = settings.profiles.map { it.copy(config = LiveVpnGuard.normalizeWireGuard(it.config)) },
             proxyUrl = settings.proxyUrl.trim(),
         )
         _state.update { it.copy(vpn = cleanedSettings) }
