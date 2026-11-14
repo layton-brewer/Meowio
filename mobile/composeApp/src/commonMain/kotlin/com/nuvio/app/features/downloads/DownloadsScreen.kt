@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
+import com.nuvio.app.getPlatform
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -97,7 +98,7 @@ fun DownloadsScreen(
                     }
                 },
                 actions = {
-                    IconButton(
+                    if (!isMobileOs) IconButton(
                         onClick = {
                             if (!DownloadsPlatformDownloader.openDownloadsDirectory()) {
                                 NuvioToastController.show(openDownloadsDirectoryFailedText)
@@ -107,6 +108,7 @@ fun DownloadsScreen(
                         Icon(
                             imageVector = Icons.Rounded.Folder,
                             contentDescription = stringResource(Res.string.downloads_open_directory),
+                            tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 },
@@ -411,6 +413,7 @@ private fun DownloadRow(
                                 Icon(
                                     imageVector = Icons.Rounded.Pause,
                                     contentDescription = stringResource(Res.string.compose_action_pause),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -419,6 +422,7 @@ private fun DownloadRow(
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_resume),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -427,6 +431,7 @@ private fun DownloadRow(
                                 Icon(
                                     imageVector = Icons.Rounded.Refresh,
                                     contentDescription = stringResource(Res.string.action_retry),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -435,6 +440,7 @@ private fun DownloadRow(
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = stringResource(Res.string.action_play),
+                                    tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -443,6 +449,7 @@ private fun DownloadRow(
                         Icon(
                             imageVector = Icons.Rounded.Delete,
                             contentDescription = stringResource(Res.string.action_delete),
+                            tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -555,3 +562,7 @@ private fun formatBytes(bytes: Long): String {
         else -> "$bytes ${localizedByteUnit("B")}"
     }
 }
+
+// Mobile apps keep downloads in app-private storage, which no file manager can browse.
+private val isMobileOs: Boolean
+    get() = getPlatform().name.let { it.startsWith("Android") || it.startsWith("iOS") || it.startsWith("iPadOS") }
