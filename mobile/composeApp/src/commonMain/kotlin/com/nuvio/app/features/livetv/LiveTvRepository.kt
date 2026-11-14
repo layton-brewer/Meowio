@@ -41,6 +41,8 @@ object LiveTvRepository {
 
     val wireGuardAvailable: Boolean get() = liveTvWireGuardAvailable()
 
+    fun wireGuardProblem(config: String): String? = liveTvWireGuardProblem(config)
+
     fun onProfileChanged() {
         controller.reset()
         controller.start()

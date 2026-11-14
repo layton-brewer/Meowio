@@ -46,7 +46,7 @@ jobs:
       # secrets only. They are never stored in the repository.
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.27.3"
           cache-dependency-path: native/livetv-vpn/go.sum
       - name: Build Live TV VPN library
         run: bash "$GITHUB_WORKSPACE/native/livetv-vpn/build-android.sh" "$ANDROID_NDK_LATEST_HOME" "$GITHUB_WORKSPACE/native/livetv-vpn/build/jniLibs"
@@ -103,7 +103,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.13 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.14 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -152,7 +152,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.27.3"
           cache-dependency-path: native/livetv-vpn/go.sum
       - name: Build Live TV VPN library
         run: bash "$GITHUB_WORKSPACE/native/livetv-vpn/build-android.sh" "$ANDROID_NDK_LATEST_HOME" "$GITHUB_WORKSPACE/native/livetv-vpn/build/jniLibs"
@@ -201,7 +201,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.13 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.14 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -244,7 +244,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.13"
+          tag="v0.2.14"
           cat > notes.md <<'NOTES'
           ## Download
 

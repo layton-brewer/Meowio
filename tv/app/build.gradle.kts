@@ -360,6 +360,8 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+            // Only the WireGuard config parser is used; the Live TV VPN has its own engine.
+            excludes += "lib/*/libwg-go.so"
             // Keep one consistent native set across dependencies.
             pickFirsts += listOf(
                 "lib/*/libc++_shared.so",
@@ -494,6 +496,8 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp)
+    // WireGuard's own config parser, used for Live TV VPN profiles as in NuvioPlusIPTV.
+    implementation("com.wireguard.android:tunnel:1.0.20260102")
     implementation(libs.okhttp.logging)
     implementation(libs.moshi)
     ksp(libs.moshi.codegen)

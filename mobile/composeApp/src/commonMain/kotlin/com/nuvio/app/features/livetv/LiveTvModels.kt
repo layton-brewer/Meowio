@@ -171,24 +171,62 @@ object LiveTvFilters {
 
 enum class LiveVpnType { WIREGUARD, PROXY }
 
+/** A WireGuard profile from the user's VPN provider, saved under a name. */
+data class LiveVpnProfile(
+    val id: String,
+    val name: String,
+    /** The provider's WireGuard file (`[Interface]` / `[Peer]`). */
+    val config: String,
+)
+
 /**
- * The Live TV VPN. It is used for Live TV playback only: it starts when a channel plays and
- * stops when playback ends. Nothing else in the app, debrid above all, is ever sent through it.
+ * The Live TV VPN, set up like NuvioPlusIPTV's VPN: import WireGuard profiles from your provider,
+ * pick one, and choose whether HTTPS streams go through it too. It is used for Live TV playback
+ * only: it starts when a channel plays and stops when playback ends. Nothing else in the app,
+ * debrid above all, is ever sent through it.
  */
 data class LiveVpnSettings(
     val enabled: Boolean = false,
     val type: LiveVpnType = LiveVpnType.WIREGUARD,
-    /** A WireGuard configuration file (`[Interface]` / `[Peer]`) from the user's VPN provider. */
-    val wireGuardConfig: String = "",
+    val profiles: List<LiveVpnProfile> = emptyList(),
+    val selectedProfileId: String = "",
+    /** False sends only plain HTTP streams through WireGuard ("HTTP streams only"). */
+    val protectHttps: Boolean = true,
     /** An HTTP proxy, `http://user:pass@host:port` or `host:port`. */
     val proxyUrl: String = "",
 ) {
+    /** The profile in use: the chosen one, or the first when none is chosen. */
+    val selectedProfile: LiveVpnProfile?
+        get() = profiles.firstOrNull { it.id == selectedProfileId } ?: profiles.firstOrNull()
+
+    /** The WireGuard file in use, or "" when there is none. */
+    val wireGuardConfig: String get() = selectedProfile?.config.orEmpty()
+
     /** True when the VPN is switched on and has something usable to connect with. */
     val ready: Boolean
         get() = enabled && when (type) {
             LiveVpnType.WIREGUARD -> LiveVpnGuard.looksLikeWireGuard(wireGuardConfig)
             LiveVpnType.PROXY -> LiveVpnGuard.parseProxy(proxyUrl) != null
         }
+
+    /** Adds [config] as a new profile (or replaces one with the same file) and selects it. */
+    fun withProfile(name: String, config: String): LiveVpnSettings {
+        val text = LiveVpnGuard.normalizeWireGuard(config)
+        val existing = profiles.firstOrNull { it.config == text }
+        val id = existing?.id ?: "wg" + (text.hashCode().toUInt().toString(36)) + profiles.size
+        val label = name.trim().ifEmpty { existing?.name ?: "WireGuard ${profiles.size + 1}" }
+        val updated = if (existing != null) {
+            profiles.map { if (it.id == id) it.copy(name = label) else it }
+        } else {
+            profiles + LiveVpnProfile(id = id, name = label, config = text)
+        }
+        return copy(profiles = updated, selectedProfileId = id, type = LiveVpnType.WIREGUARD)
+    }
+
+    fun withoutProfile(id: String): LiveVpnSettings {
+        val remaining = profiles.filter { it.id != id }
+        return copy(profiles = remaining, selectedProfileId = if (selectedProfileId == id) "" else selectedProfileId)
+    }
 }
 
 data class LiveProxy(val host: String, val port: Int, val username: String = "", val password: String = "") {

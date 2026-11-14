@@ -100,6 +100,13 @@ import nuvio.composeapp.generated.resources.live_tv_edit
 import nuvio.composeapp.generated.resources.live_tv_turn_on
 import nuvio.composeapp.generated.resources.live_tv_turn_off
 import nuvio.composeapp.generated.resources.live_tv_delete
+import nuvio.composeapp.generated.resources.live_tv_vpn_profile_name
+import nuvio.composeapp.generated.resources.live_tv_vpn_profile_add
+import nuvio.composeapp.generated.resources.live_tv_vpn_profile_use
+import nuvio.composeapp.generated.resources.live_tv_vpn_profile_in_use
+import nuvio.composeapp.generated.resources.live_tv_vpn_no_profiles
+import nuvio.composeapp.generated.resources.live_tv_vpn_scope_all
+import nuvio.composeapp.generated.resources.live_tv_vpn_scope_http
 import nuvio.composeapp.generated.resources.live_tv_back
 import nuvio.composeapp.generated.resources.live_tv_field_name
 import nuvio.composeapp.generated.resources.live_tv_playlist_off
@@ -536,10 +543,11 @@ private fun SourceRow(state: LiveTvState, source: LiveSource, controller: LiveTv
 @Composable
 private fun VpnCard(current: LiveVpnSettings, wireGuardAvailable: Boolean, onSave: (LiveVpnSettings) -> Unit) {
     var type by remember(current) { mutableStateOf(if (wireGuardAvailable) current.type else LiveVpnType.PROXY) }
-    var wireGuard by remember(current) { mutableStateOf(current.wireGuardConfig) }
     var proxy by remember(current) { mutableStateOf(current.proxyUrl) }
-    val draft = LiveVpnSettings(enabled = true, type = type, wireGuardConfig = wireGuard, proxyUrl = proxy)
-    val usable = draft.copy(wireGuardConfig = LiveVpnGuard.normalizeWireGuard(wireGuard)).ready
+    var profileName by remember { mutableStateOf("") }
+    var profileText by remember { mutableStateOf("") }
+    var addProblem by remember { mutableStateOf<String?>(null) }
+    val usable = current.copy(enabled = true, type = type).ready
     NuvioSurfaceCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -548,7 +556,7 @@ private fun VpnCard(current: LiveVpnSettings, wireGuardAvailable: Boolean, onSav
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f),
             )
-            Switch(checked = current.enabled, onCheckedChange = { onSave(draft.copy(enabled = it)) })
+            Switch(checked = current.enabled, onCheckedChange = { onSave(current.copy(type = type, enabled = it)) })
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
@@ -562,7 +570,10 @@ private fun VpnCard(current: LiveVpnSettings, wireGuardAvailable: Boolean, onSav
                 Chip(
                     label = stringResource(Res.string.live_tv_vpn_wireguard),
                     selected = type == LiveVpnType.WIREGUARD,
-                    onClick = { type = LiveVpnType.WIREGUARD },
+                    onClick = {
+                        type = LiveVpnType.WIREGUARD
+                        onSave(current.copy(type = LiveVpnType.WIREGUARD))
+                    },
                 )
             }
             Chip(
@@ -581,16 +592,100 @@ private fun VpnCard(current: LiveVpnSettings, wireGuardAvailable: Boolean, onSav
         }
         Spacer(modifier = Modifier.height(12.dp))
         if (type == LiveVpnType.WIREGUARD) {
+            // Profiles, as in NuvioPlusIPTV: import your provider's files, then pick the one to use.
+            val selectedId = current.selectedProfile?.id
+            current.profiles.forEach { profile ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Text(
+                        text = profile.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Chip(
+                        label = stringResource(
+                            if (profile.id == selectedId) Res.string.live_tv_vpn_profile_in_use else Res.string.live_tv_vpn_profile_use,
+                        ),
+                        selected = profile.id == selectedId,
+                        onClick = { onSave(current.copy(type = LiveVpnType.WIREGUARD, selectedProfileId = profile.id)) },
+                    )
+                    Chip(
+                        label = stringResource(Res.string.live_tv_delete),
+                        selected = false,
+                        onClick = { onSave(current.withoutProfile(profile.id)) },
+                    )
+                }
+            }
+            if (current.profiles.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.live_tv_vpn_no_profiles),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             NuvioInputField(
-                value = wireGuard,
-                onValueChange = { wireGuard = it },
+                value = profileName,
+                onValueChange = { profileName = it },
+                placeholder = stringResource(Res.string.live_tv_vpn_profile_name),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            NuvioInputField(
+                value = profileText,
+                onValueChange = {
+                    profileText = it
+                    addProblem = null
+                },
                 placeholder = stringResource(Res.string.live_tv_vpn_wireguard_field),
             )
+            addProblem?.let {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            NuvioPrimaryButton(
+                text = stringResource(Res.string.live_tv_vpn_profile_add),
+                enabled = profileText.isNotBlank(),
+                onClick = {
+                    val text = LiveVpnGuard.normalizeWireGuard(profileText)
+                    val problem = LiveTvRepository.wireGuardProblem(text)
+                    if (problem != null) {
+                        addProblem = problem
+                    } else {
+                        onSave(current.withProfile(profileName, text))
+                        profileName = ""
+                        profileText = ""
+                    }
+                },
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(
+                    label = stringResource(Res.string.live_tv_vpn_scope_all),
+                    selected = current.protectHttps,
+                    onClick = { onSave(current.copy(protectHttps = true)) },
+                )
+                Chip(
+                    label = stringResource(Res.string.live_tv_vpn_scope_http),
+                    selected = !current.protectHttps,
+                    onClick = { onSave(current.copy(protectHttps = false)) },
+                )
+            }
         } else {
             NuvioInputField(
                 value = proxy,
                 onValueChange = { proxy = it },
                 placeholder = stringResource(Res.string.live_tv_vpn_proxy_field),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            NuvioPrimaryButton(
+                text = stringResource(Res.string.live_tv_vpn_save),
+                enabled = proxy.isBlank() || LiveVpnGuard.parseProxy(proxy) != null,
+                onClick = { onSave(current.copy(type = LiveVpnType.PROXY, proxyUrl = proxy.trim())) },
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -604,12 +699,6 @@ private fun VpnCard(current: LiveVpnSettings, wireGuardAvailable: Boolean, onSav
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        NuvioPrimaryButton(
-            text = stringResource(Res.string.live_tv_vpn_save),
-            enabled = usable || (wireGuard.isBlank() && proxy.isBlank()),
-            onClick = { onSave(draft.copy(enabled = current.enabled && usable)) },
         )
     }
 }

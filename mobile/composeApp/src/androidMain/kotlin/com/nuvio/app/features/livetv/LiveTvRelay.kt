@@ -49,9 +49,12 @@ class LiveTvRelay(
     class Tunnel(val proxy: LiveProxy, val close: () -> Unit)
 
     fun interface WireGuardStarter {
-        /** Connects with [config], or throws [IOException] with a reason the user can read. */
+        /**
+         * Connects with the WireGuard file [config], or throws [IOException] with a reason the user
+         * can read. With [protectHttps] false only plain HTTP goes through the tunnel.
+         */
         @Throws(IOException::class)
-        fun start(config: String): Tunnel
+        fun start(config: String, protectHttps: Boolean): Tunnel
     }
 
     private class Candidate(val url: String, val headers: Map<String, String>)
@@ -143,20 +146,21 @@ class LiveTvRelay(
 
     /** The proxy leading into the WireGuard tunnel, starting it the first time. */
     @Synchronized
-    private fun wireGuardProxy(config: String): LiveProxy {
+    private fun wireGuardProxy(config: String, protectHttps: Boolean): LiveProxy {
         val running = tunnel
-        if (running != null && tunnelConfig == config) return running.proxy
+        val key = "$protectHttps\n$config"
+        if (running != null && tunnelConfig == key) return running.proxy
         stopTunnel()
         val starter = wireGuard ?: throw IOException("WireGuard is not available on this device")
         log("Live TV playback started: switching the Live TV VPN on")
         val started = try {
-            starter.start(config)
+            starter.start(config, protectHttps)
         } catch (e: IOException) {
             tunnelError = e.message
             throw e
         }
         tunnel = started
-        tunnelConfig = config
+        tunnelConfig = key
         return started.proxy
     }
 
@@ -170,7 +174,7 @@ class LiveTvRelay(
         if (!vpn.ready) return builder.proxy(Proxy.NO_PROXY).build()
         val fixed = if (vpn.type == LiveVpnType.PROXY) LiveVpnGuard.parseProxy(vpn.proxyUrl) else null
         val route = {
-            fixed ?: wireGuardProxy(vpn.wireGuardConfig)
+            fixed ?: wireGuardProxy(vpn.wireGuardConfig, vpn.protectHttps)
         }
         return builder
             .proxySelector(VpnSelector(route))

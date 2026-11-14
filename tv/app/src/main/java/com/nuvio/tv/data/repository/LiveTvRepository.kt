@@ -1,11 +1,15 @@
 package com.nuvio.tv.data.repository
 
+import com.meowio.livetv.LiveTvSecretBox
 import com.meowio.livetv.LiveTvVpnNative
+import com.meowio.livetv.LiveTvWireGuard
 import com.nuvio.tv.core.livetv.LiveChannel
 import com.nuvio.tv.core.livetv.LiveProxy
 import com.nuvio.tv.core.livetv.LiveTvController
 import com.nuvio.tv.core.livetv.LiveTvLoader
 import com.nuvio.tv.core.livetv.LiveTvRelay
+import com.nuvio.tv.core.livetv.LiveTvStorage
+import com.nuvio.tv.core.livetv.LiveVpnGuard
 import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.data.local.LiveTvDataStore
 import kotlinx.coroutines.CoroutineScope
@@ -41,7 +45,7 @@ class LiveTvRepository @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     val controller = LiveTvController(
-        storage = storage,
+        storage = sealedVpn(storage),
         loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis, streamText = ::streamText),
         scope = scope,
         probe = ::answers
@@ -50,13 +54,11 @@ class LiveTvRepository @Inject constructor(
     /** Plays Live TV through the backup-channel relay and, when switched on, the Live TV VPN. */
     private val relay = LiveTvRelay(
         baseClient = client,
-        wireGuard = LiveTvRelay.WireGuardStarter { config ->
-            if (!LiveTvVpnNative.available) throw java.io.IOException("WireGuard is not included in this build")
-            val handle = LiveTvVpnNative.start(config)
-            if (handle == 0L) throw java.io.IOException(LiveTvVpnNative.lastError().ifBlank { "the VPN did not connect" })
+        wireGuard = LiveTvRelay.WireGuardStarter { config, protectHttps ->
+            val running = LiveTvWireGuard.start(config, protectHttps)
             LiveTvRelay.Tunnel(
-                proxy = LiveProxy("127.0.0.1", LiveTvVpnNative.port(handle), "meowio", LiveTvVpnNative.token(handle)),
-                close = { LiveTvVpnNative.stop(handle) }
+                proxy = LiveProxy("127.0.0.1", running.port, running.username, running.password),
+                close = running::close
             )
         },
         log = { android.util.Log.i("LiveTv", it) }
@@ -64,6 +66,28 @@ class LiveTvRepository @Inject constructor(
 
     /** Whether WireGuard can be used for the Live TV VPN in this build. */
     val wireGuardAvailable: Boolean get() = LiveTvVpnNative.available
+
+    /** Null when [config] is a WireGuard file the Live TV VPN can use, otherwise why not. */
+    fun wireGuardProblem(config: String): String? = LiveTvWireGuard.problem(config)
+
+    private companion object {
+        const val MAX_TEXT_BYTES = 32 * 1024 * 1024
+        const val MAX_STREAM_CHARS = 600L * 1024 * 1024
+
+        init {
+            // The tunnel refuses anything the Live TV rules do not allow, debrid above all.
+            LiveTvVpnNative.mayRoute = LiveVpnGuard::mayRoute
+        }
+
+        /** Saves the VPN settings (WireGuard private keys included) encrypted on this device. */
+        fun sealedVpn(storage: LiveTvStorage): LiveTvStorage = object : LiveTvStorage {
+            override suspend fun read(key: String): String? =
+                if (key == "vpn") LiveTvSecretBox.open(storage.read(key)) else storage.read(key)
+
+            override suspend fun write(key: String, value: String?) =
+                storage.write(key, if (key == "vpn") LiveTvSecretBox.seal(value) else value)
+        }
+    }
 
     /**
      * What the player should open for [channel]: the channel itself, or the relay when there are
@@ -184,8 +208,4 @@ class LiveTvRepository @Inject constructor(
         return out.toString(Charsets.UTF_8.name())
     }
 
-    private companion object {
-        const val MAX_TEXT_BYTES = 32 * 1024 * 1024
-        const val MAX_STREAM_CHARS = 600L * 1024 * 1024
-    }
 }

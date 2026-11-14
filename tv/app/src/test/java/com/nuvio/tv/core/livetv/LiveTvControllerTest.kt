@@ -180,14 +180,33 @@ class LiveTvControllerTest {
         controller.start()
         assertFalse(controller.state.value.vpn.enabled)
         val wireGuard = "[Interface]\nPrivateKey = a\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = b\nEndpoint = vpn.example:51820"
-        controller.setVpn(LiveVpnSettings(enabled = true, wireGuardConfig = wireGuard))
+        controller.setVpn(LiveVpnSettings(enabled = true).withProfile("Home", wireGuard).copy(protectHttps = false))
         assertTrue(controller.state.value.vpn.ready)
-        assertFalse(LiveVpnSettings(enabled = true, wireGuardConfig = "nonsense").ready)
-        assertFalse(LiveVpnSettings(enabled = false, wireGuardConfig = wireGuard).ready)
+        assertEquals("Home", controller.state.value.vpn.selectedProfile?.name)
+        assertFalse(LiveVpnSettings(enabled = true).withProfile("", "nonsense").ready)
+        assertFalse(LiveVpnSettings(enabled = false).withProfile("", wireGuard).ready)
 
         val again = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
         again.start()
         assertEquals(controller.state.value.vpn, again.state.value.vpn)
+    }
+
+    @Test
+    fun `wireguard profiles can be added, chosen and removed, and old single configs move into a profile`() {
+        val a = "[Interface]\nPrivateKey = a\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = b\nEndpoint = one.example:51820"
+        val b = "[Interface]\nPrivateKey = c\nAddress = 10.0.0.3/32\n[Peer]\nPublicKey = d\nEndpoint = two.example:51820"
+        val two = LiveVpnSettings(enabled = true).withProfile("One", a).withProfile("Two", b)
+        assertEquals(listOf("One", "Two"), two.profiles.map { it.name })
+        assertEquals(b, two.wireGuardConfig)
+        assertEquals(2, two.withProfile("Renamed", a).profiles.size)
+        val chosen = two.copy(selectedProfileId = two.profiles[0].id)
+        assertEquals(a, chosen.wireGuardConfig)
+        assertEquals(b, chosen.withoutProfile(two.profiles[0].id).wireGuardConfig)
+        assertEquals(two, LiveTvCodec.decodeVpn(LiveTvCodec.encodeVpn(two)))
+
+        val legacy = LiveTvCodec.decodeVpn("""{"enabled":"true","type":"WIREGUARD","wireGuardConfig":${kotlinx.serialization.json.JsonPrimitive(a)}}""")
+        assertEquals(1, legacy.profiles.size)
+        assertTrue(legacy.ready)
     }
 
     @Test

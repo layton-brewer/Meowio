@@ -15,6 +15,8 @@ class LiveTvViewModel @Inject constructor(
 
     val wireGuardAvailable: Boolean get() = repo.wireGuardAvailable
 
+    fun wireGuardProblem(config: String): String? = repo.wireGuardProblem(config)
+
     fun playbackTarget(channel: com.nuvio.tv.core.livetv.LiveChannel): Pair<String, Map<String, String>> =
         repo.playbackTarget(channel)
 }
