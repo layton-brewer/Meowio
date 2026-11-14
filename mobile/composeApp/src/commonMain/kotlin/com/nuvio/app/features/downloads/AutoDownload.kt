@@ -53,9 +53,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * One-tap downloads that reuse the app's stream auto-selection: the best usable source is picked
  * for you, and if a download fails the next best source is tried automatically.
  *
- * Direct HTTP(S) files and debrid-resolved links can be downloaded. HLS (.m3u8), DASH (.mpd),
- * magnet and raw torrent streams cannot be saved as a single file, so they are skipped and the next
- * best source is used instead.
+ * Only debrid-resolved and direct HTTP(S) links are downloaded; every other kind of stream is
+ * skipped and the next best source is used instead.
  */
 object AutoDownloader {
     private val log = Logger.withTag("AutoDownload")
@@ -115,7 +114,7 @@ object AutoDownloader {
                 if (outcome != null) {
                     "Downloading ${meta.name}"
                 } else {
-                    "No downloadable source found for ${meta.name}. Streaming-only sources (HLS or torrent) can't be saved."
+                    "No debrid or direct link found to download for ${meta.name}."
                 },
             )
         }
@@ -138,7 +137,7 @@ object AutoDownloader {
                 if (outcome != null) {
                     "Downloading $label"
                 } else {
-                    "No downloadable source found for $label. Streaming-only sources (HLS or torrent) can't be saved."
+                    "No debrid or direct link found to download for $label."
                 },
             )
         }
@@ -189,7 +188,7 @@ object AutoDownloader {
                 val message = buildString {
                     append("Season $season: $queued episode${if (queued == 1) "" else "s"} downloading")
                     if (skipped > 0) append(", $skipped already saved")
-                    if (missing > 0) append(", $missing without a downloadable source")
+                    if (missing > 0) append(", $missing without a debrid or direct link")
                 }
                 toast(message, durationMillis = 4500L)
             } finally {
