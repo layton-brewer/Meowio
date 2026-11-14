@@ -5,9 +5,6 @@ struct SettingsView: View {
     @EnvironmentObject var library: LibraryStore
     @State private var newAddon = ""
     @State private var addonNames: [String: String] = [:]
-    @State private var backupText = ""
-    @State private var restoreText = ""
-    @State private var restoreMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -87,21 +84,13 @@ struct SettingsView: View {
                 }
 
                 Section("Backup and restore") {
-                    Button("Create backup text") { backupText = settings.exportBackup() }
-                    if !backupText.isEmpty {
-                        Text(backupText).font(.system(size: 22, design: .monospaced))
-                    }
-                    TextField("Paste backup text to restore", text: $restoreText)
-                    Button("Restore from text") {
-                        restoreMessage = settings.restoreBackup(restoreText) ? "Settings restored." : "That is not a Meowio backup."
-                    }
-                    if let restoreMessage { Text(restoreMessage).foregroundStyle(.secondary) }
-                    Text("Tip: the backup works across Meowio apps. Apple TV has no file picker, so it is shown as text.")
-                        .font(.caption).foregroundStyle(.secondary)
+                    NavigationLink("Back up or restore settings") { BackupView() }
                 }
 
                 Section("About") {
-                    Text("Meowio for Apple TV. CloudStream plugins and downloads are Android-only.")
+                    Text("Meowio for Apple TV \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                    Text("MKV and other formats play through the built-in mpv engine. CloudStream plugins and downloads are Android-only.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Settings")
