@@ -107,6 +107,8 @@ android {
         }
         jniLibs {
             useLegacyPackaging = true
+            // Only the WireGuard config parser is used; the Live TV VPN has its own engine.
+            excludes += "lib/*/libwg-go.so"
             pickFirsts += listOf(
                 "lib/*/libc++_shared.so",
                 "lib/*/libavcodec.so",

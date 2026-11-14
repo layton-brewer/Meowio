@@ -13,7 +13,7 @@ bin="$ndk/toolchains/llvm/prebuilt/$host/bin"
 build() {
   local abi="$1" goarch="$2" cc="$3"
   mkdir -p "$out/$abi"
-  (cd "$here" && CGO_ENABLED=1 GOOS=android GOARCH="$goarch" GOARM=7 CC="$bin/$cc" \
+  (cd "$here" && GOTOOLCHAIN=go1.27.3 CGO_ENABLED=1 GOOS=android GOARCH="$goarch" GOARM=7 CC="$bin/$cc" \
     CGO_LDFLAGS="-Wl,-z,max-page-size=16384" \
     go build -trimpath -buildmode=c-shared -ldflags "-s -w -buildid=" -o "$out/$abi/libmeowiovpn.so" .)
   rm -f "$out/$abi/libmeowiovpn.h"
