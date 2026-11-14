@@ -131,6 +131,11 @@ android {
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
+        // Shipped builds target ARM only (phones, TVs and boxes); dropping the x86 libraries
+        // roughly halves the native payload. Opt in with -Pmeowio.armOnly=true.
+        if (providers.gradleProperty("meowio.armOnly").orNull == "true") {
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        }
         applicationId = "com.nuvio.tv"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 24
@@ -313,7 +318,7 @@ android {
 
     splits {
         abi {
-            isEnable = !buildingAppBundle
+            isEnable = !buildingAppBundle && providers.gradleProperty("meowio.armOnly").orNull != "true"
             reset()
             include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             isUniversalApk = true
