@@ -13,6 +13,27 @@ const val LiveTvContentType = "livetv"
 
 /** Connects the shared Live TV logic to this app's storage, network and profiles. */
 @OptIn(ExperimentalTime::class)
+/**
+ * The copies of the channel now playing, for players without the relay (iPhone and iPad): when one
+ * fails, [next] gives the following copy to try.
+ */
+object LiveTvBackups {
+    private var chain: List<LiveChannel> = emptyList()
+    private var index = 0
+
+    internal fun start(channels: List<LiveChannel>) {
+        chain = channels
+        index = 0
+    }
+
+    /** The next copy to try after the current one failed, or null when none are left. */
+    fun next(): LiveChannel? {
+        if (index + 1 >= chain.size) return null
+        index += 1
+        return chain[index]
+    }
+}
+
 object LiveTvRepository {
     private const val MAX_TEXT_BYTES = 32 * 1024 * 1024
 
@@ -37,10 +58,13 @@ object LiveTvRepository {
     fun ensureLoaded() = controller.start()
 
     /** What the player should open for [channel], with backup copies and the Live TV VPN applied. */
-    suspend fun playbackTarget(channel: LiveChannel): LiveTvPlaybackTarget {
+    suspend fun playbackTarget(channel: LiveChannel, startBackups: Boolean = true): LiveTvPlaybackTarget {
+        val backups = controller.alternatesFor(channel)
         val target = withContext(Dispatchers.Default) {
-            liveTvPlaybackTarget(channel, controller.alternatesFor(channel), controller.state.value.vpn)
+            liveTvPlaybackTarget(channel, backups, controller.state.value.vpn)
         }
+        // Where there is no relay (iPhone and iPad), the player itself moves to a backup copy when this one fails.
+        if (startBackups) LiveTvBackups.start(if (target.url == channel.url) listOf(channel) + backups else listOf(channel))
         // Where there is no relay (iPhone and iPad), a YouTube page is turned into its live stream here.
         if (target.url != channel.url || !LiveTvYouTube.isYouTube(channel.url)) return target
         val hls = youTubeStream(channel.url)

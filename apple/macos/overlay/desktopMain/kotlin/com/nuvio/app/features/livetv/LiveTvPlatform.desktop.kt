@@ -108,13 +108,13 @@ internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String
     }
 
 private val liveTvRelay by lazy {
-    // The desktop apps have no WireGuard tunnel; the Live TV VPN uses an HTTP proxy here.
+    // WireGuard runs in a helper program inside the app; an HTTP proxy works too.
     LiveTvRelay(
         baseClient = okhttp3.OkHttpClient.Builder()
             .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .build(),
-        wireGuard = null,
+        wireGuard = LiveTvRelay.WireGuardStarter { config, protectHttps -> LiveTvWireGuardHelper.start(config, protectHttps) },
         onResult = { channelId, problem -> LiveTvRepository.controller.reportPlayback(channelId, problem) },
     )
 }
@@ -128,7 +128,6 @@ internal actual fun liveTvPlaybackTarget(
     return if (url == channel.url) LiveTvPlaybackTarget(url, channel.headers) else LiveTvPlaybackTarget(url, emptyMap())
 }
 
-internal actual fun liveTvWireGuardAvailable(): Boolean = false
+internal actual fun liveTvWireGuardAvailable(): Boolean = LiveTvWireGuardHelper.available
 
-internal actual fun liveTvWireGuardProblem(config: String): String? =
-    "WireGuard is not available in this app yet. Use an HTTP proxy instead."
+internal actual fun liveTvWireGuardProblem(config: String): String? = LiveTvWireGuardHelper.problem(config)
