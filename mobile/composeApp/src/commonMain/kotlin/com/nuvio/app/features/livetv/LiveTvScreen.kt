@@ -121,6 +121,7 @@ import nuvio.composeapp.generated.resources.live_tv_playlist_failed
 import nuvio.composeapp.generated.resources.live_tv_expires
 import nuvio.composeapp.generated.resources.live_tv_connections
 import nuvio.composeapp.generated.resources.live_tv_some_failed
+import nuvio.composeapp.generated.resources.live_tv_guide_loading
 import nuvio.composeapp.generated.resources.live_tv_guide_no_info
 import nuvio.composeapp.generated.resources.live_tv_vpn_title
 import nuvio.composeapp.generated.resources.live_tv_vpn_body
@@ -319,6 +320,7 @@ fun LiveTvScreen(
                                 stringResource(Res.string.live_tv_not_responding)
                             } else {
                                 LiveTvController.nowTitle(state, channel)
+                                    ?: if (state.guideLoads > 0) stringResource(Res.string.live_tv_guide_loading) else null
                             },
                             nextTitle = LiveTvController.nextTitle(state, channel)
                                 ?.let { stringResource(Res.string.live_tv_next, it) }
@@ -389,7 +391,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.guideItems(
             delay(GUIDE_REQUEST_DELAY_MS)
             controller.requestChannelGuide(channel)
         }
-        val noInfo = stringResource(Res.string.live_tv_guide_no_info)
+        val noInfo = stringResource(if (state.guideLoads > 0) Res.string.live_tv_guide_loading else Res.string.live_tv_guide_no_info)
         Row(modifier = Modifier.height(GUIDE_ROW_HEIGHT).padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
                 modifier = Modifier.width(GUIDE_CHANNEL_WIDTH).clickable { onPlay(channel) }.padding(end = 6.dp),
