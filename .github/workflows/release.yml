@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.21 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.22 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.21 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.22 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,12 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.21"
+          tag="v0.2.22"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.21
+          ## What's new in 0.2.22
 
-          - **Live TV guide fixed:** on iPhone and iPad the guide stayed on "No guide information" because the whole guide was handed to the reader in one piece, which made it take minutes and never finish. Guides now download and unpack as a stream with room to finish, are read in small slices on every app, and retry if a host is slow.
-          - More guide sources: if the main guide has no entry for a channel, the free streaming services' guides (Pluto, Samsung TV Plus, Plex, Roku, Stirr) are tried by channel name.
+          - **Live TV now has thousands of free channels:** Pluto TV, Samsung TV Plus, Plex and Roku channels (with full guides) are added to the Free-TV and iptv-org channels for your country. The same channel from several services is listed once, and the other copies are used as backups if it stops playing.
+          - **Guide fixed on Android TV:** the TV app sent its own app name instead of a browser agent when downloading guides, and the guide only appeared after every guide file (including very large ones) had finished. Guides now show channel by channel as soon as the first small file is read, start with the small service guides, fall back to a GitHub copy when a guide host is blocked, and channels without a guide borrow it from another copy of the same channel.
+          - "Loading guide…" shows while guides are still coming in.
 
           ## Download
 

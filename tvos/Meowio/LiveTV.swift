@@ -239,21 +239,83 @@ enum LiveTvDefaults {
         }
     }
 
-    private static let serviceCountries: [String: String] = [
-        "US": "us", "UK": "gb", "CA": "ca", "DE": "de", "FR": "fr", "ES": "es", "IT": "it",
-        "BR": "br", "MX": "mx", "AR": "ar", "CL": "cl", "DK": "dk", "NO": "no", "SE": "se",
-        "AT": "at", "CH": "ch", "AU": "au", "IE": "ie", "KR": "kr", "IN": "in",
-    ]
+    private static let mjh = "https://i.mjh.nz/"
+    /// A copy of i.mjh.nz's guide files on GitHub, tried when i.mjh.nz cannot be reached.
+    private static let mjhMirror = "https://raw.githubusercontent.com/matthuisman/i.mjh.nz/master/"
+    static let iptvOrgPrefix = "https://iptv-org.github.io/iptv/countries/"
 
-    /// Other guide files to try after the main ones, so one host being slow or short of a channel
-    /// does not leave the guide empty. Small files from the free streaming services.
-    static func fallbackGuideUrls(forGroup group: String) -> [String] {
-        guard let tag = guideTagByGroup[group], let code = serviceCountries[tag] else { return [] }
-        var urls = ["https://i.mjh.nz/PlutoTV/\(code).xml.gz", "https://i.mjh.nz/SamsungTVPlus/\(code).xml.gz"]
-        if tag == "US" {
-            urls += ["https://i.mjh.nz/Plex/us.xml.gz", "https://i.mjh.nz/Roku/all.xml.gz", "https://i.mjh.nz/Stirr/all.xml.gz"]
+    /// Countries each free service streams to, by lower-case country code (UK is "gb").
+    private static let plutoCountries: Set<String> = ["us", "ar", "br", "ca", "cl", "de", "dk", "es", "fr", "gb", "it", "mx", "no", "se"]
+    private static let samsungCountries: Set<String> = ["us", "at", "ca", "ch", "de", "es", "fr", "gb", "in", "it", "kr"]
+    private static let plexCountries: Set<String> = ["us", "au", "ca", "es", "fr", "gb", "mx", "nz"]
+
+    /// The country code the free services use: "gb" for the UK, "us" when unknown.
+    static func serviceCountry(_ code: String?) -> String {
+        let c = (code ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        if c == "uk" { return "gb" }
+        return c.count == 2 ? c : "us"
+    }
+
+    /// Every built-in source for a device in a country, as on the other apps: Pluto TV, Samsung TV Plus,
+    /// Plex and Roku (free ad-supported channels with their own guides, listed by i.mjh.nz), then
+    /// Free-TV, then iptv-org's public streams for the country.
+    static func builtInSources(countryCode: String?) -> [LiveSource] {
+        let code = serviceCountry(countryCode)
+        let covered = plutoCountries.contains(code) || samsungCountries.contains(code) || plexCountries.contains(code)
+        var sources: [LiveSource] = []
+        func service(_ name: String, _ folder: String, _ countries: Set<String>) {
+            let region: String
+            if countries.contains(code) { region = code } else if covered { return } else { region = "us" }
+            sources.append(LiveSource(type: .m3u, url: "\(mjh)\(folder)/\(region).m3u8", guideUrl: "\(mjh)\(folder)/\(region).xml.gz", name: name))
         }
+        service("Pluto TV", "PlutoTV", plutoCountries)
+        service("Samsung TV Plus", "SamsungTVPlus", samsungCountries)
+        service("Plex", "Plex", plexCountries)
+        if code == "us" || !covered {
+            sources.append(LiveSource(type: .m3u, url: "\(mjh)Roku/all.m3u8", guideUrl: "\(mjh)Roku/all.xml.gz", name: "Roku"))
+        }
+        sources.append(LiveSource(type: .m3u, url: playlistURL, name: "Free-TV"))
+        sources.append(LiveSource(type: .m3u, url: "\(iptvOrgPrefix)\(code).m3u", name: "iptv-org"))
+        return sources
+    }
+
+    /// True for a built-in source from a free streaming service (not Free-TV or iptv-org).
+    static func isService(_ url: String) -> Bool { url.hasPrefix(mjh) }
+
+    /// iptv-org publishes no guide: it gets the country's epgshare01 guide, matched by id and name.
+    static func extraGuideUrls(for source: LiveSource) -> [String] {
+        guard source.url.hasPrefix(iptvOrgPrefix) else { return [] }
+        let code = ((source.url as NSString).lastPathComponent as NSString).deletingPathExtension
+        let tag = code == "gb" ? "UK" : code.uppercased()
+        return ["https://epgshare01.online/epgshare01/epg_ripper_\(tag)1.xml.gz"]
+    }
+
+    /// iptv-org files groups as "News;General": the first one is the group shown.
+    static func cleanGroup(_ source: LiveSource, _ group: String?) -> String? {
+        guard source.url.hasPrefix(iptvOrgPrefix), let group else { return group }
+        let first = (group.components(separatedBy: ";").first ?? group).trimmingCharacters(in: .whitespaces)
+        return first.isEmpty || first == "Undefined" ? nil : first
+    }
+
+    /// Other addresses for the same guide file, tried in order when one cannot be read.
+    static func guideMirrors(_ url: String) -> [String] {
+        url.hasPrefix(mjh) ? [url, mjhMirror + url.dropFirst(mjh.count)] : [url]
+    }
+
+    private static func serviceGuideUrls(_ code: String) -> [String] {
+        var urls: [String] = []
+        if plutoCountries.contains(code) { urls.append("\(mjh)PlutoTV/\(code).xml.gz") }
+        if samsungCountries.contains(code) { urls.append("\(mjh)SamsungTVPlus/\(code).xml.gz") }
+        if plexCountries.contains(code) { urls.append("\(mjh)Plex/\(code).xml.gz") }
+        if code == "us" { urls.append("\(mjh)Roku/all.xml.gz") }
         return urls
+    }
+
+    /// The free streaming services' guides for a group's country: small files, read before the
+    /// big country files so most channels show programmes within seconds.
+    static func fallbackGuideUrls(forGroup group: String) -> [String] {
+        guard let tag = guideTagByGroup[group] else { return [] }
+        return serviceGuideUrls(tag == "UK" ? "gb" : tag.lowercased())
     }
 }
 
@@ -712,6 +774,10 @@ final class LiveTVStore: ObservableObject {
     @Published var recent: [String]
     @Published var guide: [String: LiveNowNext] = [:]
     @Published var offline: Set<String> = []
+    /// Channels left out of All because an earlier channel is the same channel from another source.
+    @Published var copiesInAll: Set<String> = []
+    /// Guide loads still running; the screen shows "Loading guide" meanwhile.
+    @Published var guideLoads = 0
     /// Why a channel failed the last time it was played, by channel id. Cleared when it plays.
     @Published var playbackProblems: [String: LivePlaybackProblem] = [:]
 
@@ -725,8 +791,12 @@ final class LiveTVStore: ObservableObject {
     /// Xtream subscription details, by playlist key.
     @Published var accounts: [String: LiveAccountInfo] = [:]
 
-    /// The built-in playlist, kept for per-group guides and checks.
+    /// The built-in Free-TV playlist and its source, kept for per-group guides and checks.
     private var playlist: LivePlaylist?
+    private var playlistSource: LiveSource?
+    /// Every channel, including copies merged away from the list. Backups come from here.
+    private var allChannels: [LiveChannel] = []
+    private var channelKeys: [String: String] = [:]
     private var sources: [String: LiveSource] = [:]
     private var loadTask: Task<Void, Never>?
     private var groupGuideRequested = Set<String>()
@@ -753,13 +823,18 @@ final class LiveTVStore: ObservableObject {
         loadTask?.cancel()
         let isDefault = active.isEmpty
         usingDefault = isDefault
-        let effective = isDefault ? [LiveSource(type: .m3u, url: LiveTvDefaults.playlistURL)] : active
+        let effective = isDefault ? LiveTvDefaults.builtInSources(countryCode: Locale.current.region?.identifier) : active
         sources = Dictionary(effective.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
         groupGuideRequested.removeAll()
         groupGuideTries.removeAll()
         groupCheckRequested.removeAll()
         channelGuideRequested.removeAll()
         playlist = nil
+        playlistSource = nil
+        allChannels = []
+        channelKeys = [:]
+        copiesInAll = []
+        guideLoads = 0
         offline = []
         guide = [:]
         failedSources = [:]
@@ -790,6 +865,7 @@ final class LiveTVStore: ObservableObject {
                     list.channels = list.channels.map { c in
                         var c = c
                         c.sourceKey = s.key
+                        c.group = LiveTvDefaults.cleanGroup(s, c.group)
                         if !seenIds.insert(c.id).inserted { c.id = "\(s.key)|\(c.id)"; seenIds.insert(c.id) }
                         return c
                     }
@@ -800,28 +876,71 @@ final class LiveTVStore: ObservableObject {
                     failures[s.key] = e.error
                 }
             }
-            if isDefault { playlist = loaded.first?.1 }
-            channels = merged
+            if isDefault, let free = loaded.first(where: { $0.0.url == LiveTvDefaults.playlistURL }) {
+                playlistSource = free.0
+                playlist = free.1
+            }
+            allChannels = merged
+            channelKeys = Dictionary(merged.map { ($0.id, LiveTvVariants.key($0.name)) }, uniquingKeysWith: { a, _ in a })
+            // The built-in sources carry many of the same channels: list each once per group, keep the
+            // other copies as backups, and show each channel once in All.
+            var shown = merged
+            if isDefault {
+                var seenInGroup = Set<String>()
+                shown = merged.filter { c in
+                    let k = channelKeys[c.id] ?? ""
+                    return k.isEmpty || seenInGroup.insert("\(c.group ?? "")\u{0}\(k)").inserted
+                }
+                var seenAll = Set<String>()
+                copiesInAll = Set(shown.filter { c in
+                    let k = channelKeys[c.id] ?? ""
+                    return !k.isEmpty && !seenAll.insert(k).inserted
+                }.map(\.id))
+            }
+            channels = shown
             var seen = Set<String>()
-            groups = merged.compactMap { $0.group }.filter { !$0.isEmpty && seen.insert($0).inserted }
+            groups = shown.compactMap { $0.group }.filter { !$0.isEmpty && seen.insert($0).inserted }
             loading = false
             if merged.isEmpty {
                 error = failures.values.first ?? .noChannels
                 failedSources = failures
                 return
             }
-            failedSources = failures
-            for (s, list) in loaded {
-                let found = await Self.loadGuide(s, playlist: list)
-                if Task.isCancelled { return }
-                if !found.isEmpty { guide.merge(found) { a, _ in a } }
+            // A built-in source that is down is simply left out, without a warning.
+            failedSources = isDefault ? [:] : failures
+            // Every playlist's guide loads at once and shows as soon as each file is read.
+            await withTaskGroup(of: Void.self) { tg in
+                for (s, list) in loaded {
+                    tg.addTask { @MainActor in
+                        self.guideLoads += 1
+                        defer { self.guideLoads = max(0, self.guideLoads - 1) }
+                        await Self.loadGuide(s, playlist: list) { found in
+                            if Task.isCancelled { return }
+                            self.publishGuide(found)
+                        }
+                    }
+                }
             }
         }
     }
 
+    /// Adds guide entries, and gives channels the guide does not know the programmes of another
+    /// copy of the same channel (Free-TV's Court TV shows Pluto TV's guide).
+    private func publishGuide(_ found: [String: LiveNowNext]) {
+        if found.isEmpty { return }
+        var combined = guide
+        combined.merge(found) { a, _ in a }
+        var byKey: [String: LiveNowNext] = [:]
+        for (id, entry) in combined { if let k = channelKeys[id], !k.isEmpty, byKey[k] == nil { byKey[k] = entry } }
+        if !byKey.isEmpty {
+            for (id, k) in channelKeys where combined[id] == nil { if let e = byKey[k] { combined[id] = e } }
+        }
+        guide = combined
+    }
+
     /// Other copies of a channel to fall back to when it does not play.
     func alternates(for channel: LiveChannel) -> [LiveChannel] {
-        LiveTvVariants.alternates(for: channel, in: channels, offline: offline)
+        LiveTvVariants.alternates(for: channel, in: allChannels.isEmpty ? channels : allChannels, offline: offline)
     }
 
     struct LiveError: Error { var error: LiveTvError }
@@ -860,11 +979,18 @@ final class LiveTVStore: ObservableObject {
         !M3uParser.isHttp(s.guideUrl.trimmingCharacters(in: .whitespaces)) && list.guideUrls.count > maxAnnouncedGuideFiles
     }
 
-    private static func readGuides(_ urls: [String], channels: [LiveChannel]) async -> [String: LiveNowNext] {
+    private static func readGuides(_ urls: [String], channels: [LiveChannel],
+                                   progress: ([String: LiveNowNext]) -> Void = { _ in }) async -> [String: LiveNowNext] {
         if urls.isEmpty || channels.isEmpty { return [:] }
         var result: [String: LiveNowNext] = [:]
         for url in urls {
-            guard let text = await LiveNetwork.guideText(url) else { continue }
+            // A file whose host is blocked is tried again from its mirror.
+            var text: String?
+            for address in LiveTvDefaults.guideMirrors(url) {
+                text = await LiveNetwork.guideText(address)
+                if text != nil { break }
+            }
+            guard let text else { continue }
             let found = await Task.detached { () -> [String: LiveNowNext] in
                 // Match guide channels by tvg-id, then by name, as the other apps do.
                 let links = GuideMatcher.links(text, channels: channels)
@@ -875,31 +1001,42 @@ final class LiveTVStore: ObservableObject {
                 }
                 return out
             }.value
-            for (k, v) in found where result[k] == nil { result[k] = v }
+            var added = false
+            for (k, v) in found where result[k] == nil { result[k] = v; added = true }
+            // Show what is known so far, so a big file later on never holds up the first channels.
+            if added { progress(result) }
             // Stop once nearly every channel has its guide; later files are only for the gaps.
             if result.count * 10 >= channels.count * 9 { break }
         }
         return result
     }
 
-    private static func loadGuide(_ s: LiveSource, playlist: LivePlaylist) async -> [String: LiveNowNext] {
-        if hasGuidePerGroup(s, playlist) { return [:] }
+    private static func loadGuide(_ s: LiveSource, playlist: LivePlaylist,
+                                  progress: ([String: LiveNowNext]) -> Void) async {
+        if hasGuidePerGroup(s, playlist) { return }
         let own = s.guideUrl.trimmingCharacters(in: .whitespaces)
-        let urls = M3uParser.isHttp(own) ? [own] : playlist.guideUrls
-        return await readGuides(Array(urls.prefix(2)), channels: playlist.channels)
+        let named = M3uParser.isHttp(own) ? [own] : Array(playlist.guideUrls.prefix(3))
+        var urls: [String] = []
+        for u in named + LiveTvDefaults.extraGuideUrls(for: s) where !urls.contains(u) { urls.append(u) }
+        _ = await readGuides(urls, channels: playlist.channels, progress: progress)
     }
 
     /// Loads the guide for one group of a worldwide playlist the first time that group is opened.
     func requestGroupGuide(_ group: String) {
-        guard let list = playlist else { return }
-        guard let effective = sources.values.first, Self.hasGuidePerGroup(effective, list), groupGuideRequested.insert(group).inserted,
+        guard let list = playlist, let effective = playlistSource else { return }
+        guard Self.hasGuidePerGroup(effective, list), groupGuideRequested.insert(group).inserted,
               LiveTvDefaults.guideUrl(forGroup: group, in: list.guideUrls) != nil else { return }
-        let urls = Array((LiveTvDefaults.guideUrls(forGroup: group, in: list.guideUrls) + LiveTvDefaults.fallbackGuideUrls(forGroup: group)).prefix(8))
+        // The free services' small guides first, then the country's big guide files.
+        var urls: [String] = []
+        for u in LiveTvDefaults.fallbackGuideUrls(forGroup: group) + LiveTvDefaults.guideUrls(forGroup: group, in: list.guideUrls) where !urls.contains(u) { urls.append(u) }
+        urls = Array(urls.prefix(8))
         let members = list.channels.filter { $0.group == group }
         Task {
-            let found = await Self.readGuides(urls, channels: members)
+            guideLoads += 1
+            let found = await Self.readGuides(urls, channels: members) { partial in self.publishGuide(partial) }
+            guideLoads = max(0, guideLoads - 1)
             if !found.isEmpty {
-                guide.merge(found) { a, _ in a }
+                publishGuide(found)
             } else if (groupGuideTries[group] ?? 0) < 2 {
                 // A guide host can be slow or down for a moment: ask again a little later.
                 groupGuideTries[group, default: 0] += 1
@@ -959,6 +1096,8 @@ final class LiveTVStore: ObservableObject {
     /// The group to open first on the built-in channels: the one for the device's country.
     func preferredGroup() -> String? {
         guard usingDefault else { return nil }
+        // With the free streaming services loaded, the list opens on All, which starts with them.
+        if allChannels.contains(where: { c in LiveTvDefaults.isService(sources[c.sourceKey]?.url ?? "") }) { return nil }
         let code = Locale.current.region?.identifier
         guard let group = LiveTvDefaults.groupForCountry(code), groups.contains(group) else { return nil }
         return group
@@ -977,7 +1116,7 @@ final class LiveTVStore: ObservableObject {
             let byId = Dictionary(channels.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             result = recent.compactMap { byId[$0] }.filter(matches)
         case LiveTvSelection.all:
-            result = channels.filter(matches)
+            result = channels.filter { !copiesInAll.contains($0.id) && matches($0) }
         default:
             result = channels.filter { $0.group == selection && matches($0) }
         }
@@ -1014,7 +1153,7 @@ struct LiveTVView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Live TV").font(.largeTitle.bold()).padding(.leading, 60)
                 if live.usingDefault {
-                    Text("Free channels from the Free-TV project. Add your own playlist or login in Settings.")
+                    Text("Free channels from Pluto TV, Samsung TV Plus, Plex, Roku, Free-TV and iptv-org. Add your own playlist or login in Settings.")
                         .font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
                 }
                 if !live.failedSources.isEmpty {
@@ -1032,6 +1171,9 @@ struct LiveTVView: View {
                     .padding(.horizontal, 60).padding(.vertical, 10)
                 }
                 if live.loading { ProgressView().padding(60) }
+                if !live.loading, live.guideLoads > 0 {
+                    Text("Loading guide…").font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
+                }
                 if let error = live.error {
                     Text(error.rawValue).foregroundStyle(.orange).padding(.horizontal, 60)
                 }
