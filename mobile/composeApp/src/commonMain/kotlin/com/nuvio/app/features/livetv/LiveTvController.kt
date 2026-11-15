@@ -544,11 +544,21 @@ class LiveTvController(
 
         fun isOffline(state: LiveTvState, channel: LiveChannel): Boolean = channel.id in state.offline
 
+        /** How many channels All lists, for the All button. */
+        fun allCount(state: LiveTvState): Int = state.channels.size - state.copiesInAll.size
+
         /** Why [channel] could not be played the last time it was tried, or null. */
         fun playbackProblem(state: LiveTvState, channel: LiveChannel): LivePlaybackProblem? =
             state.playbackProblems[channel.id]
 
-        private fun matchingChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when (selection) {
+        private fun matchingChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when {
+            // A search looks through every channel, whatever list is open, as a TV guide's search does.
+            query.isNotBlank() && selection != LiveTvSelection.FAVORITES && selection != LiveTvSelection.RECENT ->
+                matchingChannels(state, "", LiveTvSelection.ALL).let { LiveTvFilters.filter(it, query) }
+            else -> matchingChannelsIn(state, query, selection)
+        }
+
+        private fun matchingChannelsIn(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when (selection) {
             LiveTvSelection.FAVORITES ->
                 LiveTvFilters.filter(state.channels, query, favoritesOnly = true, favorites = state.favorites)
             LiveTvSelection.RECENT -> {
@@ -569,16 +579,11 @@ class LiveTvController(
             if (state.sources.size < 2) null else state.sources.firstOrNull { it.key == channel.sourceId }?.label
 
         /**
-         * The group to open first on the built-in channels: the one for the device's country, when
-         * Free-TV is all there is. With the free streaming services loaded, the list opens on All,
-         * which starts with their channels.
+         * The group to open first. Live TV always opens on All, so every channel is there from the
+         * start; opening on the country's group made it look as if most channels were missing.
          */
-        fun preferredGroup(state: LiveTvState, countryCode: String?): String? {
-            if (!state.usingDefault) return null
-            if (state.channels.any { it.sourceId.startsWith(LiveTvDefaults.BUILT_IN_PREFIX) && it.sourceId != LiveTvDefaults.source.id && it.sourceId != "${LiveTvDefaults.BUILT_IN_PREFIX}iptvorg" }) return null
-            val group = LiveTvDefaults.groupForCountry(countryCode) ?: return null
-            return group.takeIf { it in state.groups }
-        }
+        @Suppress("UNUSED_PARAMETER")
+        fun preferredGroup(state: LiveTvState, countryCode: String?): String? = null
 
         /** Guide text for a channel row, or null when nothing is known. */
         fun nowTitle(state: LiveTvState, channel: LiveChannel): String? =
