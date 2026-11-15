@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.23 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.24 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.23 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.24 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,14 +256,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.23"
+          tag="v0.2.24"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.23
+          ## What's new in 0.2.24
 
-          - **Pick which service's lists you see in Library:** a new "Show" dropdown switches between Meowio, Trakt, Simkl and MDBList. Services you haven't connected show "Not set up yet". Watching is still reported to every connected service, and a new "Primary" dropdown marks the main one.
-          - **Browse popular lists:** the Library has a new "Lists" view (a "Popular lists" button on Apple TV) with Trakt's most popular and trending lists, hundreds of them. Pick one and its titles show right there.
-          - **Zap:** a new screen that picks a random movie or series for you, with filters, when you can't decide what to watch.
-          - **Live TV opens on All:** every channel is there from the start with a count on the All button, and searching looks through every channel whichever list is open.
+          - **Live TV guide loads faster and lighter:** the guide reader now skips programmes outside the next few hours and channels you don't have as soon as it sees them, instead of copying and searching every entry, and no longer rescans the file for each programme. Big guides finish noticeably sooner on every app.
+          - Small cleanup: two unused images removed from the TV app.
 
           ## Download
 
