@@ -946,6 +946,23 @@ struct LiveTVView: View {
         live.markWatched(ch)
         // The channel first, then other copies of it (HD/SD, backup feeds, other playlists) to fall back to.
         let copies = [ch] + live.alternates(for: ch)
+        guard copies.contains(where: { LiveYouTube.isYouTube($0.url) }) else { return start(ch, copies) }
+        Task { @MainActor in
+            // A YouTube page is not a stream: play the live stream behind it, and skip it when it is not live.
+            var resolved: [LiveChannel] = []
+            for var c in copies {
+                if LiveYouTube.isYouTube(c.url) {
+                    guard let hls = await LiveYouTube.stream(for: c.url) else { continue }
+                    c.url = hls
+                    c.headers = [:]
+                }
+                resolved.append(c)
+            }
+            start(ch, resolved.isEmpty ? copies : resolved)
+        }
+    }
+
+    private func start(_ ch: LiveChannel, _ copies: [LiveChannel]) {
         let items = copies.map { c in
             // Each copy carries its own playlist's headers.
             StreamItem(name: c.name, title: nil, description: nil, url: c.url, infoHash: nil,
@@ -1097,5 +1114,48 @@ struct LiveSourceEditor: View {
         var seen = Set<String>()
         settings.liveSources = list.filter { seen.insert($0.key).inserted }
         dismiss()
+    }
+}
+
+/// Turns a YouTube channel or video page into the live HLS stream behind it, as the other apps do.
+enum LiveYouTube {
+    static let pageHeaders = [
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cookie": "SOCS=CAI; CONSENT=YES+1",
+    ]
+
+    static func isYouTube(_ url: String) -> Bool {
+        guard let host = URL(string: url)?.host?.lowercased() else { return false }
+        return host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtu.be"
+    }
+
+    static func pageURL(_ url: String) -> URL? {
+        guard let parsed = URL(string: url), let host = parsed.host?.lowercased() else { return nil }
+        if host == "youtu.be" {
+            return URL(string: "https://www.youtube.com/watch?v=" + parsed.path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+        }
+        var parts = URLComponents(url: parsed, resolvingAgainstBaseURL: false)
+        parts?.scheme = "https"
+        parts?.host = "www.youtube.com"
+        return parts?.url
+    }
+
+    static func hls(from page: String) -> String? {
+        guard let range = page.range(of: #""hlsManifestUrl"\s*:\s*"(https:[^"]+)""#, options: .regularExpression) else { return nil }
+        let match = String(page[range])
+        guard let start = match.range(of: "https:") else { return nil }
+        var url = String(match[start.lowerBound...])
+        if url.hasSuffix("\"") { url.removeLast() }
+        return url.replacingOccurrences(of: "\\u0026", with: "&").replacingOccurrences(of: "\\/", with: "/")
+    }
+
+    static func stream(for url: String) async -> String? {
+        guard let page = pageURL(url) else { return nil }
+        var request = URLRequest(url: page, timeoutInterval: 15)
+        pageHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let status = (response as? HTTPURLResponse)?.statusCode, (200..<300).contains(status) else { return nil }
+        return hls(from: String(decoding: data, as: UTF8.self))
     }
 }

@@ -44,6 +44,8 @@ class LiveTvRelay(
     /** Starts a WireGuard tunnel, or null on platforms without one. */
     private val wireGuard: WireGuardStarter?,
     private val log: (String) -> Unit = {},
+    /** Told how each channel went: null when it played, otherwise why it did not. */
+    private val onResult: (channelId: String, problem: LivePlaybackProblem?) -> Unit = { _, _ -> },
 ) {
     /** A running tunnel: the proxy that leads into it and how to stop it. */
     class Tunnel(val proxy: LiveProxy, val close: () -> Unit)
@@ -59,9 +61,20 @@ class LiveTvRelay(
 
     private class Candidate(val url: String, val headers: Map<String, String>)
 
-    private inner class Session(val candidates: List<Candidate>, val vpn: LiveVpnSettings) {
+    private inner class Session(val channelId: String, val candidates: List<Candidate>, val vpn: LiveVpnSettings) {
         @Volatile var chosen = 0
         val client: OkHttpClient by lazy { clientFor(vpn) }
+        /** Stream addresses found for YouTube pages, by page. */
+        val resolved = ConcurrentHashMap<String, String>()
+        @Volatile var reported: LivePlaybackProblem? = null
+        @Volatile var reportedOnce = false
+    }
+
+    private fun report(session: Session, problem: LivePlaybackProblem?) {
+        if (session.reportedOnce && session.reported == problem) return
+        session.reportedOnce = true
+        session.reported = problem
+        runCatching { onResult(session.channelId, problem) }
     }
 
     private val secret = ByteArray(18).also(SecureRandom()::nextBytes).let {
@@ -88,7 +101,9 @@ class LiveTvRelay(
 
     /** True when playback of [channel] should go through here rather than straight to the channel. */
     fun shouldRelay(channel: LiveChannel, backups: List<LiveChannel>, vpn: LiveVpnSettings): Boolean =
-        isHttp(channel.url) && (vpn.ready || backups.any { isHttp(it.url) })
+        // Every web channel comes through here, so YouTube pages, backups, the VPN and the reason a
+        // channel fails all work the same way.
+        isHttp(channel.url)
 
     /**
      * The address the player should open for [channel], trying [backups] in order when it fails.
@@ -101,11 +116,13 @@ class LiveTvRelay(
         val candidates = (listOf(channel) + backups).filter { isHttp(it.url) }
             .map { Candidate(it.url, it.headers) }
         val id = nextSession.incrementAndGet().toString(36)
-        sessions[id] = Session(candidates, vpn.takeIf { it.ready } ?: LiveVpnSettings())
+        sessions[id] = Session(channel.id, candidates, vpn.takeIf { it.ready } ?: LiveVpnSettings())
         // Keep only the latest few sessions: only one channel plays at a time.
         sessions.keys.sortedBy { it.toLongOrNull(36) ?: 0L }.dropLast(MAX_SESSIONS).forEach(sessions::remove)
         lastUse.set(System.currentTimeMillis())
-        return "http://127.0.0.1:$port/$secret/$id/m/${fileName(channel.url)}"
+        // A YouTube page plays as HLS, so its name says so and the player opens it as HLS straight away.
+        val name = if (LiveTvYouTube.isYouTube(channel.url)) "index.m3u8" else fileName(channel.url)
+        return "http://127.0.0.1:$port/$secret/$id/m/$name"
     }
 
     private fun ensureServer(): Int {
@@ -169,7 +186,7 @@ class LiveTvRelay(
             .followRedirects(true)
             .followSslRedirects(true)
             .retryOnConnectionFailure(true)
-            .connectTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
         if (!vpn.ready) return builder.proxy(Proxy.NO_PROXY).build()
         val fixed = if (vpn.type == LiveVpnType.PROXY) LiveVpnGuard.parseProxy(vpn.proxyUrl) else null
@@ -270,29 +287,89 @@ class LiveTvRelay(
     ) {
         val count = session.candidates.size
         val first = session.chosen
+        var problem: LivePlaybackProblem? = null
+        var lastCode = 0
         for (step in 0 until count) {
             val index = (first + step) % count
             val candidate = session.candidates[index]
+            val url = streamUrl(session, candidate) ?: run {
+                problem = LivePlaybackProblem.YOUTUBE_NOT_LIVE
+                null
+            } ?: continue
+            // Always GET: many IPTV servers refuse HEAD, which must not count as the channel failing.
             val response = try {
-                fetch(session, candidate.url, candidate.headers, method, range, agent)
+                fetch(session, url, candidate.headers, "GET", range, agent)
             } catch (e: IOException) {
                 log("Live TV channel did not answer (${e.message}); trying a backup")
-                if (tunnelError != null && session.vpn.ready) break
+                if (tunnelError != null && session.vpn.ready) {
+                    problem = LivePlaybackProblem.VPN
+                    break
+                }
+                problem = LivePlaybackProblem.UNREACHABLE
                 continue
             }
             if (!response.isSuccessful && response.code != 206) {
                 response.close()
                 log("Live TV channel answered ${response.code}; trying a backup")
+                lastCode = response.code
+                problem = LivePlaybackProblem.forStatus(response.code)
+                continue
+            }
+            if (isWebPage(response)) {
+                response.close()
+                log("Live TV channel returned a web page; trying a backup")
+                problem = LivePlaybackProblem.NOT_A_STREAM
                 continue
             }
             if (index != session.chosen) {
                 session.chosen = index
                 if (step > 0) log("Live TV switched to backup channel ${index + 1} of $count")
             }
+            report(session, null)
             response.use { forward(output, session, sessionId, it, method) }
             return
         }
-        reply(output, 502, tunnelError?.let { "VPN: $it" } ?: "Bad Gateway")
+        report(session, problem ?: LivePlaybackProblem.UNREACHABLE)
+        // The player shows the real status (403, 404 and so on) when there is one.
+        val code = if (lastCode in 400..599 && problem != LivePlaybackProblem.VPN) lastCode else 502
+        reply(output, code, tunnelError?.let { "VPN: $it" } ?: (problem ?: LivePlaybackProblem.UNREACHABLE).name)
+    }
+
+    /** The address to fetch for [candidate]: its own, or the live stream behind a YouTube page. */
+    private fun streamUrl(session: Session, candidate: Candidate): String? {
+        if (!LiveTvYouTube.isYouTube(candidate.url)) return candidate.url
+        session.resolved[candidate.url]?.let { return it }
+        val page = LiveTvYouTube.pageUrl(candidate.url)
+        val hls = try {
+            val request = Request.Builder().url(page).apply {
+                LiveTvYouTube.pageHeaders.forEach { (name, value) -> header(name, value) }
+            }.build()
+            session.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) null
+                else LiveTvYouTube.hlsFrom(response.body?.byteStream()?.use { readLimited(it, MAX_PAGE_BYTES) }
+                    ?.toString(Charsets.UTF_8).orEmpty())
+            }
+        } catch (e: IOException) {
+            null
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+        if (hls == null) {
+            log("YouTube channel is not live right now; trying a backup")
+            return null
+        }
+        session.resolved[candidate.url] = hls
+        return hls
+    }
+
+    /** True for an HTML page (a block or error page) where a stream was expected. */
+    private fun isWebPage(response: Response): Boolean {
+        if (!response.header("Content-Type").orEmpty().lowercase().startsWith("text/html")) return false
+        // Some IPTV servers label real playlists and video as text/html, so look at what came back.
+        val start = runCatching { response.peekBody(512).bytes() }.getOrNull() ?: return false
+        if (start.isNotEmpty() && start[0] == 0x47.toByte()) return false // MPEG-TS sync byte
+        val text = start.toString(Charsets.UTF_8).trimStart('\uFEFF', ' ', '\r', '\n', '\t')
+        return text.startsWith("<", ignoreCase = true)
     }
 
     private fun fetch(
@@ -457,6 +534,7 @@ class LiveTvRelay(
         val BLOCKED = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 1))
         const val MAX_SESSIONS = 4
         const val MAX_PLAYLIST_BYTES = 8 * 1024 * 1024
+        const val MAX_PAGE_BYTES = 4 * 1024 * 1024
         const val IDLE_CHECK_SECONDS = 15L
         const val IDLE_STOP_MS = 45_000L
     }

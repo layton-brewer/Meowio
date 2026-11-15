@@ -2573,6 +2573,13 @@
     <string name="ai_error_network">Could not reach the assistant. Check your connection.</string>
     <string name="ai_error_unexpected">No suggestions came back. Try wording it differently.</string>
     <string name="live_tv_not_responding">Not responding right now</string>
+    <string name="live_tv_problem_blocked">Couldn\'t play: the provider refused (blocked or region locked)</string>
+    <string name="live_tv_problem_not_found">Couldn\'t play: the stream no longer exists</string>
+    <string name="live_tv_problem_server">Couldn\'t play: the provider\'s server had an error</string>
+    <string name="live_tv_problem_unreachable">Couldn\'t play: the stream didn\'t answer</string>
+    <string name="live_tv_problem_not_stream">Couldn\'t play: the link opens a web page, not a stream</string>
+    <string name="live_tv_problem_youtube">Couldn\'t play: this YouTube channel isn\'t live now</string>
+    <string name="live_tv_problem_vpn">Couldn\'t play: the Live TV VPN isn\'t connected</string>
     <string name="insights_day_0">Monday</string>
     <string name="insights_day_1">Tuesday</string>
     <string name="insights_day_2">Wednesday</string>
