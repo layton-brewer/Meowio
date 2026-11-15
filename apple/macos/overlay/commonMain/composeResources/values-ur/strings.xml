@@ -1256,7 +1256,6 @@
     <string name="settings_trakt_features">خصوصیات</string>
     <string name="settings_trakt_finish_sign_in">Connection approval مکمل کریں</string>
     <string name="settings_trakt_intro_description">اپنی Watchlist، watch progress، Continue Watching، scrobbles اور ذاتی فہرستیں Trakt کے ساتھ Sync کریں۔</string>
-    <string name="settings_trakt_missing_credentials">local.properties میں TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET موجود نہیں۔</string>
     <string name="settings_trakt_open_login">Trakt Login کھولیں</string>
     <string name="settings_trakt_save_actions_description">اپنی Watchlist، watch progress، Continue Watching، scrobbles اور ذاتی فہرستیں Trakt کے ساتھ Sync کریں۔</string>
     <string name="settings_trakt_sign_in_description">اپنی Watchlist، watch progress، Continue Watching، scrobbles اور ذاتی فہرستیں Trakt کے ساتھ Sync کریں۔</string>
@@ -1303,7 +1302,6 @@
     <string name="settings_simkl_finish_sign_in">Connection approval مکمل کریں</string>
     <string name="settings_simkl_open_login">Simkl Login کھولیں</string>
     <string name="settings_simkl_sign_in_description">Lists، watched history، playback progress اور scrobbles Sync کرنے کے لیے Simkl کنیکٹ کریں۔</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID موجود نہیں</string>
     <string name="settings_simkl_visit">Simkl کھولیں</string>
     <string name="settings_simkl_invalid_callback">Simkl نے Sign-in callback قبول نہیں کیا۔ دوبارہ کوشش کریں۔</string>
     <string name="settings_simkl_authorization_expired">Simkl code ختم ہو چکا ہے۔ دوبارہ شروع کریں۔</string>
@@ -1743,7 +1741,6 @@
     <string name="trakt_library_load_failed">Trakt لائبریری لوڈ نہیں ہو سکی</string>
     <string name="trakt_list_fallback_title">فہرست %1$d</string>
     <string name="trakt_missing_auth_code">Trakt نے authorization code واپس نہیں کیا</string>
-    <string name="trakt_missing_credentials">Trakt credentials موجود نہیں</string>
     <string name="trakt_progress_load_failed">Trakt کی پیش رفت لوڈ نہیں ہو سکی</string>
     <string name="trakt_public_list">عوامی Trakt فہرست</string>
     <string name="trakt_public_list_enter_valid_id_or_url">درست Trakt List ID یا URL درج کریں</string>

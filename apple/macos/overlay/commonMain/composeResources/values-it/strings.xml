@@ -677,7 +677,6 @@
   <string name="settings_trakt_features">FUNZIONALITÀ</string>
   <string name="settings_trakt_finish_sign_in">Completa l'accesso a Trakt nel tuo browser</string>
   <string name="settings_trakt_intro_description">Tieni traccia di ciò che guardi, salva contenuti nella watchlist o in liste personalizzate e mantieni la tua libreria sincronizzata con Trakt.</string>
-  <string name="settings_trakt_missing_credentials">Credenziali Trakt mancanti in local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
   <string name="settings_trakt_open_login">Apri Login Trakt</string>
   <string name="settings_trakt_save_actions_description">Le tue azioni di salvataggio possono ora riguardare la watchlist e le liste personali di Trakt.</string>
   <string name="settings_trakt_sign_in_description">Accedi con Trakt per abilitare il salvataggio basato su liste e la modalità libreria Trakt.</string>
@@ -1009,7 +1008,6 @@
   <string name="trakt_library_load_failed">Impossibile caricare la libreria Trakt</string>
   <string name="trakt_list_fallback_title">Lista %1$d</string>
   <string name="trakt_missing_auth_code">Trakt non ha restituito un codice di autorizzazione</string>
-  <string name="trakt_missing_credentials">Credenziali Trakt mancanti</string>
   <string name="trakt_progress_load_failed">Impossibile caricare i progressi di Trakt</string>
   <string name="trakt_sign_in_complete_failed">Impossibile completare l'accesso a Trakt</string>
   <string name="trakt_user_fallback">Utente Trakt</string>
@@ -2155,7 +2153,6 @@
     <string name="settings_simkl_connected_description">Collega Simkl per sincronizzare liste, cronologia visti, progressi di riproduzione e scrobbling.</string>
     <string name="settings_simkl_finish_sign_in">Completa l'approvazione della connessione</string>
     <string name="settings_simkl_sign_in_description">Collega Simkl per sincronizzare liste, cronologia visti, progressi di riproduzione e scrobbling.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID mancante</string>
     <string name="settings_simkl_visit">Visita Simkl</string>
     <string name="settings_simkl_authorization_expired">Codice Simkl scaduto. Ricomincia.</string>
     <string name="settings_simkl_sync_now">Sincronizza ora</string>

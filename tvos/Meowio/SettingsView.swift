@@ -34,14 +34,26 @@ struct SettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    // Trakt is only offered when this build has Trakt sign-in keys (or you're already signed in).
-                    if TraktStore.configured || trakt.connected {
-                        NavigationLink { TraktSettingsView() } label: {
-                            HStack {
-                                Text("Trakt")
-                                Spacer()
-                                Text(trakt.connected ? (trakt.username ?? "Connected") : "Not connected").foregroundStyle(.secondary)
-                            }
+                    // Tracking cards are always shown. Without sign-in keys in this build they read "Not set up yet".
+                    NavigationLink { TraktSettingsView() } label: {
+                        HStack {
+                            Text("Trakt")
+                            Spacer()
+                            Text(trakt.connected ? (trakt.username ?? "Connected") : (TraktStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
+                        }
+                    }
+                    NavigationLink { TrackingNotSetUpView(name: "Simkl") } label: {
+                        HStack {
+                            Text("Simkl")
+                            Spacer()
+                            Text("Not set up yet").foregroundStyle(.secondary)
+                        }
+                    }
+                    NavigationLink { TrackingNotSetUpView(name: "MDBList") } label: {
+                        HStack {
+                            Text("MDBList")
+                            Spacer()
+                            Text("Not set up yet").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -419,5 +431,21 @@ private extension SettingsView {
         if !settings.liveVpnEnabled { return "Off. Live TV connects directly." }
         if LiveVpnGuard.parseProxy(settings.liveVpnProxy) == nil { return "Enter an http:// proxy address with a port." }
         return "Switches on by itself while a channel plays and off when you leave. Debrid and other playback never use it."
+    }
+}
+
+/// Placeholder page for a tracking service this Apple TV build can't connect to yet.
+struct TrackingNotSetUpView: View {
+    let name: String
+    var body: some View {
+        List {
+            Section {
+                Text("\(name) isn't set up yet.")
+                Button("Connect") {}.disabled(true)
+            } footer: {
+                Text("Connecting \(name) will be available in a future update.")
+            }
+        }
+        .navigationTitle(name)
     }
 }

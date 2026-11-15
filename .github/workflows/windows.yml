@@ -23,7 +23,7 @@ on:
 
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
-  MEOWIO_TAG: v0.2.15
+  MEOWIO_TAG: v0.2.16
 
 permissions:
   contents: write
@@ -92,13 +92,23 @@ jobs:
           # Same optional account server as the phone and iPhone builds; empty when the secrets are not set.
           NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
           NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+          MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
-          "NUVIO_SUPABASE_URL=$env:NUVIO_SUPABASE_URL`nNUVIO_SUPABASE_ANON_KEY=$env:NUVIO_SUPABASE_ANON_KEY`nTRAKT_CLIENT_ID=`nTRAKT_CLIENT_SECRET=`nMDBLIST_CLIENT_ID=`n" | Set-Content local.properties -NoNewline
+          $lines = @("NUVIO_SUPABASE_URL=$env:NUVIO_SUPABASE_URL", "NUVIO_SUPABASE_ANON_KEY=$env:NUVIO_SUPABASE_ANON_KEY")
+          # Tracking keys are added only when the repository secrets exist; otherwise the app shows "Not set up yet".
+          foreach ($pair in @(@("TRAKT_CLIENT_ID", $env:TRAKT_CLIENT_ID), @("TRAKT_CLIENT_SECRET", $env:TRAKT_CLIENT_SECRET), @("SIMKL_CLIENT_ID", $env:SIMKL_CLIENT_ID), @("MDBLIST_CLIENT_ID", $env:MDBLIST_API_KEY), @("TMDB_API_KEY", $env:TMDB_API_KEY))) {
+            if ($pair[1]) { $lines += ($pair[0] + "=" + $pair[1]) }
+          }
+          ($lines -join "`n") + "`n" | Set-Content local.properties -NoNewline
           & .\gradlew.bat `
             :composeApp:packageReleaseExe `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
-            "-Pnuvio.desktop.versionName=0.2.15" `
+            "-Pnuvio.desktop.versionName=0.2.16" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace

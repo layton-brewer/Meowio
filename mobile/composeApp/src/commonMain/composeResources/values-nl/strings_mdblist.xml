@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Geef toestemming voor de koppeling in je MDBList-account.</string>
     <string name="settings_mdblist_open_login">Inlogpagina openen</string>
     <string name="settings_mdblist_disconnect">MDBList loskoppelen</string>
-    <string name="settings_mdblist_missing_credentials">MDBList kan in deze versie niet worden gekoppeld.</string>
     <string name="settings_mdblist_sync_now">Nu synchroniseren</string>
     <string name="settings_mdblist_visit">MDBList bezoeken</string>
     <string name="settings_mdblist_unavailable">Synchroniseren met MDBList is mislukt. Probeer het opnieuw.</string>

@@ -1240,7 +1240,6 @@
     <string name="mdblist_last_synced">最終同期: %1$s</string>
     <string name="mdblist_disconnect_title">MDBListを切断しますか？</string>
     <string name="mdblist_disconnect_subtitle">このプロフィールからの視聴更新の送信を停止します。MDBListの履歴は保持されます。</string>
-    <string name="mdblist_missing_client">このビルドではMDBList接続は利用できません。</string>
     <string name="mdblist_invalid_response">MDBListが不完全な応答を返しました。もう一度お試しください。</string>
     <string name="mdblist_code_expired">このコードの有効期限が切れました。新しいコードを取得するために再試行してください。</string>
     <string name="mdblist_access_denied">接続が拒否されました。アカウントを接続するために再試行してください。</string>
@@ -1520,7 +1519,6 @@
     <string name="trakt_code_expires">コードの有効期限: %1$s</string>
     <string name="trakt_token_refreshes">Traktアクセストークンの更新: %1$s後</string>
     <string name="trakt_login_instruction">ログインを押してTraktデバイス認証を開始してください。ここにQRコードが表示されます</string>
-    <string name="trakt_missing_credentials">local.propertiesにTRAKT_CLIENT_ID / TRAKT_CLIENT_SECRETがありません</string>
     <string name="trakt_watch_progress_title">視聴進行状況</string>
     <string name="trakt_watch_progress_subtitle">再開と「視聴を続ける」を管理する進行状況ソースを選択</string>
     <string name="trakt_watch_progress_dialog_title">視聴進行状況</string>
@@ -3039,7 +3037,6 @@
     <string name="simkl_sync_info_library_statuses">Simklの「保留」または「中断」リストにある作品は「視聴を続ける」から非表示になります。いずれかのリストにある間は非表示が続きます。</string>
     <string name="simkl_sync_info_docs">Simkl同期ガイドを読む</string>
     <string name="error_open_browser_failed">ブラウザを開けませんでした</string>
-    <string name="simkl_missing_credentials">SIMKL_CLIENT_IDがありません</string>
     <string name="simkl_status_enter_code">接続を完了するためにSimklでコードを入力してください</string>
     <string name="simkl_status_waiting">Simklの承認待ち…</string>
     <string name="simkl_status_connected">Simklに接続しました</string>

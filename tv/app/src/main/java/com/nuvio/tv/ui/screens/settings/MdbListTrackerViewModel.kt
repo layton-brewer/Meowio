@@ -126,6 +126,8 @@ class MdbListTrackerViewModel @Inject constructor(
     }
 
     fun onConnect() {
+        // No keys in this build: the card shows "Not set up yet" and there is nothing to start.
+        if (!auth.hasRequiredCredentials()) return
         if (connectionJob?.isActive == true || disconnectJob?.isActive == true) return
         val requestedScope = authStore.scope()
         if (requestedScope.profileId != profiles.activeProfileId.value || authStore.state.value.isAuthenticated) return

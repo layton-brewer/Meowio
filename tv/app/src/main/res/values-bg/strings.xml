@@ -1217,7 +1217,6 @@
     <string name="mdblist_last_synced">Последно синхронизирано %1$s</string>
     <string name="mdblist_disconnect_title">Да прекъсна ли MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Спрете изпращането на актуализации за гледане от този профил. Историята на вашия MDBList се запазва.</string>
-    <string name="mdblist_missing_client">MDBList връзката не е налична в тази компилация.</string>
     <string name="mdblist_invalid_response">MDBList върна непълен отговор. Моля, опитайте отново.</string>
     <string name="mdblist_code_expired">Този код е изтекъл. Опитайте отново, за да получите нов код.</string>
     <string name="mdblist_access_denied">Връзката беше отказана. Опитайте отново да свържете акаунта си.</string>
@@ -1497,7 +1496,6 @@
     <string name="trakt_code_expires">Кодът изтича след %1$s</string>
     <string name="trakt_token_refreshes">Токенът за достъп до Trakt се обновява в %1$s</string>
     <string name="trakt_login_instruction">Натиснете „Вход“, за да стартирате удостоверяването на устройството Trakt. Тук ще се появи QR код.</string>
-    <string name="trakt_missing_credentials">Липсва TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET в local.properties.</string>
     <string name="trakt_watch_progress_title">Наблюдение на напредъка</string>
     <string name="trakt_watch_progress_subtitle">Изберете кои сили на източника на прогрес да се възобновят и да продължите да гледате</string>
     <string name="trakt_watch_progress_dialog_title">Наблюдение на напредъка</string>
@@ -3010,7 +3008,6 @@
     <string name="simkl_sync_info_library_statuses">Предложенията, поставени в списъците „Задържани“ или „Изтрити“ на Simkl, са скрити от „Продължи гледането“. Те остават скрити, докато са в някой от списъците.</string>
     <string name="simkl_sync_info_docs">Прочетете ръководството за синхронизиране на Simkl</string>
     <string name="error_open_browser_failed">Неуспешно отваряне на браузъра</string>
-    <string name="simkl_missing_credentials">Липсва SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Въведете кода в Simkl, за да завършите свързването</string>
     <string name="simkl_status_waiting">Изчаква се одобрение от Simkl…</string>
     <string name="simkl_status_connected">Свързан със Simkl</string>

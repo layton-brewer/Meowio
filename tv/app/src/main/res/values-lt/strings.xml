@@ -527,7 +527,6 @@
     <string name="trakt_code_expires">Kodas galioja dar %1$s</string>
     <string name="trakt_token_refreshes">„Trakt“ prieigos raktas atnaujinamas po %1$s</string>
     <string name="trakt_login_instruction">Paspauskite „Prisijungti“, kad pradėtumėte „Trakt“ įrenginio autentifikavimą. Čia pasirodys QR kodas.</string>
-    <string name="trakt_missing_credentials">Faile „local.properties“ trūksta TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET parametrų.</string>
     <string name="trakt_watch_progress_title">Žiūrėjimo pažanga</string>
     <string name="trakt_watch_progress_subtitle">Pasirinkite, kuris pažangos šaltinis valdys atkūrimo tęsimą ir „Tęsti žiūrėjimą“</string>
     <string name="trakt_watch_progress_dialog_title">Žiūrėjimo pažanga</string>
@@ -1786,7 +1785,6 @@
     <string name="mdblist_last_synced">Paskutinį kartą sinchronizuota %1$s</string>
     <string name="mdblist_disconnect_title">Atjungti MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Nebesiųsti šio profilio žiūrėjimo atnaujinimų. Jūsų MDBList istorija išliks.</string>
-    <string name="mdblist_missing_client">Šioje programos versijoje MDBList prijungimas neprieinamas.</string>
     <string name="mdblist_invalid_response">MDBList grąžino neišsamų atsakymą. Bandykite dar kartą.</string>
     <string name="mdblist_code_expired">Šio kodo galiojimas baigėsi. Bandykite dar kartą, kad gautumėte naują kodą.</string>
     <string name="mdblist_access_denied">Prisijungimas atmestas. Bandykite dar kartą prijungti paskyrą.</string>
@@ -3004,7 +3002,6 @@
     <string name="simkl_sync_info_library_statuses">Serialai, įtraukti į SIMKL sąrašus „On Hold“ arba „Dropped“, paslepiami iš skilties „Tęsti žiūrėjimą“. Jie lieka paslėpti, kol yra bent viename iš šių sąrašų.</string>
     <string name="simkl_sync_info_docs">Skaityti SIMKL sinchronizavimo vadovą</string>
     <string name="error_open_browser_failed">Nepavyko atidaryti naršyklės</string>
-    <string name="simkl_missing_credentials">Trūksta SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Norėdami baigti prijungimą, įveskite kodą SIMKL svetainėje</string>
     <string name="simkl_status_waiting">Laukiama SIMKL patvirtinimo…</string>
     <string name="simkl_status_connected">Prisijungta prie SIMKL</string>

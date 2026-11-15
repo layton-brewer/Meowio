@@ -1214,7 +1214,6 @@
     <string name="settings_trakt_features">ФУНКЦИИ</string>
     <string name="settings_trakt_finish_sign_in">Завершить согласование подключения</string>
     <string name="settings_trakt_intro_description">Синхронизируйте свой список просмотра, следите за прогрессом, продолжайте просмотр, просматривайте и личные списки с помощью Trakt.</string>
-    <string name="settings_trakt_missing_credentials">В local.properties отсутствует TRAKT_CLIENT_ID/TRAKT_CLIENT_SECRET.</string>
     <string name="settings_trakt_open_login">Открыть Trakt Войти</string>
     <string name="settings_trakt_save_actions_description">Синхронизируйте свой список просмотра, следите за прогрессом, продолжайте просмотр, просматривайте и личные списки с помощью Trakt.</string>
     <string name="settings_trakt_sign_in_description">Синхронизируйте свой список просмотра, следите за прогрессом, продолжайте просмотр, просматривайте и личные списки с помощью Trakt.</string>
@@ -1257,7 +1256,6 @@
     <string name="settings_simkl_finish_sign_in">Завершить согласование подключения</string>
     <string name="settings_simkl_open_login">Открыть Simkl Войти</string>
     <string name="settings_simkl_sign_in_description">Подключите Simkl для синхронизации списков, истории просмотров, прогресса воспроизведения и скробблов.</string>
-    <string name="settings_simkl_missing_credentials">Отсутствует SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Посетите Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl не принял обратный вызов для входа. Пожалуйста, попробуйте еще раз.</string>
     <string name="settings_simkl_authorization_expired">Срок действия кода Simkl истек. Начни заново.</string>
@@ -1670,7 +1668,6 @@
     <string name="trakt_library_load_failed">Не удалось загрузить библиотеку Trakt.</string>
     <string name="trakt_list_fallback_title">Список %1$d</string>
     <string name="trakt_missing_auth_code">Trakt не вернул код авторизации</string>
-    <string name="trakt_missing_credentials">Отсутствуют учетные данные Trakt.</string>
     <string name="trakt_progress_load_failed">Не удалось загрузить прогресс Trakt.</string>
     <string name="trakt_public_list">Публичный список Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Введите действительный идентификатор списка Trakt или URL.</string>

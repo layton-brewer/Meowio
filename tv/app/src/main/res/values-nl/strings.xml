@@ -1218,7 +1218,6 @@
     <string name="mdblist_last_synced">Laatst gesynchroniseerd: %1$s</string>
     <string name="mdblist_disconnect_title">Verbinding met MDBList verbreken?</string>
     <string name="mdblist_disconnect_subtitle">Dit profiel stuurt dan geen kijkgegevens meer naar MDBList. Je MDBList-geschiedenis blijft bewaard.</string>
-    <string name="mdblist_missing_client">MDBList-verbinding is niet beschikbaar in deze build.</string>
     <string name="mdblist_invalid_response">MDBList gaf een onvolledig antwoord. Probeer het opnieuw.</string>
     <string name="mdblist_code_expired">Deze code is verlopen. Probeer het opnieuw om een nieuwe code te krijgen.</string>
     <string name="mdblist_access_denied">De verbinding is geweigerd. Probeer het opnieuw om je account te verbinden.</string>
@@ -1500,7 +1499,6 @@
     <string name="trakt_code_expires">Code verloopt over %1$s</string>
     <string name="trakt_token_refreshes">Trakt-toegangstoken wordt vernieuwd over %1$s</string>
     <string name="trakt_login_instruction">Druk op Aanmelden bij account om de apparaatverificatie van Trakt te starten. Hier verschijnt een QR-code.</string>
-    <string name="trakt_missing_credentials">TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET ontbreken in local.properties.</string>
     <string name="trakt_watch_progress_title">Kijkvoortgang</string>
     <string name="trakt_watch_progress_subtitle">Kies welke voortgangsbron hervatten en Verder kijken aanstuurt</string>
     <string name="trakt_watch_progress_dialog_title">Kijkvoortgang</string>
@@ -3019,7 +3017,6 @@
     <string name="simkl_sync_info_library_statuses">Series die in de Simkl-lijsten On Hold of Dropped staan, worden verborgen in Verder kijken. Ze blijven verborgen zolang ze in een van beide lijsten staan.</string>
     <string name="simkl_sync_info_docs">Lees de handleiding voor Simkl-synchronisatie</string>
     <string name="error_open_browser_failed">Kon de browser niet openen</string>
-    <string name="simkl_missing_credentials">SIMKL_CLIENT_ID ontbreekt</string>
     <string name="simkl_status_enter_code">Voer de code in op Simkl om het koppelen te voltooien</string>
     <string name="simkl_status_waiting">Wachten op goedkeuring van Simkl…</string>
     <string name="simkl_status_connected">Gekoppeld met Simkl</string>

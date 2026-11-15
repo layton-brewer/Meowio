@@ -18,7 +18,6 @@
     <string name="settings_mdblist_approval_description">உங்கள் MDBList கணக்கில் இணைப்பை அங்கீகரிக்கவும்.</string>
     <string name="settings_mdblist_open_login">உள்நுழைவு பக்கத்தைத் திறக்கவும்</string>
     <string name="settings_mdblist_disconnect">MDBList இணைப்பைத் துண்டிக்கவும்</string>
-    <string name="settings_mdblist_missing_credentials">இந்த பதிப்பில் MDBList இணைப்பு கிடைக்கவில்லை.</string>
     <string name="settings_mdblist_sync_now">இப்போது ஒத்திசைக்கவும்</string>
     <string name="settings_mdblist_visit">MDBList-ஐப் பார்வையிடவும்</string>
     <string name="settings_mdblist_unavailable">MDBList உடன் ஒத்திசைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.</string>

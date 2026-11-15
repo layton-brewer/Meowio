@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Approuvez la connexion dans votre compte MDBList.</string>
     <string name="settings_mdblist_open_login">Ouvrir la page de connexion</string>
     <string name="settings_mdblist_disconnect">Déconnecter MDBList</string>
-    <string name="settings_mdblist_missing_credentials">La connexion à MDBList n’est pas disponible dans cette version.</string>
     <string name="settings_mdblist_sync_now">Synchroniser maintenant</string>
     <string name="settings_mdblist_visit">Visiter MDBList</string>
     <string name="settings_mdblist_unavailable">Impossible de synchroniser avec MDBList. Veuillez réessayer.</string>
