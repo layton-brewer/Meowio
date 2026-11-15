@@ -17,6 +17,8 @@ commonMain/kotlin/com/nuvio/app/features/downloads/DownloadsScreen.kt
 commonMain/kotlin/com/nuvio/app/features/insights/InsightsDialog.kt
 commonMain/kotlin/com/nuvio/app/features/insights/WatchInsights.kt
 commonMain/kotlin/com/nuvio/app/features/library/LibraryDownloadsContent.kt
+commonMain/kotlin/com/nuvio/app/features/library/LibraryDiscoverLists.kt
+commonMain/kotlin/com/nuvio/app/features/library/LibraryTrackingPicker.kt
 commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvCodec.kt
 commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvController.kt
 commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvDefaults.kt
