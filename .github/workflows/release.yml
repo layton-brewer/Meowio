@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.18 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.19 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.18 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.19 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,13 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.18"
+          tag="v0.2.19"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.18
+          ## What's new in 0.2.19
 
-          - **The Live TV guide fills in.** Channels are now matched to the guide by name as well as by id, so the built-in channels and your own playlists show what's on. The guide also loads for whatever channels you're looking at, not only after you pick a country.
-          - Guide files now download from hosts that refused the app before, and iPhone and iPad can now read packed (.gz) guides.
-          - **Phone:** the refresh and playlist buttons at the top of Live TV are visible again.
+          - **Live TV VPN with WireGuard now on Mac, Windows, iPhone and iPad.** Same rules as before: only Live TV uses it, never debrid, and it is off by default. Apple TV can't run it (HTTP proxy only).
+          - **Apple TV** now shows why a Live TV channel did not play (blocked, gone, server down, not live).
+          - **iPhone and iPad** move to a backup copy of a Live TV channel automatically when it fails.
 
           ## Download
 

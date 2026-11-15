@@ -552,6 +552,13 @@
 					"$(inherited)",
 					"-framework",
 					SystemConfiguration,
+					"-force_load",
+					"$(SRCROOT)/../build/livetv-vpn/libmeowiovpn.a",
+					"-framework",
+					CoreFoundation,
+					"-framework",
+					Security,
+					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.meowio.app;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -594,6 +601,13 @@
 					"$(inherited)",
 					"-framework",
 					SystemConfiguration,
+					"-force_load",
+					"$(SRCROOT)/../build/livetv-vpn/libmeowiovpn.a",
+					"-framework",
+					CoreFoundation,
+					"-framework",
+					Security,
+					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.meowio.app;
 				SWIFT_EMIT_LOC_STRINGS = YES;
