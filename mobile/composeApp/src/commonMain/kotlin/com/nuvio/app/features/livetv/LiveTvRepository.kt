@@ -52,6 +52,7 @@ object LiveTvRepository {
             streamText = ::liveTvStreamText,
         ),
         scope = scope,
+        defaultSources = LiveTvDefaults.builtInSources(liveTvCountryCode()),
         probe = { channel -> liveTvStreamAnswers(channel.url, channel.headers) },
     )
 
