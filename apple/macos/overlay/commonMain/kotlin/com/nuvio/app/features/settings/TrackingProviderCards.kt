@@ -161,18 +161,14 @@ internal fun SimklConnectionMode.toTrackingConnectionCardMode(): TrackingConnect
     SimklConnectionMode.CONNECTED -> TrackingConnectionCardMode.CONNECTED
 }
 
-/** True when this build can sign in to [brand], or the user is already signed in to it. */
-internal fun isTrackingProviderOffered(brand: TrackingBrand): Boolean = when (brand) {
-    TrackingBrand.TRAKT -> TraktAuthRepository.hasRequiredCredentials() || TraktAuthRepository.isAuthenticated.value
-    TrackingBrand.SIMKL -> SimklAuthRepository.hasRequiredCredentials() || SimklAuthRepository.isAuthenticated.value
-    TrackingBrand.MDBLIST -> MdbListTracker.auth.hasRequiredCredentials() || MdbListTracker.isAuthenticated.value
-    else -> true
-}
+/**
+ * Every provider is always offered. A build without that provider's sign-in keys shows the card with a
+ * friendly "Not set up yet" note and a disabled Connect button instead of a developer error.
+ */
+@Suppress("UNUSED_PARAMETER")
+internal fun isTrackingProviderOffered(brand: TrackingBrand): Boolean = true
 
-internal fun anyTrackingProviderOffered(): Boolean =
-    isTrackingProviderOffered(TrackingBrand.TRAKT) ||
-        isTrackingProviderOffered(TrackingBrand.SIMKL) ||
-        isTrackingProviderOffered(TrackingBrand.MDBLIST)
+internal fun anyTrackingProviderOffered(): Boolean = true
 
 @Composable
 internal fun TrackingProviderCards(
@@ -517,7 +513,7 @@ internal fun TrackingProviderCard(
                     if (!credentialsConfigured) {
                         TrackingBrandMessage(
                             text = missingCredentialsMessage,
-                            isError = true,
+                            isError = false,
                         )
                     }
                 }

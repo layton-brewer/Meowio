@@ -1244,7 +1244,6 @@
     <string name="mdblist_last_synced">Son eşitleme: %1$s</string>
     <string name="mdblist_disconnect_title">MDBList bağlantısı kesilsin mi?</string>
     <string name="mdblist_disconnect_subtitle">Bu profilden izleme güncellemelerini göndermeyi durdurur. MDBList geçmişiniz korunur.</string>
-    <string name="mdblist_missing_client">MDBList bağlantısı bu derlemede kullanılamıyor.</string>
     <string name="mdblist_invalid_response">MDBList eksik bir yanıt döndürdü. Lütfen tekrar deneyin.</string>
     <string name="mdblist_code_expired">Bu kodun süresi doldu. Yeni kod almak için tekrar deneyin.</string>
     <string name="mdblist_access_denied">Bağlantı reddedildi. Hesabınızı bağlamak için tekrar deneyin.</string>
@@ -1527,7 +1526,6 @@
     <string name="trakt_code_expires">Kodun süresi %1$s sonra dolacak</string>
     <string name="trakt_token_refreshes">Trakt erişim jetonu %1$s içinde yenilenir</string>
     <string name="trakt_login_instruction">Trakt cihazı kimlik doğrulamasını başlatmak için Giriş\'e basın. Burada bir QR kodu görünecektir.</string>
-    <string name="trakt_missing_credentials">local.properties içinde TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET eksik.</string>
     <string name="trakt_watch_progress_title">İzleme İlerlemesi</string>
     <string name="trakt_watch_progress_subtitle">Devam etme ve izlemeye devam etme için hangi ilerleme kaynağının kullanılacağını seçin</string>
     <string name="trakt_watch_progress_dialog_title">İzleme İlerlemesi</string>
@@ -3308,7 +3306,6 @@
     <string name="simkl_sync_info_library_statuses">Simkl\'daki Beklemede veya Bırakıldı listelerine koyulan diziler İzlemeye Devam Et\'te gizlenir. Bu listelerde kaldıkları sürece gizli kalırlar.</string>
     <string name="simkl_sync_info_docs">Simkl eşitleme rehberini oku</string>
     <string name="error_open_browser_failed">Tarayıcı açılamadı</string>
-    <string name="simkl_missing_credentials">SIMKL_CLIENT_ID eksik</string>
     <string name="simkl_status_enter_code">Bağlantıyı tamamlamak için kodu Simkl\'da gir</string>
     <string name="simkl_status_waiting">Simkl onayı bekleniyor…</string>
     <string name="simkl_status_connected">Simkl\'a bağlandı</string>

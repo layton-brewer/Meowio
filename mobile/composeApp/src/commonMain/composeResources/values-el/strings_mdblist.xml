@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Εγκρίνετε τη σύνδεση στον λογαριασμό σας MDBList.</string>
     <string name="settings_mdblist_open_login">Άνοιγμα σελίδας σύνδεσης</string>
     <string name="settings_mdblist_disconnect">Αποσύνδεση MDBList</string>
-    <string name="settings_mdblist_missing_credentials">Η σύνδεση με το MDBList δεν είναι διαθέσιμη σε αυτή την έκδοση.</string>
     <string name="settings_mdblist_sync_now">Συγχρονισμός τώρα</string>
     <string name="settings_mdblist_visit">Επίσκεψη στο MDBList</string>
     <string name="settings_mdblist_unavailable">Δεν ήταν δυνατός ο συγχρονισμός με το MDBList. Δοκιμάστε ξανά.</string>

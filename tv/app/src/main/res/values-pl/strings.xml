@@ -611,7 +611,6 @@
     <string name="mdblist_last_synced">Ostatnia synchronizacja %1$s</string>
     <string name="mdblist_disconnect_title">Odłączyć MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Przestań wysyłać aktualizacje z tego profilu. Twoja historia w MDBList zostanie zachowana.</string>
-    <string name="mdblist_missing_client">Połączenie z MDBList jest niedostępne w tej wersji.</string>
     <string name="mdblist_invalid_response">MDBList zwrócił niekompletną odpowiedź. Spróbuj ponownie.</string>
     <string name="mdblist_code_expired">Ten kod wygasł. Spróbuj ponownie, aby uzyskać nowy kod.</string>
     <string name="mdblist_access_denied">Połączenie zostało odrzucone. Spróbuj ponownie połączyć konto.</string>
@@ -673,7 +672,6 @@
     <string name="trakt_code_expires">Kod wygasa za %1$s</string>
     <string name="trakt_token_refreshes">Token dostępu Trakt odświeży się za %1$s</string>
     <string name="trakt_login_instruction">Naciśnij Zaloguj, aby rozpocząć uwierzytelnianie urządzenia Trakt. Tutaj pojawi się kod QR.</string>
-    <string name="trakt_missing_credentials">Brak TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET w local.properties.</string>
     <string name="trakt_continue_watching_window">Okno kontynuowania oglądania</string>
     <string name="trakt_continue_watching_subtitle">Historia Trakt uwzględniana przy kontynuowaniu oglądania</string>
     <string name="trakt_unaired_next_up">Niewyemitowane odcinki</string>
@@ -3227,7 +3225,6 @@
     <string name="simkl_error_code_expired">Kod Simkl wygasł. Zacznij od nowa.</string>
     <string name="simkl_error_network">Nie można połączyć się z Simkl. Spróbuj ponownie.</string>
     <string name="simkl_library_source_selected">Simkl wybrany dla Biblioteki</string>
-    <string name="simkl_missing_credentials">Brak SIMKL_CLIENT_ID</string>
     <string name="simkl_name">Simkl</string>
     <string name="simkl_status_connected">Połączono z Simkl</string>
     <string name="simkl_status_disconnected">Rozłączono z Simkl</string>

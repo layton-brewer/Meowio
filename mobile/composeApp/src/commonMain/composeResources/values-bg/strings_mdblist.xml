@@ -17,7 +17,6 @@
   <string name="settings_mdblist_approval_description">Одобрение на връзката във вашия MDBList акаунт.</string>
   <string name="settings_mdblist_open_login">Отваряне на страницата за вход</string>
   <string name="settings_mdblist_disconnect">Прекъсване на MDBList</string>
-  <string name="settings_mdblist_missing_credentials">MDBList връзката не е налична в тази компилация.</string>
   <string name="settings_mdblist_sync_now">Синхронизиране сега</string>
   <string name="settings_mdblist_visit">Посетете MDBList</string>
   <string name="settings_mdblist_unavailable">Не можа да се синхронизира с MDBList. Моля, опитайте отново.</string>

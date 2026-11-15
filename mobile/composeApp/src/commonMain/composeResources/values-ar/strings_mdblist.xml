@@ -18,7 +18,6 @@
     <string name="settings_mdblist_approval_description">وافق على الاتصال في حسابك على MDBList.</string>
     <string name="settings_mdblist_open_login">فتح صفحة تسجيل الدخول</string>
     <string name="settings_mdblist_disconnect">إلغاء ربط MDBList</string>
-    <string name="settings_mdblist_missing_credentials">الاتصال بـ MDBList غير متاح في هذا الإصدار.</string>
     <string name="settings_mdblist_sync_now">المزامنة الآن</string>
     <string name="settings_mdblist_visit">زيارة MDBList</string>
     <string name="settings_mdblist_unavailable">تعذرت المزامنة مع MDBList. يرجى المحاولة مرة أخرى.</string>

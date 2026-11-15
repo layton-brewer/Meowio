@@ -54,7 +54,7 @@ final class TraktStore: ObservableObject {
 
     func startSignIn() async {
         guard Self.configured else {
-            message = "Trakt sign-in isn't available in this version."
+            message = "Trakt isn't set up yet."
             return
         }
         message = nil
@@ -345,11 +345,12 @@ struct TraktSettingsView: View {
             } else {
                 Section {
                     Button("Sign in to Trakt") { Task { await trakt.startSignIn() } }
+                        .disabled(!TraktStore.configured)
                 } footer: {
-                    Text("You'll get a short code to enter at trakt.tv/activate.")
+                    Text(TraktStore.configured ? "You'll get a short code to enter at trakt.tv/activate." : "Not set up yet.")
                 }
             }
-            if let m = trakt.message { Text(m).foregroundStyle(.orange) }
+            if let m = trakt.message { Text(m).foregroundStyle(.secondary) }
         }
         .navigationTitle("Trakt")
     }

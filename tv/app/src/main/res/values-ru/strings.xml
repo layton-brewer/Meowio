@@ -803,7 +803,6 @@
     <string name="trakt_code_expires">Код истекает через %1$s</string>
     <string name="trakt_token_refreshes">Токен доступа Trakt обновится через %1$s</string>
     <string name="trakt_login_instruction">Нажмите \"Войти\", чтобы начать аутентификацию устройства в Trakt. Здесь появится QR-код.</string>
-    <string name="trakt_missing_credentials">Отсутствуют TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET в local.properties.</string>
     <string name="trakt_watch_progress_title">Прогресс просмотра</string>
     <string name="trakt_watch_progress_subtitle">Выберите источник прогресса для продолжения просмотра</string>
     <string name="trakt_watch_progress_dialog_title">Прогресс просмотра</string>
@@ -2804,7 +2803,6 @@
     <string name="simkl_sync_info_library_statuses">Сериалы, помещённые в списки Simkl «Отложено» или «Брошено», скрываются из «Продолжить просмотр». Они остаются скрытыми, пока находятся в одном из этих списков.</string>
     <string name="simkl_sync_info_docs">Прочитать руководство по синхронизации Simkl</string>
     <string name="error_open_browser_failed">Не удалось открыть браузер</string>
-    <string name="simkl_missing_credentials">Отсутствует SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Введите код на Simkl, чтобы завершить подключение</string>
     <string name="simkl_status_waiting">Ожидание подтверждения Simkl…</string>
     <string name="simkl_status_connected">Подключено к Simkl</string>

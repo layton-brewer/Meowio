@@ -873,7 +873,6 @@
     <string name="settings_trakt_features">ΛΕΙΤΟΥΡΓΙΕΣ</string>
     <string name="settings_trakt_finish_sign_in">Ολοκληρώστε την έγκριση σύνδεσης</string>
     <string name="settings_trakt_intro_description">Παρακολουθήστε τι βλέπετε, αποθηκεύστε σε λίστα παρακολούθησης ή προσαρμοσμένες λίστες και διατηρήστε τη βιβλιοθήκη σας συγχρονισμένη με το Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Λείπουν διαπιστευτήρια Trakt στο local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Άνοιγμα σύνδεσης Trakt</string>
     <string name="settings_trakt_save_actions_description">Συγχρονίστε με το Trakt τη λίστα παρακολούθησης, την πρόοδο παρακολούθησης, τη Συνέχεια παρακολούθησης, τις αυτόματες καταγραφές και τις προσωπικές λίστες σας.</string>
     <string name="settings_trakt_sign_in_description">Συγχρονίστε με το Trakt τη λίστα παρακολούθησης, την πρόοδο παρακολούθησης, τη Συνέχεια παρακολούθησης, τις αυτόματες καταγραφές και τις προσωπικές λίστες σας.</string>
@@ -925,7 +924,6 @@
     <string name="settings_simkl_finish_sign_in">Ολοκληρώστε την έγκριση σύνδεσης</string>
     <string name="settings_simkl_open_login">Άνοιγμα σύνδεσης Simkl</string>
     <string name="settings_simkl_sign_in_description">Συνδεθείτε με το Simkl για συγχρονισμό λιστών, ιστορικού παρακολούθησης, προόδου αναπαραγωγής και αυτόματων καταγραφών.</string>
-    <string name="settings_simkl_missing_credentials">Λείπει το SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Επίσκεψη στο Simkl</string>
     <string name="settings_simkl_invalid_callback">Το Simkl δεν αποδέχτηκε την επιστροφή σύνδεσης. Δοκιμάστε ξανά.</string>
     <string name="settings_simkl_authorization_expired">Ο κωδικός Simkl έληξε. Ξεκινήστε ξανά.</string>
@@ -1354,7 +1352,6 @@
     <string name="trakt_library_load_failed">Αποτυχία φόρτωσης βιβλιοθήκης Trakt</string>
     <string name="trakt_list_fallback_title">Λίστα %1$d</string>
     <string name="trakt_missing_auth_code">Το Trakt δεν επέστρεψε κωδικό εξουσιοδότησης</string>
-    <string name="trakt_missing_credentials">Λείπουν διαπιστευτήρια Trakt</string>
     <string name="trakt_progress_load_failed">Αποτυχία φόρτωσης προόδου Trakt</string>
     <string name="trakt_sign_in_complete_failed">Αποτυχία ολοκλήρωσης σύνδεσης Trakt</string>
     <string name="trakt_user_fallback">Χρήστης Trakt</string>

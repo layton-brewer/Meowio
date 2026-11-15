@@ -101,10 +101,7 @@ class SimklSettingsViewModel @Inject constructor(
         if (connectJob?.isActive == true || _uiState.value.isLoading) return
         if (!authRepository.hasRequiredCredentials()) {
             _uiState.update {
-                it.copy(
-                    credentialsConfigured = false,
-                    errorMessage = context.getString(R.string.simkl_missing_credentials)
-                )
+                it.copy(credentialsConfigured = false)
             }
             return
         }

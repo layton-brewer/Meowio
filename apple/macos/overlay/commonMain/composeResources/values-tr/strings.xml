@@ -1143,7 +1143,6 @@
     <string name="settings_trakt_features">ÖZELLİKLER</string>
     <string name="settings_trakt_finish_sign_in">Trakt girişini tarayıcında tamamla</string>
     <string name="settings_trakt_intro_description">Ne izlediğini takip et, izleme listene veya özel listelerine kaydet ve kitaplığını Trakt ile eşitle.</string>
-    <string name="settings_trakt_missing_credentials">local.properties içinde Trakt bilgileri eksik (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Trakt girişini aç</string>
     <string name="settings_trakt_save_actions_description">Kaydet işlemlerin artık Trakt izleme listesine ve kişisel listelere gidebilir.</string>
     <string name="settings_trakt_sign_in_description">Liste bazlı kaydetmeyi ve Trakt kitaplığı modunu açmak için Trakt ile giriş yap.</string>
@@ -1186,7 +1185,6 @@
     <string name="settings_simkl_finish_sign_in">Bağlantı onayını tamamla</string>
     <string name="settings_simkl_open_login">Simkl Girişini Aç</string>
     <string name="settings_simkl_sign_in_description">Listeleri, izleme geçmişini, oynatma ilerlemesini ve scrobble'ları senkronize etmek için Simkl'e bağlanın.</string>
-    <string name="settings_simkl_missing_credentials">Eksik SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Simkl'i Ziyaret Et</string>
     <string name="settings_simkl_invalid_callback">Simkl giriş geri çağrısını kabul etmedi. Lütfen tekrar deneyin.</string>
     <string name="settings_simkl_authorization_expired">Simkl kodunun süresi doldu. Tekrar başlayın.</string>
@@ -1597,7 +1595,6 @@
     <string name="trakt_library_load_failed">Trakt kitaplığı yüklenemedi</string>
     <string name="trakt_list_fallback_title">Liste %1$d</string>
     <string name="trakt_missing_auth_code">Trakt yetkilendirme kodu döndürmedi</string>
-    <string name="trakt_missing_credentials">Trakt bilgileri eksik</string>
     <string name="trakt_progress_load_failed">Trakt ilerlemesi yüklenemedi</string>
     <string name="trakt_public_list">Trakt herkese açık listesi</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Geçerli bir Trakt liste Kimliği veya URL'si girin</string>

@@ -1273,7 +1273,6 @@
     <string name="mdblist_last_synced">Dernière synchronisation&#160;: %1$s</string>
     <string name="mdblist_disconnect_title">Déconnecter MDBList&#160;?</string>
     <string name="mdblist_disconnect_subtitle">Arrêter l’envoi des mises à jour de visionnage depuis ce profil. Votre historique MDBList est conservé.</string>
-    <string name="mdblist_missing_client">La connexion à MDBList n’est pas disponible dans cette version.</string>
     <string name="mdblist_invalid_response">MDBList a renvoyé une réponse incomplète. Veuillez réessayer.</string>
     <string name="mdblist_code_expired">Ce code a expiré. Réessayez pour obtenir un nouveau code.</string>
     <string name="mdblist_access_denied">La connexion a été refusée. Réessayez pour connecter votre compte.</string>
@@ -1553,7 +1552,6 @@
     <string name="trakt_code_expires">Le code expire dans %1$s</string>
     <string name="trakt_token_refreshes">Le jeton d’accès Trakt sera actualisé dans %1$s</string>
     <string name="trakt_login_instruction">Appuyez sur «&#160;Se connecter&#160;» pour démarrer l’authentification de l’appareil auprès de Trakt. Un code QR s’affichera ici.</string>
-    <string name="trakt_missing_credentials">TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET manquants dans local.properties.</string>
     <string name="trakt_watch_progress_title">Progression de visionnage</string>
     <string name="trakt_watch_progress_subtitle">Choisir la source de progression qui alimente la reprise et Continuer à regarder</string>
     <string name="trakt_watch_progress_dialog_title">Progression de visionnage</string>
@@ -3072,7 +3070,6 @@
     <string name="simkl_sync_info_library_statuses">Les séries placées dans les listes «&#160;En pause&#160;» ou «&#160;Abandonnés&#160;» de Simkl sont masquées de Continuer à regarder. Elles restent masquées tant qu’elles figurent dans l’une de ces listes.</string>
     <string name="simkl_sync_info_docs">Lire le guide de synchronisation de Simkl</string>
     <string name="error_open_browser_failed">Impossible d’ouvrir le navigateur</string>
-    <string name="simkl_missing_credentials">SIMKL_CLIENT_ID manquant</string>
     <string name="simkl_status_enter_code">Saisissez le code sur Simkl pour terminer la connexion</string>
     <string name="simkl_status_waiting">En attente de l’approbation de Simkl…</string>
     <string name="simkl_status_connected">Connecté à Simkl</string>

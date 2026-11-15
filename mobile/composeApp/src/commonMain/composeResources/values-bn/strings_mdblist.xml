@@ -18,7 +18,6 @@
     <string name="settings_mdblist_approval_description">আপনার MDBList অ্যাকাউন্টে সংযোগ অনুমোদন করুন।</string>
     <string name="settings_mdblist_open_login">সাইন-ইন পৃষ্ঠা খুলুন</string>
     <string name="settings_mdblist_disconnect">MDBList সংযোগ বিচ্ছিন্ন করুন</string>
-    <string name="settings_mdblist_missing_credentials">এই বিল্ডে MDBList সংযোগ উপলব্ধ নেই।</string>
     <string name="settings_mdblist_sync_now">এখন সিঙ্ক করুন</string>
     <string name="settings_mdblist_visit">MDBList দেখুন</string>
     <string name="settings_mdblist_unavailable">MDBList-এর সাথে সিঙ্ক করা যায়নি। আবার চেষ্টা করুন।</string>

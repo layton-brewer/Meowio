@@ -15,7 +15,6 @@
     <string name="trakt_library_load_failed">Trakt நூலகத்தை ஏற்ற முடியவில்லை</string>
     <string name="trakt_list_fallback_title">பட்டியல் %1$d</string>
     <string name="trakt_missing_auth_code">Trakt அங்கீகாரக் குறியீட்டை வழங்கவில்லை</string>
-    <string name="trakt_missing_credentials">Trakt உள்நுழைவு விவரங்கள் இல்லை</string>
     <string name="trakt_progress_load_failed">Trakt முன்னேற்றத்தை ஏற்ற முடியவில்லை</string>
     <string name="trakt_public_list">Trakt பொது பட்டியல்</string>
     <string name="trakt_public_list_enter_valid_id_or_url">சரியான Trakt பட்டியல் ID அல்லது URL-ஐ உள்ளிடவும்</string>

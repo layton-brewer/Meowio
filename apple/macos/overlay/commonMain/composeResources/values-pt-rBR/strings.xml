@@ -1322,7 +1322,6 @@
     <string name="settings_trakt_features">RECURSOS</string>
     <string name="settings_trakt_finish_sign_in">Concluir aprovação da conexão</string>
     <string name="settings_trakt_intro_description">Sincronize sua lista, progresso de reprodução, continuar assistindo, scrobbles e listas pessoais com o Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Credenciais do Trakt ausentes em local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Abrir Login do Trakt</string>
     <string name="settings_trakt_save_actions_description">Sincronize sua lista, progresso de reprodução, continuar assistindo, scrobbles e listas pessoais com o Trakt.</string>
     <string name="settings_trakt_sign_in_description">Sincronize sua lista, progresso de reprodução, continuar assistindo, scrobbles e listas pessoais com o Trakt.</string>
@@ -1374,7 +1373,6 @@
     <string name="settings_simkl_finish_sign_in">Concluir aprovação da conexão</string>
     <string name="settings_simkl_open_login">Abrir login do Simkl</string>
     <string name="settings_simkl_sign_in_description">Conecte o Simkl para sincronizar listas, histórico de visualização, progresso de reprodução e scrobbles.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID ausente</string>
     <string name="settings_simkl_visit">Acessar Simkl</string>
     <string name="settings_simkl_invalid_callback">O Simkl não aceitou o retorno do login. Tente novamente.</string>
     <string name="settings_simkl_authorization_expired">O código do Simkl expirou. Comece novamente.</string>
@@ -1831,7 +1829,6 @@
     <string name="trakt_library_load_failed">Falha ao carregar biblioteca do Trakt</string>
     <string name="trakt_list_fallback_title">Lista %1$d</string>
     <string name="trakt_missing_auth_code">Trakt não retornou um código de autorização</string>
-    <string name="trakt_missing_credentials">Credenciais do Trakt ausentes</string>
     <string name="trakt_progress_load_failed">Falha ao carregar progresso do Trakt</string>
     <string name="trakt_public_list">Lista pública do Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Insira um ID ou URL válido de uma lista do Trakt</string>
