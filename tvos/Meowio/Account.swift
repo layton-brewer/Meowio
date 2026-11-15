@@ -142,6 +142,29 @@ final class AccountStore: ObservableObject {
         await call("/rest/v1/rpc/\(name)", body: params)
     }
 
+    /// Calls an account-server function as the signed-in user. Watch party uses it.
+    func rpcCall(_ name: String, _ params: [String: Any] = [:]) async -> Reply {
+        await rpc(name, params)
+    }
+
+    /// This device's id on the account server (sync and watch party both identify it).
+    var deviceId: String { clientId }
+
+    /// A session token that is not about to expire, for the watch party live connection.
+    func freshAccessToken() async -> String? {
+        if let expiresAt, expiresAt.timeIntervalSinceNow < 60 { _ = await refresh() }
+        return accessToken
+    }
+
+    // MARK: Collections (read only here: they are made in the Android and phone apps)
+
+    func pullCollections(profileId: Int) async -> [[String: Any]]? {
+        guard signedIn else { return nil }
+        let r = await rpc("sync_pull_collections", ["p_profile_id": profileId])
+        guard r.status < 300, let rows = r.json as? [[String: Any]], let first = rows.first else { return nil }
+        return first["collections_json"] as? [[String: Any]]
+    }
+
     // MARK: Sync
 
     private func owner() async -> String? {

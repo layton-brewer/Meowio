@@ -1,7 +1,10 @@
-import Foundation
+import SwiftUI
+import CoreImage
 
 /// Checks the Meowio releases for a newer version, like the in-app updater on Android.
-/// Apple TV apps are sideloaded, so this only tells the user an update exists.
+/// Apple TV apps are sideloaded and tvOS has no way for an app to install another build of itself, no browser to
+/// download from and nowhere to open a file, so this tells the user an update exists, what is new, and gives a QR code
+/// that opens the release page on a phone (where the new Meowio-tvos.ipa can be downloaded and sideloaded).
 @MainActor
 final class UpdateChecker: ObservableObject {
     enum State: Equatable {
@@ -9,6 +12,9 @@ final class UpdateChecker: ObservableObject {
     }
 
     @Published private(set) var state: State = .idle
+    /// The release page of the newest version, and its notes.
+    @Published private(set) var releaseURL = "https://github.com/layton-brewer/Meowio/releases/latest"
+    @Published private(set) var notes = ""
 
     static var currentVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
@@ -32,10 +38,23 @@ final class UpdateChecker: ObservableObject {
                 state = .failed
                 return
             }
+            if let page = json["html_url"] as? String { releaseURL = page }
+            notes = Self.whatsNew(json["body"] as? String ?? "")
             state = Self.isNewer(tag, than: Self.currentVersion) ? .available(tag) : .upToDate
         } catch {
             state = .failed
         }
+    }
+
+    /// The release text before the download table, which is what changed in this version.
+    static func whatsNew(_ body: String) -> String {
+        var kept: [String] = []
+        for line in body.components(separatedBy: .newlines) {
+            if line.lowercased().hasPrefix("## download") || line.lowercased().hasPrefix("## install") { break }
+            if line.hasPrefix("#") { continue }
+            kept.append(line.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: ""))
+        }
+        return kept.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Compares dotted version numbers, ignoring a leading "v" and any "-suffix".
@@ -51,5 +70,43 @@ final class UpdateChecker: ObservableObject {
             if a != b { return a > b }
         }
         return false
+    }
+}
+
+/// Update notice with a QR code for the release page.
+struct UpdateCard: View {
+    let tag: String
+    let url: String
+    let notes: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 40) {
+            if let code = QRCode.image(url) {
+                Image(uiImage: code).interpolation(.none).resizable().scaledToFit()
+                    .frame(width: 220, height: 220)
+                    .padding(12).background(.white, in: RoundedRectangle(cornerRadius: 16))
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Meowio \(tag) is out", systemImage: "arrow.down.circle").font(.headline)
+                Text("Scan the code with your phone to open the release page, download Meowio-tvos.ipa and sideload it over this version. Your settings and library stay.")
+                    .font(.callout)
+                if !notes.isEmpty {
+                    Text(notes).font(.caption).foregroundStyle(.secondary).lineLimit(5)
+                }
+            }
+        }
+        .padding(24)
+        .glass()
+    }
+}
+
+enum QRCode {
+    static func image(_ text: String) -> UIImage? {
+        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(Data(text.utf8), forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 8, y: 8)),
+              let cg = CIContext().createCGImage(output, from: output.extent) else { return nil }
+        return UIImage(cgImage: cg)
     }
 }

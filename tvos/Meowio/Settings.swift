@@ -124,6 +124,8 @@ final class SettingsStore: ObservableObject {
     @Published var liveTabVisible: Bool { didSet { save() } }
     @Published var aiKey: String { didSet { save() } }
     @Published var aiModel: String { didSet { save() } }
+    /// Optional TMDB key for collections built from TMDB and for trailers. Stays on this device.
+    @Published var tmdbKey: String { didSet { save() } }
     @Published var debridService: DebridService { didSet { save() } }
     @Published var debridKey: String { didSet { save() } }
     /// Preferred audio and subtitle languages as ISO 639-1 codes. Empty means the file's default.
@@ -167,6 +169,7 @@ final class SettingsStore: ObservableObject {
         liveTabVisible = d.object(forKey: "liveTabVisible") as? Bool ?? true
         aiKey = d.string(forKey: "aiKey") ?? ""
         aiModel = d.string(forKey: "aiModel") ?? ""
+        tmdbKey = d.string(forKey: "tmdbKey") ?? ""
         debridService = DebridService(rawValue: d.string(forKey: "debridService") ?? "") ?? .none
         debridKey = d.string(forKey: "debridKey") ?? ""
         audioLanguage = d.string(forKey: "audioLanguage") ?? ""
@@ -194,6 +197,7 @@ final class SettingsStore: ObservableObject {
         d.set(liveTabVisible, forKey: "liveTabVisible")
         d.set(aiKey, forKey: "aiKey")
         d.set(aiModel, forKey: "aiModel")
+        d.set(tmdbKey, forKey: "tmdbKey")
         d.set(debridService.rawValue, forKey: "debridService")
         d.set(debridKey, forKey: "debridKey")
         d.set(audioLanguage, forKey: "audioLanguage")

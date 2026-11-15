@@ -103,7 +103,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.14 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.15 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -201,7 +201,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.14 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.15 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -244,8 +244,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.14"
+          tag="v0.2.15"
           cat > notes.md <<'NOTES'
+          ## What's new in 0.2.15
+
+          - **Apple TV** now has Jellyfin and Emby servers, watch party, your collections and trailers, like Android TV.
+          - **iPhone and iPad** update through AltStore or SideStore: add the Meowio source once (see Install) and updates arrive like any app update. The in-app updater now hands the new version to AltStore or SideStore in one tap.
+          - **Mac** updates itself: the in-app updater installs the new version into Applications and reopens it.
+          - **Apple TV** shows what's new and a QR code for the download. tvOS cannot install an app on its own, so the file still goes on through your sideloading tool.
+
           ## Download
 
           Pick the file for your device. Everything is on this page.
@@ -266,6 +273,8 @@ jobs:
 
           **Windows:** run the `.exe` and follow the installer (Windows may show a SmartScreen warning because the app is not code-signed: choose More info, then Run anyway). Installing a newer `.exe` over an old one updates it in place, and the in-app updater does this for you.
 
+          **iPhone and iPad updates:** in AltStore or SideStore open Sources, tap +, and add `https://github.com/REPO/releases/latest/download/altstore.json`. Then Meowio shows up there with every new version.
+
           **Apple builds are unsigned, for sideloading.** iPhone, iPad and Apple TV: sideload the `.ipa` with AltStore, SideStore or Sideloadly using your own Apple ID (free accounts re-sign every 7 days). Mac: open the `.dmg`, drag Meowio to Applications, then right-click and choose Open the first time (or run `xattr -cr /Applications/Meowio.app`). Apple and Windows files are attached by separate builds and can appear up to an hour after the Android files; if one is missing, the previous build's file is carried over until the new one lands.
 
           NOTES
@@ -281,7 +290,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.exe' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
           done
           # Never overwrite a file the Apple or Windows build already attached to this page, and never fail
           # the release over a carried-over file (those builds attach their own copy anyway).

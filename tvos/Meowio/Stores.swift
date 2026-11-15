@@ -179,6 +179,8 @@ final class StreamStore: ObservableObject {
     private var inflight: [String: Task<[StreamItem], Never>] = [:]
     /// The release (binge group or file name) that last played for each show.
     private var lastRelease: [String: String] = [:]
+    /// The profile's media servers, set when the profile opens.
+    weak var servers: MediaServerStore?
 
     private func key(_ type: String, _ id: String, _ addons: [String]) -> String {
         "\(type)/\(id)|\(addons.joined(separator: ","))"
@@ -197,11 +199,18 @@ final class StreamStore: ObservableObject {
     }
 
     /// Ranked candidates, best first.
-    func candidates(type: String, id: String, parentId: String, settings: SettingsStore) async -> [StreamItem] {
-        var list = await raw(type: type, id: id, addons: settings.addons)
+    func candidates(type: String, id: String, parentId: String, settings: SettingsStore, name: String? = nil) async -> [StreamItem] {
+        async let own = servers?.streams(type: type, id: id, name: name) ?? []
+        var list = MediaServerStore.isServerId(id) ? [] : await raw(type: type, id: id, addons: settings.addons)
         if !settings.debridReady { list.removeAll { $0.isTorrentOnly } }
-        var ranked = SmartRanker.rank(list, isSeries: type == "series", pinned: Set(settings.pinnedSources))
-        if type == "series", settings.sameRelease, let release = lastRelease[parentId],
+        let ownList = await own
+        var ranked = SmartRanker.rank(list + ownList, isSeries: type == "series", pinned: Set(settings.pinnedSources))
+        if servers?.preferServers ?? true, !ownList.isEmpty {
+            // The user's own copies first, in the order Smart ranking gave them.
+            ranked = ranked.filter { $0.isServer } + ranked.filter { !$0.isServer }
+        }
+        let serverFirst = (servers?.preferServers ?? true) && !ownList.isEmpty
+        if type == "series", settings.sameRelease, !serverFirst, let release = lastRelease[parentId],
            let i = ranked.firstIndex(where: { releaseKey($0) == release }), i > 0 {
             let match = ranked.remove(at: i)
             ranked.insert(match, at: 0)
@@ -210,7 +219,7 @@ final class StreamStore: ObservableObject {
     }
 
     func preload(type: String, id: String, settings: SettingsStore) {
-        guard settings.streamMode == .smart, !settings.addons.isEmpty else { return }
+        guard settings.streamMode == .smart, !settings.addons.isEmpty, !MediaServerStore.isServerId(id) else { return }
         let addons = settings.addons
         Task { _ = await raw(type: type, id: id, addons: addons) }
     }
