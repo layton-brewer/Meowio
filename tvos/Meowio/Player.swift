@@ -56,6 +56,10 @@ struct PlayRequest: Identifiable {
     var isLive = false
     /// Live TV VPN proxy for this Live TV request, or "" for none. Never set for anything but Live TV.
     var liveProxy = ""
+    /// Live TV only: told why the channel failed, or nil once it plays.
+    var onLiveResult: (@MainActor (LivePlaybackProblem?) -> Void)? = nil
+    /// Live TV only: the address and headers to probe for a reason when every copy fails.
+    var liveProbe: (String, [String: String])? = nil
     /// Where to start, in seconds, for a title the user left part way.
     var startAt: Double = 0
     /// Resolves the request for the episode after this one, when there is one.
@@ -69,7 +73,10 @@ final class PlaybackController: ObservableObject {
     let mpv = MPVEngine()
     @Published var usingMPV = false
     private var triedMPV = Set<Int>()
-    @Published var failedAll = false
+    @Published var failedAll = false {
+        didSet { if failedAll, !oldValue { diagnoseLiveFailure() } }
+    }
+    @Published var liveProblem: LivePlaybackProblem?
     @Published var request: PlayRequest
     @Published var activeIndex = 0
     @Published var sleptMessage = false
@@ -382,7 +389,21 @@ final class PlaybackController: ObservableObject {
         armTimeout()
     }
 
+    private func diagnoseLiveFailure() {
+        guard request.isLive, let probe = request.liveProbe else { return }
+        Task { @MainActor [weak self] in
+            let problem = await LivePlaybackProblem.diagnose(probe.0, headers: probe.1)
+            guard let self, self.failedAll else { return }
+            self.liveProblem = problem
+            self.request.onLiveResult?(problem)
+        }
+    }
+
     private func didStart() {
+        if request.isLive {
+            liveProblem = nil
+            request.onLiveResult?(nil)
+        }
         onPlayed?(request, request.candidates[index])
         if !request.isLive, !started {
             started = true
@@ -615,6 +636,7 @@ struct PlayerScreen: View {
             if controller.failedAll {
                 VStack(spacing: 20) {
                     Text("None of the available sources would play.")
+                    if let problem = controller.liveProblem { Text(problem.rawValue).font(.callout).foregroundStyle(.orange) }
                     Button("Close") { dismiss() }
                 }
                 .padding(40)
