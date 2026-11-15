@@ -156,13 +156,21 @@ final class AccountStore: ObservableObject {
         return accessToken
     }
 
-    // MARK: Collections (read only here: they are made in the Android and phone apps)
+    // MARK: Collections
 
     func pullCollections(profileId: Int) async -> [[String: Any]]? {
         guard signedIn else { return nil }
         let r = await rpc("sync_pull_collections", ["p_profile_id": profileId])
         guard r.status < 300, let rows = r.json as? [[String: Any]], let first = rows.first else { return nil }
         return first["collections_json"] as? [[String: Any]]
+    }
+
+    /// Writes this profile's collections back to the account, as the phone and Android TV apps do.
+    func pushCollections(_ raw: [[String: Any]], profileId: Int) async -> Bool {
+        guard signedIn else { return false }
+        let r = await rpc("sync_push_collections", ["p_profile_id": profileId, "p_collections_json": raw,
+                                                     "p_origin_client_id": clientId])
+        return r.status < 300
     }
 
     // MARK: Sync

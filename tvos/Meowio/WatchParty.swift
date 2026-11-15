@@ -511,8 +511,16 @@ final class PartyRepository: ObservableObject {
     @Published var toast: String?
     /// Set after joining or when the host picks something else: the title every member should be watching.
     @Published private(set) var launch: PartyLaunch?
+    /// The party's chat, oldest first.
+    @Published var chat: [PartyChatMessage] = []
+    @Published var chatUnread = 0
+    /// True while the chat page is on screen, so new messages are not counted as unread.
+    var chatOpen = false {
+        didSet { if chatOpen { chatUnread = 0 } }
+    }
+    var chatLoaded = false
 
-    private weak var account: AccountStore?
+    weak var account: AccountStore?
     private weak var profiles: ProfileStore?
     private var clock = PartyClock()
     private var channel: PartyChannel?
@@ -675,6 +683,9 @@ final class PartyRepository: ObservableObject {
         sharedStream = nil
         party = nil
         launch = nil
+        chat = []
+        chatUnread = 0
+        chatLoaded = false
     }
 
     private func finish(_ message: String) {
@@ -720,6 +731,8 @@ final class PartyRepository: ObservableObject {
         if let pb = playback, let obj = PartyJSON.object(pb) { await channel?.broadcast("state", obj) }
         if current.isHost, current.sharing, let s = sharedStream { await sendStream(s) }
         await channel?.broadcast("state_request", ["member_id": current.memberId])
+        await syncChat()
+        await resendFailedChat()
     }
 
     private func onMessage(_ event: String, _ payload: [String: Any]) {
@@ -756,6 +769,8 @@ final class PartyRepository: ObservableObject {
             if let mediaObject = payload["media"] as? [String: Any], let media = PartyJSON.decode(PartyMedia.self, from: mediaObject) {
                 applyMedia(media, PartyJSON.decode(PartyPlayback.self, from: payload["playback"]))
             }
+        case "chat":
+            if let m = PartyChatMessage.from(payload, myMemberId: current.memberId) { applyChat([m], replaceOlder: false, notify: true) }
         case "stream":
             if current.isHost || (payload["member_id"] as? String) != current.hostMemberId { return }
             if let obj = payload["stream"] as? [String: Any], let stream = PartyJSON.decode(PartyStream.self, from: obj),
@@ -1332,6 +1347,13 @@ struct PartySettingsView: View {
                     HStack { Text("Code"); Spacer(); Text(p.formattedCode).monospacedDigit() }
                     HStack { Text("Watching"); Spacer(); Text(p.media.displayTitle).foregroundStyle(.secondary) }
                     Button("Open what the party is watching") { party.reopen() }
+                    NavigationLink { PartyChatView() } label: {
+                        HStack {
+                            Text("Chat")
+                            Spacer()
+                            if party.chatUnread > 0 { Text("\(party.chatUnread) new").foregroundStyle(.orange) }
+                        }
+                    }
                     ForEach(p.members) { m in
                         HStack {
                             Text(m.displayName)
@@ -1387,7 +1409,7 @@ enum PartyMenu {
     @MainActor
     static func make(party: PartyRepository, controller: PlaybackController) -> UIMenu? {
         guard !controller.request.isLive, party.canUse else { return nil }
-        var items: [UIAction] = []
+        var items: [UIMenuElement] = []
         if let p = party.party {
             items.append(UIAction(title: "Code \(p.formattedCode) · \(p.members.count) watching", attributes: .disabled) { _ in })
             if p.isHost {
@@ -1398,6 +1420,10 @@ enum PartyMenu {
                     Task { @MainActor in await party.setSharing(!p.sharing) }
                 })
             }
+            let quick = ["👍", "😂", "😮", "Pause for a sec?", "Back in a minute"].map { text in
+                UIAction(title: text) { _ in Task { @MainActor in party.sendChat(text) } }
+            }
+            items.append(UIMenu(title: "Say something", image: UIImage(systemName: "bubble.left.fill"), children: quick))
             items.append(UIAction(title: "Leave party", attributes: .destructive) { _ in
                 Task { @MainActor in await party.leave() }
             })
@@ -1433,6 +1459,11 @@ struct PartyMenuButton: View {
                         }
                         Button { Task { await party.setSharing(!p.sharing) } } label: {
                             Label("Share my stream link", systemImage: p.sharing ? "checkmark" : "link")
+                        }
+                    }
+                    Menu("Say something") {
+                        ForEach(["👍", "😂", "😮", "Pause for a sec?", "Back in a minute"], id: \.self) { text in
+                            Button(text) { party.sendChat(text) }
                         }
                     }
                     Button("Leave party", role: .destructive) { Task { await party.leave() } }

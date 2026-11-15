@@ -43,6 +43,8 @@ struct ProfileRoot: View {
     @StateObject private var streams = StreamStore()
     @StateObject private var live = LiveTVStore()
     @StateObject private var trakt = TraktStore()
+    @StateObject private var simkl = SimklStore()
+    @StateObject private var mdblist = MDBListStore()
     @StateObject private var servers = MediaServerStore()
     @StateObject private var collections = CollectionsStore()
     @StateObject private var party = PartyRepository()
@@ -61,6 +63,8 @@ struct ProfileRoot: View {
             .environmentObject(streams)
             .environmentObject(live)
             .environmentObject(trakt)
+            .environmentObject(simkl)
+            .environmentObject(mdblist)
             .environmentObject(servers)
             .environmentObject(collections)
             .environmentObject(party)
@@ -83,6 +87,8 @@ struct ProfileRoot: View {
             await account.sync(profile: profile, settings: settings, library: library)
         }
         if trakt.connected { await trakt.sync(into: library) }
+        if simkl.connected { await simkl.sync(into: library) }
+        if mdblist.connected { await mdblist.sync(into: library) }
         if account.signedIn { await collections.sync(account: account, profileId: profile.id) }
         party.configure(account: account, profiles: profiles)
         await party.refreshAvailability()
@@ -93,11 +99,15 @@ struct ProfileRoot: View {
         let id = profile.id
         let acc = account
         let tr = trakt
+        let sk = simkl
+        let md = mdblist
         streams.servers = servers
         party.configure(account: account, profiles: profiles)
-        library.onSavedChanged = { [weak acc, weak tr] item, added in
+        library.onSavedChanged = { [weak acc, weak tr, weak sk, weak md] item, added in
             Task { @MainActor in
                 tr?.setInWatchlist(added, meta: item)
+                sk?.setInWatchlist(added, meta: item)
+                md?.setInWatchlist(added, meta: item)
                 if added { await acc?.pushLibrary([item], profileId: id) }
                 else { await acc?.removeFromLibrary(item, profileId: id) }
             }
@@ -114,8 +124,10 @@ struct ProfileRoot: View {
             }
         }
         // Played titles reach Trakt through scrobbling. Marks made by hand go straight to its history.
-        library.onManualMark = { [weak tr] meta, videoId, watched in
+        library.onManualMark = { [weak tr, weak sk, weak md] meta, videoId, watched in
             tr?.setWatched(watched, meta: meta, videoId: videoId)
+            sk?.setWatched(watched, meta: meta, videoId: videoId)
+            md?.setWatched(watched, meta: meta, videoId: videoId)
         }
     }
 }

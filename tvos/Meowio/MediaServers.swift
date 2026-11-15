@@ -583,3 +583,77 @@ struct MediaServerDetailView: View {
         .navigationTitle(connection?.name ?? "Server")
     }
 }
+
+/// Reports playback of a file from a Jellyfin or Emby server back to it, so the server shows what is playing and
+/// keeps watched marks and resume points in step. Everything it needs is in the stream address.
+@MainActor
+final class ServerPlayReporter {
+    private struct Target {
+        var root: String
+        var itemId: String
+        var sourceId: String
+        var token: String
+        var emby: Bool
+    }
+
+    private var target: Target?
+    private var lastSent = Date.distantPast
+
+    private static func target(for stream: StreamItem) -> Target? {
+        guard stream.isServer, let raw = stream.url, let comps = URLComponents(string: raw),
+              let range = raw.range(of: "/Videos/") else { return nil }
+        let item = comps.path.components(separatedBy: "/Videos/").last?.components(separatedBy: "/").first ?? ""
+        let query = comps.queryItems ?? []
+        guard !item.isEmpty, let token = query.first(where: { $0.name == "api_key" })?.value else { return nil }
+        let root = String(raw[..<range.lowerBound])
+        return Target(root: root, itemId: item,
+                      sourceId: query.first(where: { $0.name == "mediaSourceId" })?.value ?? item,
+                      token: token, emby: root.hasSuffix("/emby"))
+    }
+
+    /// action is start, pause, progress or stop.
+    func report(_ action: String, stream: StreamItem?, seconds: Double, paused: Bool) {
+        if action == "start" {
+            guard let stream, let t = Self.target(for: stream) else {
+                target = nil
+                return
+            }
+            let isNew = target?.itemId != t.itemId || target?.root != t.root
+            target = t
+            lastSent = Date()
+            send(isNew ? "Playing" : "Playing/Progress", t, seconds, false)
+            return
+        }
+        guard let t = target else { return }
+        switch action {
+        case "stop":
+            send("Playing/Stopped", t, seconds, false)
+            target = nil
+        case "progress":
+            guard Date().timeIntervalSince(lastSent) >= 10 else { return }
+            lastSent = Date()
+            send("Playing/Progress", t, seconds, false)
+        default:
+            lastSent = Date()
+            send("Playing/Progress", t, seconds, paused)
+        }
+    }
+
+    private func send(_ path: String, _ t: Target, _ seconds: Double, _ paused: Bool) {
+        guard let url = URL(string: "\(t.root)/Sessions/\(path)") else { return }
+        var body: [String: Any] = ["ItemId": t.itemId, "MediaSourceId": t.sourceId,
+                                    "PositionTicks": Int64(max(0, seconds) * 10_000_000)]
+        if path != "Playing/Stopped" {
+            body["PlayMethod"] = "DirectStream"
+            body["CanSeek"] = true
+            body["IsPaused"] = paused
+        }
+        var r = URLRequest(url: url)
+        r.httpMethod = "POST"
+        r.timeoutInterval = 10
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        r.setValue(MediaBrowserAPI.header(token: t.token), forHTTPHeaderField: t.emby ? "X-Emby-Authorization" : "Authorization")
+        r.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        Task { _ = try? await URLSession.shared.data(for: r) }
+    }
+}

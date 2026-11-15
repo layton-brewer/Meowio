@@ -121,6 +121,8 @@ final class CollectionsStore: ObservableObject {
     @Published private(set) var collections: [MeowioCollection] = []
     private let store = ProfileScope.defaults
     private var resolved: [String: [FolderSection]] = [:]
+    /// The collections exactly as the account has them. Edits change this, so fields only the other apps know survive.
+    private var raw: [[String: Any]] = []
 
     struct FolderSection: Identifiable {
         var id: String
@@ -132,6 +134,13 @@ final class CollectionsStore: ObservableObject {
         if let data = store.data(forKey: "collections"),
            let list = try? JSONDecoder().decode([MeowioCollection].self, from: data) {
             collections = list
+        }
+        if let data = store.data(forKey: "collectionsRaw"),
+           let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+            raw = rows
+        } else if let data = store.data(forKey: "collections"),
+                  let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] {
+            raw = rows
         }
     }
 
@@ -146,14 +155,124 @@ final class CollectionsStore: ObservableObject {
 
     /// Pulls this profile's collections from the Meowio account.
     func sync(account: AccountStore, profileId: Int) async {
-        guard let raw = await account.pullCollections(profileId: profileId),
-              let data = try? JSONSerialization.data(withJSONObject: raw),
+        guard let rawRows = await account.pullCollections(profileId: profileId),
+              let data = try? JSONSerialization.data(withJSONObject: rawRows),
               let list = try? JSONDecoder().decode([MeowioCollection].self, from: data) else { return }
         // An empty answer never wipes collections this device already has.
         if list.isEmpty && !collections.isEmpty { return }
         collections = list
+        raw = rawRows
         resolved.removeAll()
         store.set(data, forKey: "collections")
+        saveRaw()
+    }
+
+    private func saveRaw() {
+        if let data = try? JSONSerialization.data(withJSONObject: raw) { store.set(data, forKey: "collectionsRaw") }
+    }
+
+    // MARK: Editing
+
+    /// Rebuilds what Home shows from the edited rows, keeps them on this device and pushes them to the account.
+    private func commit(account: AccountStore, profileId: Int) {
+        if let data = try? JSONSerialization.data(withJSONObject: raw),
+           let list = try? JSONDecoder().decode([MeowioCollection].self, from: data) {
+            collections = list
+            store.set(data, forKey: "collections")
+        }
+        saveRaw()
+        resolved.removeAll()
+        Task { _ = await account.pushCollections(raw, profileId: profileId) }
+    }
+
+    private func edit(_ collectionId: String, account: AccountStore, profileId: Int, _ change: (inout [String: Any]) -> Void) {
+        guard let i = raw.firstIndex(where: { ($0["id"] as? String) == collectionId }) else { return }
+        change(&raw[i])
+        commit(account: account, profileId: profileId)
+    }
+
+    private func editFolders(_ collectionId: String, account: AccountStore, profileId: Int,
+                             _ change: (inout [[String: Any]]) -> Void) {
+        edit(collectionId, account: account, profileId: profileId) { c in
+            var folders = c["folders"] as? [[String: Any]] ?? []
+            change(&folders)
+            c["folders"] = folders
+        }
+    }
+
+    func addCollection(_ title: String, account: AccountStore, profileId: Int) {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        raw.append(["id": UUID().uuidString.lowercased(), "title": t, "pinToTop": false, "folders": [[String: Any]]()])
+        commit(account: account, profileId: profileId)
+    }
+
+    func renameCollection(_ id: String, to title: String, account: AccountStore, profileId: Int) {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        edit(id, account: account, profileId: profileId) { $0["title"] = t }
+    }
+
+    func setPinned(_ id: String, _ pinned: Bool, account: AccountStore, profileId: Int) {
+        edit(id, account: account, profileId: profileId) { $0["pinToTop"] = pinned }
+    }
+
+    func removeCollection(_ id: String, account: AccountStore, profileId: Int) {
+        raw.removeAll { ($0["id"] as? String) == id }
+        commit(account: account, profileId: profileId)
+    }
+
+    func addFolder(_ title: String, to collectionId: String, account: AccountStore, profileId: Int) {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        editFolders(collectionId, account: account, profileId: profileId) {
+            $0.append(["id": UUID().uuidString.lowercased(), "title": t, "tileShape": "POSTER", "hideTitle": false,
+                       "sources": [[String: Any]]()])
+        }
+    }
+
+    func renameFolder(_ route: FolderRoute, to title: String, account: AccountStore, profileId: Int) {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return }
+        editFolders(route.collectionId, account: account, profileId: profileId) { folders in
+            if let i = folders.firstIndex(where: { ($0["id"] as? String) == route.folderId }) { folders[i]["title"] = t }
+        }
+    }
+
+    func removeFolder(_ route: FolderRoute, account: AccountStore, profileId: Int) {
+        editFolders(route.collectionId, account: account, profileId: profileId) { folders in
+            folders.removeAll { ($0["id"] as? String) == route.folderId }
+        }
+    }
+
+    /// A folder saved by an older app lists `catalogSources`. Editing turns them into plain sources first.
+    private static func normalizedSources(_ folder: [String: Any]) -> [[String: Any]] {
+        let sources = folder["sources"] as? [[String: Any]] ?? []
+        if !sources.isEmpty { return sources }
+        return (folder["catalogSources"] as? [[String: Any]] ?? []).map { c in
+            var s = c
+            s["provider"] = "addon"
+            return s
+        }
+    }
+
+    func addSource(_ source: [String: Any], to route: FolderRoute, account: AccountStore, profileId: Int) {
+        editFolders(route.collectionId, account: account, profileId: profileId) { folders in
+            guard let i = folders.firstIndex(where: { ($0["id"] as? String) == route.folderId }) else { return }
+            var sources = Self.normalizedSources(folders[i])
+            sources.append(source)
+            folders[i]["sources"] = sources
+        }
+    }
+
+    func removeSource(at index: Int, from route: FolderRoute, account: AccountStore, profileId: Int) {
+        editFolders(route.collectionId, account: account, profileId: profileId) { folders in
+            guard let i = folders.firstIndex(where: { ($0["id"] as? String) == route.folderId }) else { return }
+            var sources = Self.normalizedSources(folders[i])
+            guard sources.indices.contains(index) else { return }
+            sources.remove(at: index)
+            folders[i]["sources"] = sources
+        }
     }
 
     // MARK: Folder contents

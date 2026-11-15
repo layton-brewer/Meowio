@@ -86,6 +86,10 @@ final class PlaybackController: ObservableObject {
     @Published private(set) var upNextVisible = false
     /// Where Skip Intro jumps to, while an intro or recap chapter is playing.
     @Published private(set) var skipTarget: Double?
+    /// Button text for the current skip: Skip Intro, Skip Recap or Skip Credits.
+    @Published private(set) var skipLabel = "Skip Intro"
+    /// Skip times from IntroDB and AniSkip for what is playing.
+    private var skipSegments: [SkipSegment] = []
     @Published private(set) var speed: Double = 1
     /// Short status while a torrent result is turned into a link.
     @Published private(set) var status: String?
@@ -119,6 +123,23 @@ final class PlaybackController: ObservableObject {
         player.allowsExternalPlayback = true
     }
 
+    private let serverReport = ServerPlayReporter()
+
+    /// Tells Trakt, Simkl and MDBList (through onScrobble) and the Jellyfin or Emby server that served the file.
+    private func emitProgress() {
+        serverReport.report("progress", stream: request.candidates.indices.contains(index) ? request.candidates[index] : nil,
+                            seconds: lastSeconds, paused: false)
+    }
+
+    private func emitScrobble(_ action: String, _ percent: Double) {
+        onScrobble?(request, action, percent)
+        if request.candidates.indices.contains(index) {
+            serverReport.report(action, stream: request.candidates[index], seconds: lastSeconds, paused: action == "pause")
+        } else {
+            serverReport.report(action, stream: nil, seconds: lastSeconds, paused: action == "pause")
+        }
+    }
+
     var percent: Double { lastDuration > 0 ? min(100, max(0, lastSeconds / lastDuration * 100)) : 0 }
 
     func start() {
@@ -136,12 +157,25 @@ final class PlaybackController: ObservableObject {
         }
         mpv.prepare()
         loadSubtitles()
+        loadSkipSegments()
         load(at: 0, keepPosition: false)
+    }
+
+    private func loadSkipSegments() {
+        skipSegments = []
+        guard !request.isLive, settings.skipIntro else { return }
+        let meta = request.meta, videoId = request.videoId
+        let id = request.id
+        Task { [weak self] in
+            let found = await SkipSegments.load(meta: meta, videoId: videoId)
+            guard let self, self.request.id == id else { return }
+            self.skipSegments = found
+        }
     }
 
     func stop() {
         finishRecording(completed: false)
-        if started { onScrobble?(request, "stop", percent) }
+        if started { emitScrobble("stop", percent) }
         started = false
         timeout?.cancel()
         ticker?.invalidate()
@@ -206,22 +240,30 @@ final class PlaybackController: ObservableObject {
         guard !request.isLive else { return }
         // Pause and resume for scrobbling.
         let paused = usingMPV ? mpv.isPaused : player.timeControlStatus == .paused
-        if started, paused != wasPaused { onScrobble?(request, paused ? "pause" : "start", percent) }
+        if started, paused != wasPaused { emitScrobble(paused ? "pause" : "start", percent) }
         wasPaused = paused
+        if started, !paused { emitProgress() }
         // Next Episode card for the last stretch of an episode.
         let remaining = lastDuration - lastSeconds
         let showUpNext = settings.upNextCard && request.nextEpisode != nil && !upNextDismissed && lastDuration > 300
             && remaining > 0 && remaining <= min(45, lastDuration * 0.05 + 15)
         if showUpNext != upNextVisible { upNextVisible = showUpNext }
-        // Skip Intro while an intro or recap chapter plays.
-        if settings.skipIntro, usingMPV {
-            let chapters = mpv.chapters()
+        // Skip button while an intro, recap or ending plays: from IntroDB/AniSkip times, else from mpv chapters.
+        if settings.skipIntro {
             var target: Double?
-            for (i, c) in chapters.enumerated() where i + 1 < chapters.count {
-                let next = chapters[i + 1].time
-                if lastSeconds >= c.time, lastSeconds < next - 2, Self.isIntro(c.title) { target = next }
+            var label = "Skip Intro"
+            if let seg = skipSegments.first(where: { lastSeconds >= $0.start && lastSeconds < $0.end - 2 }) {
+                target = seg.end
+                label = seg.label
+            } else if usingMPV {
+                let chapters = mpv.chapters()
+                for (i, c) in chapters.enumerated() where i + 1 < chapters.count {
+                    let next = chapters[i + 1].time
+                    if lastSeconds >= c.time, lastSeconds < next - 2, Self.isIntro(c.title) { target = next }
+                }
             }
             if target != skipTarget { skipTarget = target }
+            if label != skipLabel { skipLabel = label }
         } else if skipTarget != nil {
             skipTarget = nil
         }
@@ -408,7 +450,7 @@ final class PlaybackController: ObservableObject {
         if !request.isLive, !started {
             started = true
             wasPaused = false
-            onScrobble?(request, "start", percent)
+            emitScrobble("start", percent)
         }
     }
 
@@ -476,7 +518,7 @@ final class PlaybackController: ObservableObject {
     private func advance(completedCurrent: Bool, userAsked: Bool = false) {
         guard !advancing else { return }
         finishRecording(completed: completedCurrent)
-        if started { onScrobble?(request, "stop", completedCurrent ? max(percent, 95) : percent) }
+        if started { emitScrobble("stop", completedCurrent ? max(percent, 95) : percent) }
         started = false
         lastSeconds = 0
         if SleepTimer.shared.consumeEndOfEpisode() {
@@ -507,6 +549,7 @@ final class PlaybackController: ObservableObject {
         lastDuration = 0
         upNextDismissed = false
         skipTarget = nil
+        loadSkipSegments()
         loadSubtitles()
         load(at: 0, keepPosition: false)
     }
@@ -515,7 +558,7 @@ final class PlaybackController: ObservableObject {
     private func finishRecordingIfNeeded() {
         guard started else { return }
         finishRecording(completed: false)
-        onScrobble?(request, "stop", percent)
+        emitScrobble("stop", percent)
         started = false
     }
 }
@@ -579,7 +622,7 @@ struct PlayerViewControllerRepresentable: UIViewControllerRepresentable {
         // Netflix style buttons in the corner: Skip Intro and Next Episode.
         var actions: [UIAction] = []
         if controller.skipTarget != nil {
-            actions.append(UIAction(title: "Skip Intro", image: UIImage(systemName: "forward.fill")) { [weak controller] _ in
+            actions.append(UIAction(title: controller.skipLabel, image: UIImage(systemName: "forward.fill")) { [weak controller] _ in
                 Task { @MainActor in controller?.skipIntro() }
             })
         }
@@ -598,6 +641,8 @@ struct PlayerScreen: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var streams: StreamStore
     @EnvironmentObject var trakt: TraktStore
+    @EnvironmentObject var simkl: SimklStore
+    @EnvironmentObject var mdblist: MDBListStore
     @EnvironmentObject var party: PartyRepository
     @EnvironmentObject var servers: MediaServerStore
     @Environment(\.dismiss) private var dismiss
@@ -666,6 +711,8 @@ struct PlayerScreen: View {
             }
             controller.onScrobble = { request, action, percent in
                 trakt.scrobble(action, meta: request.meta, videoId: request.videoId, progress: percent)
+                simkl.scrobble(action, meta: request.meta, videoId: request.videoId, progress: percent)
+                mdblist.scrobble(action, meta: request.meta, videoId: request.videoId, progress: percent)
             }
             controller.start()
             let b = PartyPlayerBridge(controller: controller, party: party, settings: settings, streams: streams,
@@ -748,7 +795,7 @@ struct MPVPlayerLayer: View {
     }
 
     private var cornerAction: String? {
-        if controller.skipTarget != nil { return "Skip Intro" }
+        if controller.skipTarget != nil { return controller.skipLabel }
         if controller.upNextVisible { return "Next Episode" }
         return nil
     }

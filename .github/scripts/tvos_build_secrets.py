@@ -32,6 +32,8 @@ fields = {
     "supabaseAnonKey": value("NUVIO_SUPABASE_ANON_KEY"),
     "traktClientId": value("TRAKT_CLIENT_ID"),
     "traktClientSecret": value("TRAKT_CLIENT_SECRET"),
+    "simklClientId": value("SIMKL_CLIENT_ID"),
+    "introDbURL": value("INTRODB_API_URL"),
     "tmdbApiKey": value("TMDB_API_KEY"),
 }
 

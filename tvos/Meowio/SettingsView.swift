@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject var profiles: ProfileStore
     @EnvironmentObject var account: AccountStore
     @EnvironmentObject var trakt: TraktStore
+    @EnvironmentObject var simkl: SimklStore
+    @EnvironmentObject var mdblist: MDBListStore
     @EnvironmentObject var servers: MediaServerStore
     @EnvironmentObject var party: PartyRepository
     @State private var newAddon = ""
@@ -42,18 +44,18 @@ struct SettingsView: View {
                             Text(trakt.connected ? (trakt.username ?? "Connected") : (TraktStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
                         }
                     }
-                    NavigationLink { TrackingNotSetUpView(name: "Simkl") } label: {
+                    NavigationLink { SimklSettingsView() } label: {
                         HStack {
                             Text("Simkl")
                             Spacer()
-                            Text("Not set up yet").foregroundStyle(.secondary)
+                            Text(simkl.connected ? (simkl.username ?? "Connected") : (SimklStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
                         }
                     }
-                    NavigationLink { TrackingNotSetUpView(name: "MDBList") } label: {
+                    NavigationLink { MDBListSettingsView() } label: {
                         HStack {
                             Text("MDBList")
                             Spacer()
-                            Text("Not set up yet").foregroundStyle(.secondary)
+                            Text(mdblist.connected ? (mdblist.username ?? "Connected") : "Not connected").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -112,6 +114,7 @@ struct SettingsView: View {
                 Section("Player") {
                     Toggle("Show Skip Intro on intro and recap chapters", isOn: $settings.skipIntro)
                     Toggle("Show Next Episode near the end", isOn: $settings.upNextCard)
+                    Toggle("Play trailers behind the Home header", isOn: $settings.heroTrailers)
                     Picker("Audio language", selection: $settings.audioLanguage) {
                         Text("File default").tag("")
                         ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
@@ -152,6 +155,10 @@ struct SettingsView: View {
                     Text("Collections and trailers")
                 } footer: {
                     Text("Collections made in the other Meowio apps appear on Home. Folders built from TMDB lists and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
+                }
+
+                Section {
+                    NavigationLink("Edit collections") { CollectionEditorView() }
                 }
 
                 Section("Appearance") {
@@ -431,21 +438,5 @@ private extension SettingsView {
         if !settings.liveVpnEnabled { return "Off. Live TV connects directly." }
         if LiveVpnGuard.parseProxy(settings.liveVpnProxy) == nil { return "Enter an http:// proxy address with a port." }
         return "Switches on by itself while a channel plays and off when you leave. Debrid and other playback never use it."
-    }
-}
-
-/// Placeholder page for a tracking service this Apple TV build can't connect to yet.
-struct TrackingNotSetUpView: View {
-    let name: String
-    var body: some View {
-        List {
-            Section {
-                Text("\(name) isn't set up yet.")
-                Button("Connect") {}.disabled(true)
-            } footer: {
-                Text("Connecting \(name) will be available in a future update.")
-            }
-        }
-        .navigationTitle(name)
     }
 }
