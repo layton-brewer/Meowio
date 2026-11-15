@@ -6,7 +6,6 @@ package com.nuvio.tv.core.livetv
  */
 object XmltvParser {
 
-    private val PROGRAMME = Regex("""<programme\b([^>]*)>(.*?)</programme>""", RegexOption.DOT_MATCHES_ALL)
     private val ATTRIBUTE = Regex("""([A-Za-z_-]+)\s*=\s*"([^"]*)"""")
     private val TITLE = Regex("""<title\b[^>]*>(.*?)</title>""", RegexOption.DOT_MATCHES_ALL)
     private val DESCRIPTION = Regex("""<desc\b[^>]*>(.*?)</desc>""", RegexOption.DOT_MATCHES_ALL)
@@ -53,9 +52,14 @@ object XmltvParser {
         private fun feedSlice(chunk: String) {
             pending.append(chunk)
             var position = 0
+            // The next "<channel " at or after position (-1: none left). Looked up again only once
+            // position passes it, so a slice full of programmes is not rescanned for each one.
+            var channel = if (matcher != null) -2 else -1
             while (true) {
                 val programme = pending.indexOf(OPEN, position)
-                val channel = if (matcher != null) pending.indexOf(CHANNEL_OPEN, position) else -1
+                if (matcher != null && channel != -1 && channel < position) {
+                    channel = pending.indexOf(CHANNEL_OPEN, position)
+                }
                 val isChannel = channel >= 0 && (programme < 0 || channel < programme)
                 val start = if (isChannel) channel else programme
                 if (start < 0) {
@@ -96,7 +100,7 @@ object XmltvParser {
                     break
                 }
                 position = end + CLOSE.length
-                PROGRAMME.find(pending.substring(start, position))?.let(::accept)
+                acceptProgramme(start, end)
             }
             pending.deleteRange(0, position)
             // A broken guide with an element that never closes must not grow without limit.
@@ -114,15 +118,28 @@ object XmltvParser {
             matcher?.register(decodeEntities(id), names)
         }
 
-        private fun accept(match: MatchResult) {
-            val attributes = ATTRIBUTE.findAll(match.groupValues[1]).associate { it.groupValues[1] to it.groupValues[2] }
+        /**
+         * Reads the programme at [start, end). Most programmes of a big guide are outside the
+         * window or belong to other channels, so they are rejected from the opening tag alone,
+         * before the rest of the element is copied out or searched.
+         */
+        private fun acceptProgramme(start: Int, end: Int) {
+            val tagEnd = pending.indexOf(">", start + OPEN.length)
+            if (tagEnd < 0 || tagEnd >= end) return
+            val attributeText = pending.substring(start + OPEN.length, tagEnd)
+            if (attributeText.isNotEmpty() && (attributeText[0].isLetterOrDigit() || attributeText[0] == '_')) return
+            accept(attributeText) { pending.substring(tagEnd + 1, end) }
+        }
+
+        private fun accept(attributeText: String, bodyOf: () -> String) {
+            val attributes = ATTRIBUTE.findAll(attributeText).associate { it.groupValues[1] to it.groupValues[2] }
             val channel = attributes["channel"]?.trim()?.lowercase()?.takeIf(String::isNotEmpty) ?: return
             if (wanted != null && channel !in wanted) return
             if (matcher != null && !matcher.wants(channel)) return
             val start = parseTime(attributes["start"]) ?: return
             val stop = parseTime(attributes["stop"]) ?: return
             if (stop <= nowMs || start > nowMs + WINDOW_MS || stop <= start) return
-            val body = match.groupValues[2]
+            val body = bodyOf()
             val title = TITLE.find(body)?.groupValues?.get(1)?.let(::decodeEntities)?.trim()
                 ?.takeIf(String::isNotEmpty) ?: return
             val description = if (start > nowMs + DESCRIPTION_AHEAD_MS) {
