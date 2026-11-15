@@ -120,12 +120,16 @@ class TraktPublicListSourceResolver @Inject constructor(
         response.body().orEmpty().mapNotNull { it.toPublicListResult() }
     }
 
-    suspend fun trendingPublicLists(): List<TraktPublicListSearchResult> = loadProminentLists {
-        traktApi.getTrendingLists()
+    /** False until the app's Trakt keys are built in; the Library shows "Not set up yet" then. */
+    val isConfigured: Boolean
+        get() = com.nuvio.tv.BuildConfig.TRAKT_CLIENT_ID.isNotBlank()
+
+    suspend fun trendingPublicLists(page: Int = 1, limit: Int = 20): List<TraktPublicListSearchResult> = loadProminentLists {
+        traktApi.getTrendingLists(page = page, limit = limit)
     }
 
-    suspend fun popularPublicLists(): List<TraktPublicListSearchResult> = loadProminentLists {
-        traktApi.getPopularLists()
+    suspend fun popularPublicLists(page: Int = 1, limit: Int = 20): List<TraktPublicListSearchResult> = loadProminentLists {
+        traktApi.getPopularLists(page = page, limit = limit)
     }
 
     fun parseTraktListId(input: String): Long? {

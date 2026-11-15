@@ -158,6 +158,8 @@ fun LibraryScreen(
             ?.takeUnless { it == LibraryViewMode.Downloads && onDownloadsClick == null }
             ?: LibraryViewMode.Saved
     }
+    val discoverLists = rememberDiscoverListsState()
+    LaunchedEffect(sourceMode) { if (sourceMode == LibraryViewMode.Lists) discoverLists.ensureStarted() }
     var serverShelves by remember { mutableStateOf<List<LibraryServerShelf>?>(null) }
     var serverShelvesRequest by remember { mutableStateOf(0) }
     var selectedProviderId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -391,6 +393,10 @@ fun LibraryScreen(
                             },
                             modifier = Modifier.padding(horizontal = 16.dp),
                         )
+                        if (sourceMode == LibraryViewMode.Saved) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LibraryTrackingPicker(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                     }
                 }
@@ -441,6 +447,13 @@ fun LibraryScreen(
                     onOpenDownload = onOpenDownload,
                     onOpenShow = onOpenDownloadShow,
                     onLongPress = { downloadPendingDelete = it },
+                )
+            } else if (sourceMode == LibraryViewMode.Lists) {
+                libraryDiscoverListsContent(
+                    state = discoverLists,
+                    columns = gridColumns,
+                    onPosterClick = onPreviewClick,
+                    onPosterLongClick = onPreviewLongClick,
                 )
             } else if (sourceMode == LibraryViewMode.Servers) {
                 serverLibraryContent(
@@ -768,7 +781,7 @@ private fun LibrarySourceSwitch(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         LibraryChip(
@@ -788,6 +801,11 @@ private fun LibrarySourceSwitch(
                 onClick = { onModeSelected(LibraryViewMode.Downloads) },
             )
         }
+        LibraryChip(
+            label = "Lists",
+            selected = selectedMode == LibraryViewMode.Lists,
+            onClick = { onModeSelected(LibraryViewMode.Lists) },
+        )
         if (showServers) {
             LibraryChip(
                 label = stringResource(Res.string.library_source_servers),
@@ -1260,6 +1278,7 @@ private enum class LibraryViewMode {
     Cloud,
     Downloads,
     Servers,
+    Lists,
 }
 
 private fun LazyListScope.librarySections(
