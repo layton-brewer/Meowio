@@ -245,7 +245,7 @@ fun LiveTvScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         item(key = "all") {
                             Chip(
-                                label = stringResource(Res.string.live_tv_all),
+                                label = stringResource(Res.string.live_tv_all) + LiveTvController.allCount(state).takeIf { it > 0 }?.let { " · $it" }.orEmpty(),
                                 selected = selection == LiveTvSelection.ALL,
                                 onClick = { selection = LiveTvSelection.ALL },
                             )

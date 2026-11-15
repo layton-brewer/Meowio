@@ -1094,14 +1094,8 @@ final class LiveTVStore: ObservableObject {
     }
 
     /// The group to open first on the built-in channels: the one for the device's country.
-    func preferredGroup() -> String? {
-        guard usingDefault else { return nil }
-        // With the free streaming services loaded, the list opens on All, which starts with them.
-        if allChannels.contains(where: { c in LiveTvDefaults.isService(sources[c.sourceKey]?.url ?? "") }) { return nil }
-        let code = Locale.current.region?.identifier
-        guard let group = LiveTvDefaults.groupForCountry(code), groups.contains(group) else { return nil }
-        return group
-    }
+    /// Live TV always opens on All, so every channel is there from the start.
+    func preferredGroup() -> String? { nil }
 
     func visible(query: String, selection: String) -> [LiveChannel] {
         let needle = query.trimmingCharacters(in: .whitespaces)
@@ -1109,7 +1103,9 @@ final class LiveTVStore: ObservableObject {
             needle.isEmpty || c.name.range(of: needle, options: .caseInsensitive) != nil || c.number.map(String.init) == needle
         }
         var result: [LiveChannel]
-        switch selection {
+        // A search looks through every channel, whatever list is open.
+        let scope = !needle.isEmpty && selection != LiveTvSelection.favorites && selection != LiveTvSelection.recent ? LiveTvSelection.all : selection
+        switch scope {
         case LiveTvSelection.favorites:
             result = channels.filter { favorites.contains($0.id) && matches($0) }
         case LiveTvSelection.recent:
@@ -1141,7 +1137,7 @@ struct LiveTVView: View {
 
     private func title(for selection: String) -> String {
         switch selection {
-        case LiveTvSelection.all: return "All"
+        case LiveTvSelection.all: return live.channels.isEmpty ? "All" : "All · \(live.channels.count - live.copiesInAll.count)"
         case LiveTvSelection.favorites: return "Favorites"
         case LiveTvSelection.recent: return "Recent"
         default: return selection
