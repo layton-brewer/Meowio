@@ -1,4 +1,4 @@
-//go:build !android
+//go:build !android && !ios
 
 package main
 
@@ -59,19 +59,9 @@ func runHelper(in io.Reader, out io.Writer) int {
 	if json.Unmarshal([]byte(line), &request) != nil {
 		return fail(out, "bad request")
 	}
-	profile, err := parseWireGuard(request.Config)
+	tunnel, err := startFromRequest(request.Config, request.ProtectHTTPS, request.Token)
 	if err != nil {
 		return fail(out, err.Error())
-	}
-	uapi, err := profile.uapi()
-	if err != nil {
-		return fail(out, err.Error())
-	}
-	encoded, _ := json.Marshal(tunnelInput{UAPI: uapi, Addresses: profile.plainAddresses(), DNS: profile.dns,
-		MTU: profile.mtu, Token: request.Token, TunnelHTTPS: request.ProtectHTTPS})
-	tunnel, err := newHTTPTunnel(string(encoded))
-	if err != nil {
-		return fail(out, "The Live TV VPN could not connect.")
 	}
 	defer tunnel.close()
 	_ = json.NewEncoder(out).Encode(map[string]int{"port": tunnel.port()})

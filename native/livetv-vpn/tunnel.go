@@ -384,7 +384,6 @@ func (t *httpTunnel) close() {
 	})
 }
 
-
 func (t *httpTunnel) isClosed() bool { t.mu.Lock(); defer t.mu.Unlock(); return t.closed }
 func isLoopback(host string) bool {
 	if strings.EqualFold(host, "localhost") {
