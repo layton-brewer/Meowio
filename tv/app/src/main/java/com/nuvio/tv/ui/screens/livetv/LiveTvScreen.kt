@@ -68,6 +68,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.R
 import com.nuvio.tv.core.livetv.LiveChannel
+import com.nuvio.tv.core.livetv.LivePlaybackProblem
 import com.nuvio.tv.core.livetv.LiveSource
 import com.nuvio.tv.core.livetv.LiveSourceType
 import com.nuvio.tv.core.livetv.LiveTvController
@@ -720,7 +721,9 @@ private fun ChannelBrowser(
                             ChannelCard(
                                 channel = channel,
                                 favorite = channel.id in state.favorites,
-                                nowTitle = if (LiveTvController.isOffline(state, channel)) {
+                                nowTitle = LiveTvController.playbackProblem(state, channel)?.let { problem ->
+                                    stringResource(playbackProblemText(problem))
+                                } ?: if (LiveTvController.isOffline(state, channel)) {
                                     stringResource(R.string.live_tv_not_responding)
                                 } else {
                                     LiveTvController.nowTitle(state, channel)
@@ -905,6 +908,17 @@ private fun GuideCell(
 
 private fun channelTitle(channel: LiveChannel): String =
     channel.number?.let { "$it  ${channel.name}" } ?: channel.name
+
+/** The words shown on a channel that could not be played the last time it was tried. */
+private fun playbackProblemText(problem: LivePlaybackProblem): Int = when (problem) {
+    LivePlaybackProblem.BLOCKED -> R.string.live_tv_problem_blocked
+    LivePlaybackProblem.NOT_FOUND -> R.string.live_tv_problem_not_found
+    LivePlaybackProblem.SERVER_ERROR -> R.string.live_tv_problem_server
+    LivePlaybackProblem.UNREACHABLE -> R.string.live_tv_problem_unreachable
+    LivePlaybackProblem.NOT_A_STREAM -> R.string.live_tv_problem_not_stream
+    LivePlaybackProblem.YOUTUBE_NOT_LIVE -> R.string.live_tv_problem_youtube
+    LivePlaybackProblem.VPN -> R.string.live_tv_problem_vpn
+}
 
 @Composable
 private fun ChannelCard(

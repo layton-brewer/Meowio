@@ -318,3 +318,69 @@ object LiveVpnGuard {
             text.contains("[peer]") && text.contains("publickey") && text.contains("endpoint")
     }
 }
+
+/** Why a Live TV channel did not play, shown on the channel so the user knows what happened. */
+enum class LivePlaybackProblem {
+    /** The server refused it (401/403/451), usually because of the country or a missing login. */
+    BLOCKED,
+    /** The channel is gone from the server (404/410). */
+    NOT_FOUND,
+    /** The server failed (5xx). */
+    SERVER_ERROR,
+    /** The server could not be reached or did not answer in time. */
+    UNREACHABLE,
+    /** The address returned a web page rather than a stream. */
+    NOT_A_STREAM,
+    /** A YouTube channel that is not live right now. */
+    YOUTUBE_NOT_LIVE,
+    /** The Live TV VPN did not connect, so the channel was not opened around it. */
+    VPN,
+    ;
+
+    companion object {
+        fun forStatus(code: Int): LivePlaybackProblem = when (code) {
+            401, 403, 451 -> BLOCKED
+            404, 410 -> NOT_FOUND
+            in 500..599 -> SERVER_ERROR
+            else -> UNREACHABLE
+        }
+    }
+}
+
+/**
+ * YouTube live channels, which many free playlists list by their YouTube page. Players cannot open
+ * a YouTube page, so the page is read for the live stream's HLS address, as IPTV players do.
+ */
+object LiveTvYouTube {
+    /** Headers for reading the page: a desktop browser, with the cookie consent already answered. */
+    val pageHeaders: Map<String, String> = mapOf(
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept-Language" to "en-US,en;q=0.9",
+        "Cookie" to "SOCS=CAI; CONSENT=YES+1",
+    )
+
+    private val HLS = Regex(""""hlsManifestUrl"\s*:\s*"(https:[^"]+)"""")
+
+    fun isYouTube(url: String): Boolean {
+        val host = url.substringAfter("://", "").substringBefore('/').substringBefore('?')
+            .substringBefore(':').lowercase()
+        return host == "youtube.com" || host.endsWith(".youtube.com") || host == "youtu.be"
+    }
+
+    /** The page to read: short youtu.be links and mobile pages become the normal page. */
+    fun pageUrl(url: String): String {
+        val trimmed = url.trim()
+        val afterScheme = trimmed.substringAfter("://")
+        val host = afterScheme.substringBefore('/').lowercase()
+        val path = afterScheme.substringAfter('/', "")
+        return when {
+            host == "youtu.be" -> "https://www.youtube.com/watch?v=" + path.substringBefore('?')
+            host != "www.youtube.com" -> "https://www.youtube.com/$path"
+            else -> trimmed.replaceFirst("http://", "https://")
+        }
+    }
+
+    /** The live stream's HLS address from a YouTube page, or null when it is not live. */
+    fun hlsFrom(page: String): String? = HLS.find(page)?.groupValues?.get(1)
+        ?.replace("\\u0026", "&")?.replace("\\/", "/")
+}

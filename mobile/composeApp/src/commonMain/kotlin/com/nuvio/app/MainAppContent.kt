@@ -1441,25 +1441,27 @@ internal fun MainAppContent(
                                 },
                                 onLibrarySectionViewAllClick = onLibrarySectionViewAllClick,
                                 onLiveChannelPlay = { channel ->
-                                    val liveTarget = com.nuvio.app.features.livetv.LiveTvRepository.playbackTarget(channel)
-                                    val playerLaunch = PlayerLaunch(
-                                        profileId = activePlaybackProfileId,
-                                        title = channel.name,
-                                        sourceUrl = liveTarget.url,
-                                        sourceHeaders = liveTarget.headers,
-                                        logo = channel.logo,
-                                        streamTitle = channel.name,
-                                        streamSubtitle = channel.group,
-                                        providerName = channel.group.orEmpty(),
-                                        contentType = com.nuvio.app.features.livetv.LiveTvContentType,
-                                        parentMetaId = "${com.nuvio.app.features.livetv.LiveTvContentType}:${channel.id}",
-                                        parentMetaType = com.nuvio.app.features.livetv.LiveTvContentType,
-                                    )
-                                    if (playerSettingsUiState.externalPlayerEnabled) {
-                                        coroutineScope.launch { openExternalPlayback(playerLaunch) }
-                                    } else {
-                                        val launchId = PlayerLaunchStore.put(playerLaunch)
-                                        navController.navigate(PlayerRoute(launchId = launchId, title = playerLaunch.title))
+                                    coroutineScope.launch {
+                                        val liveTarget = com.nuvio.app.features.livetv.LiveTvRepository.playbackTarget(channel)
+                                        val playerLaunch = PlayerLaunch(
+                                            profileId = activePlaybackProfileId,
+                                            title = channel.name,
+                                            sourceUrl = liveTarget.url,
+                                            sourceHeaders = liveTarget.headers,
+                                            logo = channel.logo,
+                                            streamTitle = channel.name,
+                                            streamSubtitle = channel.group,
+                                            providerName = channel.group.orEmpty(),
+                                            contentType = com.nuvio.app.features.livetv.LiveTvContentType,
+                                            parentMetaId = "${com.nuvio.app.features.livetv.LiveTvContentType}:${channel.id}",
+                                            parentMetaType = com.nuvio.app.features.livetv.LiveTvContentType,
+                                        )
+                                        if (playerSettingsUiState.externalPlayerEnabled) {
+                                            openExternalPlayback(playerLaunch)
+                                        } else {
+                                            val launchId = PlayerLaunchStore.put(playerLaunch)
+                                            navController.navigate(PlayerRoute(launchId = launchId, title = playerLaunch.title))
+                                        }
                                     }
                                 },
                                 onCloudFilePlay = { item, file ->

@@ -427,6 +427,13 @@
     <string name="backup_restored">Backup restored</string>
     <string name="backup_restore_failed">That file is not a backup from this app</string>
     <string name="live_tv_not_responding">Not responding right now</string>
+    <string name="live_tv_problem_blocked">Couldn\'t play: the provider refused (blocked or region locked)</string>
+    <string name="live_tv_problem_not_found">Couldn\'t play: the stream no longer exists</string>
+    <string name="live_tv_problem_server">Couldn\'t play: the provider\'s server had an error</string>
+    <string name="live_tv_problem_unreachable">Couldn\'t play: the stream didn\'t answer</string>
+    <string name="live_tv_problem_not_stream">Couldn\'t play: the link opens a web page, not a stream</string>
+    <string name="live_tv_problem_youtube">Couldn\'t play: this YouTube channel isn\'t live now</string>
+    <string name="live_tv_problem_vpn">Couldn\'t play: the Live TV VPN isn\'t connected</string>
     <string name="player_quality">Video quality</string>
     <string name="player_quality_auto">Auto</string>
     <string name="ai_title">AI assistant</string>

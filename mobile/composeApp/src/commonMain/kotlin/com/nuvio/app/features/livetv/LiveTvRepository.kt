@@ -4,6 +4,7 @@ import com.nuvio.app.features.addons.httpRequestRaw
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -36,8 +37,30 @@ object LiveTvRepository {
     fun ensureLoaded() = controller.start()
 
     /** What the player should open for [channel], with backup copies and the Live TV VPN applied. */
-    fun playbackTarget(channel: LiveChannel): LiveTvPlaybackTarget =
-        liveTvPlaybackTarget(channel, controller.alternatesFor(channel), controller.state.value.vpn)
+    suspend fun playbackTarget(channel: LiveChannel): LiveTvPlaybackTarget {
+        val target = withContext(Dispatchers.Default) {
+            liveTvPlaybackTarget(channel, controller.alternatesFor(channel), controller.state.value.vpn)
+        }
+        // Where there is no relay (iPhone and iPad), a YouTube page is turned into its live stream here.
+        if (target.url != channel.url || !LiveTvYouTube.isYouTube(channel.url)) return target
+        val hls = youTubeStream(channel.url)
+        controller.reportPlayback(channel.id, if (hls == null) LivePlaybackProblem.YOUTUBE_NOT_LIVE else null)
+        return if (hls == null) target else LiveTvPlaybackTarget(hls, emptyMap())
+    }
+
+    private suspend fun youTubeStream(url: String): String? {
+        val response = runCatching {
+            httpRequestRaw(
+                method = "GET",
+                url = LiveTvYouTube.pageUrl(url),
+                headers = LiveTvYouTube.pageHeaders,
+                body = "",
+                maxResponseBodyBytes = MAX_TEXT_BYTES,
+            )
+        }.getOrNull() ?: return null
+        if (response.status !in 200..299) return null
+        return LiveTvYouTube.hlsFrom(response.body)
+    }
 
     val wireGuardAvailable: Boolean get() = liveTvWireGuardAvailable()
 

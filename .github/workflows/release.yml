@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.16 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.17 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.16 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.17 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,12 +256,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.16"
+          tag="v0.2.17"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.16
+          ## What's new in 0.2.17
 
-          - **Trakt, Simkl and MDBList** are back in Settings > Tracking in every app. Until sign-in is set up they show a plain "Not set up yet" note with Connect turned off, and they connect normally once the keys are in the build.
-          - Your Meowio library and Continue Watching sync are not affected.
+          - **More Live TV channels play.** YouTube channels in playlists now play their live stream instead of failing, on every app.
+          - Channels whose servers refuse the player's first quick check no longer get skipped as broken.
+          - When a channel sends back a web page (a block or error page) instead of video, Meowio moves on to a backup copy of the channel.
+          - **Clear reasons when a channel can't play.** The channel list now says why, such as blocked or region locked, the stream no longer exists, the server had an error, the stream didn't answer, the YouTube channel isn't live, or the Live TV VPN isn't connected.
 
           ## Download
 
