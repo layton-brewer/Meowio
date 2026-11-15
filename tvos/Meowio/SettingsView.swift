@@ -114,6 +114,7 @@ struct SettingsView: View {
                 Section("Player") {
                     Toggle("Show Skip Intro on intro and recap chapters", isOn: $settings.skipIntro)
                     Toggle("Show Next Episode near the end", isOn: $settings.upNextCard)
+                    Toggle("Play trailers behind the Home header", isOn: $settings.heroTrailers)
                     Picker("Audio language", selection: $settings.audioLanguage) {
                         Text("File default").tag("")
                         ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
