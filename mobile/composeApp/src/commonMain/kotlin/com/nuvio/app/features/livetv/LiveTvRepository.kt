@@ -102,7 +102,7 @@ object LiveTvRepository {
             httpRequestRaw(
                 method = "GET",
                 url = url,
-                headers = emptyMap(),
+                headers = mapOf("User-Agent" to LiveTvDefaults.DOWNLOAD_USER_AGENT),
                 body = "",
                 maxResponseBodyBytes = MAX_TEXT_BYTES,
             )

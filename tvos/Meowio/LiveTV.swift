@@ -545,6 +545,63 @@ enum XmltvParser {
     }
 }
 
+/// Links guide channels to playlist channels: by tvg-id first, then by name, comparing the
+/// guide's display names and its id read as a name ("Buzzr.us" is "buzzr") with the channel's.
+enum GuideMatcher {
+    /// Lower-case guide id to the playlist channel ids it belongs to.
+    static func links(_ xml: String, channels: [LiveChannel]) -> [String: [String]] {
+        var byId: [String: [String]] = [:]
+        var byName: [String: [String]] = [:]
+        for c in channels {
+            if let gid = c.guideId?.trimmingCharacters(in: .whitespaces).lowercased(), !gid.isEmpty {
+                byId[gid, default: []].append(c.id)
+            }
+            for key in Set([normalize(c.name), c.guideId.map(idName) ?? ""]) where key.count >= 3 {
+                byName[key, default: []].append(c.id)
+            }
+        }
+        var links: [String: [String]] = [:]
+        var named: [String: [String]] = [:]
+        var claimed = Set<String>()
+        let ns = xml as NSString
+        let channelRx = try? NSRegularExpression(pattern: #"<channel\b[^>]*\bid\s*=\s*"([^"]*)"[^>]*(?<!/)>(.*?)</channel>"#, options: [.dotMatchesLineSeparators])
+        let nameRx = try? NSRegularExpression(pattern: #"<display-name\b[^>]*>(.*?)</display-name>"#, options: [.dotMatchesLineSeparators])
+        for m in channelRx?.matches(in: xml, range: NSRange(location: 0, length: ns.length)) ?? [] {
+            let id = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces).lowercased()
+            if let ids = byId[id] { links[id] = ids; claimed.formUnion(ids); continue }
+            let body = ns.substring(with: m.range(at: 2))
+            let bodyNS = body as NSString
+            var keys = Set([idName(id)])
+            for n in nameRx?.matches(in: body, range: NSRange(location: 0, length: bodyNS.length)) ?? [] {
+                keys.insert(normalize(bodyNS.substring(with: n.range(at: 1))))
+            }
+            let ids = keys.filter { $0.count >= 3 }.flatMap { byName[$0] ?? [] }
+            if !ids.isEmpty { named[id] = Array(Set(ids)) }
+        }
+        // Channels matched by id keep that guide; the rest take a guide matched by name.
+        for (id, ids) in named {
+            let left = ids.filter { !claimed.contains($0) }
+            if !left.isEmpty { links[id] = left }
+        }
+        // A guide without a channel list: its ids are the only thing to go by.
+        if links.isEmpty { for (id, ids) in byId { links[id] = ids } }
+        return links
+    }
+
+    static func normalize(_ name: String) -> String {
+        var text = name.lowercased().trimmingCharacters(in: .whitespaces)
+        for pattern in [#"^[a-z]{2,3}\s*[:|]\s*"#, #"\[.*?\]|\(.*?\)"#, #"\b(fhd|uhd|hd|sd|4k|8k|hevc|h265|h264|1080p|720p|backup|raw)\b"#] {
+            text = text.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+        }
+        return String(text.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) && !(0x2460...0x24FF).contains($0.value) }.map(Character.init))
+    }
+
+    static func idName(_ id: String) -> String {
+        normalize(id.trimmingCharacters(in: .whitespaces)
+            .replacingOccurrences(of: #"(\.(com|co|net|tv))?\.[a-z]{2}\d?$"#, with: "", options: [.regularExpression, .caseInsensitive]))
+    }
+}
+
 // MARK: - Loading
 
 enum LiveNetwork {
@@ -565,7 +622,9 @@ enum LiveNetwork {
 
     /// Reads a (possibly gzip-compressed) guide file as text, within a size limit.
     static func guideText(_ urlString: String) async -> String? {
-        guard var data = await data(urlString, timeout: 60), data.count < 80_000_000 else { return nil }
+        // A browser agent, as NuvioPlusIPTV sends: some guide hosts refuse others.
+        let agent = ["User-Agent": "Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"]
+        guard var data = await data(urlString, timeout: 60, headers: agent), data.count < 80_000_000 else { return nil }
         if data.count > 2, data[data.startIndex] == 0x1f, data[data.startIndex + 1] == 0x8b {
             guard let inflated = gunzip(data) else { return nil }
             data = inflated
@@ -779,17 +838,21 @@ final class LiveTVStore: ObservableObject {
     }
 
     private static func readGuides(_ urls: [String], channels: [LiveChannel]) async -> [String: LiveNowNext] {
-        let wanted = Set(channels.compactMap { $0.guideId?.lowercased() })
-        if urls.isEmpty || wanted.isEmpty { return [:] }
-        var byGuide: [String: LiveNowNext] = [:]
+        if urls.isEmpty || channels.isEmpty { return [:] }
+        var result: [String: LiveNowNext] = [:]
         for url in urls {
             guard let text = await LiveNetwork.guideText(url) else { continue }
-            let parsed = await Task.detached { XmltvParser.parseNowNext(text, now: Date(), wanted: wanted) }.value
-            for (k, v) in parsed where byGuide[k] == nil { byGuide[k] = v }
-        }
-        var result: [String: LiveNowNext] = [:]
-        for channel in channels {
-            if let gid = channel.guideId?.lowercased(), let entry = byGuide[gid] { result[channel.id] = entry }
+            let found = await Task.detached { () -> [String: LiveNowNext] in
+                // Match guide channels by tvg-id, then by name, as the other apps do.
+                let links = GuideMatcher.links(text, channels: channels)
+                let parsed = XmltvParser.parseNowNext(text, now: Date(), wanted: Set(links.keys))
+                var out: [String: LiveNowNext] = [:]
+                for (guideId, entry) in parsed {
+                    for channelId in links[guideId] ?? [] where out[channelId] == nil { out[channelId] = entry }
+                }
+                return out
+            }.value
+            for (k, v) in found where result[k] == nil { result[k] = v }
         }
         return result
     }
@@ -804,7 +867,7 @@ final class LiveTVStore: ObservableObject {
     /// Loads the guide for one group of a worldwide playlist the first time that group is opened.
     func requestGroupGuide(_ group: String) {
         guard let list = playlist else { return }
-        guard usingDefault, let effective = sources.values.first, Self.hasGuidePerGroup(effective, list), groupGuideRequested.insert(group).inserted,
+        guard let effective = sources.values.first, Self.hasGuidePerGroup(effective, list), groupGuideRequested.insert(group).inserted,
               let url = LiveTvDefaults.guideUrl(forGroup: group, in: list.guideUrls) else { return }
         let members = list.channels.filter { $0.group == group }
         Task {
