@@ -46,6 +46,8 @@ struct Artwork: View {
 struct Backdrop: View {
     let url: URL?
     let background: Color
+    /// When set, this title's trailer plays muted over the art after a short pause (Home's header).
+    var trailerFor: MetaItem? = nil
 
     var body: some View {
         ZStack {
@@ -55,6 +57,7 @@ struct Backdrop: View {
                     .id(url)
                     .transition(.opacity)
             }
+            if let trailerFor { HeroTrailerLayer(item: trailerFor).id(trailerFor.id) }
             LinearGradient(colors: [background, background.opacity(0.75), background.opacity(0.15)],
                            startPoint: .leading, endPoint: .trailing)
             LinearGradient(colors: [.clear, background.opacity(0.6), background],
@@ -314,7 +317,8 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Backdrop(url: backdropItem?.backgroundURL, background: settings.theme.background)
+                Backdrop(url: backdropItem?.backgroundURL, background: settings.theme.background,
+                         trailerFor: settings.heroTrailers && focusedItem == nil ? featured : nil)
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 20) {
                         if let featured {

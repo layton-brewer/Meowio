@@ -140,3 +140,78 @@ struct TrailerPlayerView: UIViewControllerRepresentable {
         vc.player = nil
     }
 }
+
+/// The Home header's trailer: starts a couple of seconds after the title appears, plays muted over its art, loops,
+/// and fades in only once video is really playing. Nothing shows when no playable trailer is found.
+struct HeroTrailerLayer: View {
+    let item: MetaItem
+    @StateObject private var model = HeroTrailerModel()
+
+    var body: some View {
+        HeroTrailerSurface(player: model.player)
+            .opacity(model.ready ? 1 : 0)
+            .animation(.easeInOut(duration: 0.8), value: model.ready)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .task { await model.start(for: item) }
+            .onDisappear { model.stop() }
+    }
+}
+
+@MainActor
+final class HeroTrailerModel: ObservableObject {
+    let player = AVPlayer()
+    @Published var ready = false
+    private var observers: [NSObjectProtocol] = []
+    private var statusObserver: NSKeyValueObservation?
+
+    func start(for item: MetaItem) async {
+        player.isMuted = true
+        try? await Task.sleep(nanoseconds: 2_500_000_000)
+        if Task.isCancelled { return }
+        guard let url = await Trailers.playableURL(for: item), !Task.isCancelled else { return }
+        let playerItem = AVPlayerItem(url: url)
+        statusObserver = playerItem.observe(\.status) { [weak self] it, _ in
+            Task { @MainActor in
+                if it.status == .readyToPlay { self?.ready = true }
+                else if it.status == .failed { self?.ready = false }
+            }
+        }
+        observers.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: playerItem,
+                                                                 queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.player.seek(to: .zero)
+                self?.player.play()
+            }
+        })
+        player.replaceCurrentItem(with: playerItem)
+        player.play()
+    }
+
+    func stop() {
+        ready = false
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+        statusObserver = nil
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.removeAll()
+    }
+}
+
+struct HeroTrailerSurface: UIViewRepresentable {
+    let player: AVPlayer
+
+    final class PlayerView: UIView {
+        override static var layerClass: AnyClass { AVPlayerLayer.self }
+        var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+    }
+
+    func makeUIView(context: Context) -> PlayerView {
+        let v = PlayerView()
+        v.playerLayer.player = player
+        v.playerLayer.videoGravity = .resizeAspectFill
+        return v
+    }
+
+    func updateUIView(_ uiView: PlayerView, context: Context) {}
+}
