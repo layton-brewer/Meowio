@@ -436,17 +436,84 @@ struct SearchView: View {
 struct LibraryView: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var settings: SettingsStore
+    @EnvironmentObject var trakt: TraktStore
+    @EnvironmentObject var simkl: SimklStore
+    @EnvironmentObject var mdblist: MDBListStore
+    /// "all", "meowio", "trakt", "simkl" or "mdblist".
+    @State private var showing = "all"
+
+    private struct Service: Identifiable {
+        let id: String
+        let name: String
+        let connected: Bool
+    }
+
+    /// Meowio's own list is always there; the others show "Not set up yet" until they are connected.
+    private var services: [Service] {
+        [Service(id: "meowio", name: "Meowio", connected: true),
+         Service(id: "trakt", name: "Trakt", connected: trakt.connected),
+         Service(id: "simkl", name: "Simkl", connected: simkl.connected),
+         Service(id: "mdblist", name: "MDBList", connected: mdblist.connected)]
+    }
+
+    private func name(_ id: String) -> String {
+        id == "all" ? "All services" : (services.first { $0.id == id }?.name ?? "Meowio")
+    }
+
+    private var visible: [MetaItem] {
+        switch showing {
+        case "all": return library.saved
+        case "meowio": return library.saved.filter { (library.savedSources[$0.id] ?? []).isEmpty }
+        default: return library.saved.filter { (library.savedSources[$0.id] ?? []).contains(showing) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
-                    Text("Library").font(.largeTitle.bold()).padding(.leading, 60)
-                    ContinueShelf()
-                    Shelf(title: "Saved Movies", items: library.saved.filter { $0.type == "movie" })
-                    Shelf(title: "Saved Series", items: library.saved.filter { $0.type != "movie" })
-                    if library.saved.isEmpty && library.continueWatching.isEmpty {
-                        Text("Save titles from their detail page and they will show up here.").padding(60)
+                    HStack(spacing: 30) {
+                        Text("Library").font(.largeTitle.bold())
+                        Spacer()
+                        NavigationLink { DiscoverListsView() } label: {
+                            Label("Popular lists", systemImage: "list.star")
+                        }
+                        Menu {
+                            Button { showing = "all" } label: {
+                                Label("All services", systemImage: showing == "all" ? "checkmark" : "square.stack")
+                            }
+                            ForEach(services) { s in
+                                Button { if s.connected { showing = s.id } } label: {
+                                    Label(s.connected ? s.name : "\(s.name) · Not set up yet",
+                                          systemImage: showing == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
+                                }
+                                .disabled(!s.connected)
+                            }
+                        } label: {
+                            Label("Show: \(name(showing))", systemImage: "line.3.horizontal.decrease.circle")
+                        }
+                        Menu {
+                            ForEach(services) { s in
+                                Button { if s.connected { library.primaryService = s.id } } label: {
+                                    Label(s.connected ? s.name : "\(s.name) · Not set up yet",
+                                          systemImage: library.primaryService == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
+                                }
+                                .disabled(!s.connected)
+                            }
+                        } label: {
+                            Label("Primary: \(name(library.primaryService))", systemImage: "star")
+                        }
+                    }
+                    .padding(.horizontal, 60)
+                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
+                        .font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
+                    if showing == "all" { ContinueShelf() }
+                    Shelf(title: "Saved Movies", items: visible.filter { $0.type == "movie" })
+                    Shelf(title: "Saved Series", items: visible.filter { $0.type != "movie" })
+                    if visible.isEmpty && (showing != "all" || library.continueWatching.isEmpty) {
+                        Text(showing == "all"
+                             ? "Save titles from their detail page and they will show up here."
+                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(60)
                     }
                 }
             }
