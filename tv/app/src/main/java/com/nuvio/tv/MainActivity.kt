@@ -51,6 +51,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1099,6 +1100,7 @@ open class MainActivity : ComponentActivity() {
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             if (liveTvTabVisible) add(Screen.LiveTv.route)
+                            add(Screen.Zap.route)
                             add(Screen.Settings.route)
                             if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(Screen.Discover.route)
@@ -1162,6 +1164,13 @@ open class MainActivity : ComponentActivity() {
                                     )
                                 )
                             }
+                            add(
+                                DrawerItem(
+                                    route = Screen.Zap.route,
+                                    label = "Zap",
+                                    icon = Icons.Default.Bolt
+                                )
+                            )
                             add(
                                 DrawerItem(
                                     route = Screen.Settings.route,

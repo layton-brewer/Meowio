@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,6 +97,15 @@ fun SearchScreen(
     searchFocusRequestCount: Int = 0,
     scrollToTopRequests: Flow<Unit> = emptyFlow(),
 ) {
+    var zapOpen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    if (zapOpen) {
+        com.nuvio.app.features.zap.ZapScreen(
+            onClose = { zapOpen = false },
+            onOpenTitle = { onPosterClick?.invoke(it) },
+            modifier = modifier.fillMaxSize(),
+        )
+        return
+    }
     val focusRequester = remember { FocusRequester() }
     var isSearchFocused by remember { mutableStateOf(false) }
 
@@ -270,6 +280,15 @@ fun SearchScreen(
                 ) {
                     NuvioScreenHeader(
                         title = headerTitle,
+                        actions = {
+                            IconButton(onClick = { zapOpen = true }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Bolt,
+                                    contentDescription = "Zap a random title",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(6.dp))
