@@ -30,12 +30,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -55,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.Chip
 import com.nuvio.app.core.ui.PlatformBackHandler
+import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryRepository
@@ -122,6 +125,7 @@ fun ZapScreen(
     val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val background = MaterialTheme.colorScheme.background
 
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onBackground) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -147,10 +151,11 @@ fun ZapScreen(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            0f to background.copy(alpha = 0.35f),
-                            0.35f to Color.Transparent,
-                            0.62f to background.copy(alpha = 0.85f),
-                            1f to background,
+                            0f to Color.Black.copy(alpha = 0.55f),
+                            0.30f to Color.Transparent,
+                            0.50f to Color.Black.copy(alpha = 0.55f),
+                            0.72f to Color.Black.copy(alpha = 0.88f),
+                            1f to Color.Black,
                         ),
                     ),
             )
@@ -159,9 +164,10 @@ fun ZapScreen(
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .padding(bottom = 96.dp),
+                    .padding(bottom = nuvioSafeBottomPadding(20.dp)),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+              CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Text(
                     text = title.name,
                     style = MaterialTheme.typography.headlineLarge,
@@ -239,6 +245,7 @@ fun ZapScreen(
                             },
                     )
                 }
+              }
             }
         }
 
@@ -322,6 +329,7 @@ fun ZapScreen(
             )
         }
     }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -358,7 +366,7 @@ private fun ZapFilterPanel(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(top = statusTop + 12.dp, bottom = 96.dp),
+                .padding(top = statusTop + 12.dp, bottom = nuvioSafeBottomPadding(96.dp)),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("Zap filters", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -481,7 +489,8 @@ private fun ZapFilterPanel(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(horizontal = 20.dp)
+                .padding(top = 14.dp, bottom = nuvioSafeBottomPadding(14.dp)),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             OutlinedButton(onClick = { draft = ZapFilters() ; fromText = ""; toText = "" }) { Text("Reset") }
