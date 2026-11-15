@@ -190,8 +190,8 @@ fun ZapScreen(
             ) {
                 Text(
                     text = when (state.empty) {
-                        ZapEmpty.NO_KEY -> "Zap needs a TMDB key, and this build doesn't have one."
-                        ZapEmpty.OFFLINE -> "Couldn't reach TMDB. Check your connection."
+                        ZapEmpty.NO_SOURCES -> "Zap draws from your add-ons' catalogs. Install a catalog add-on and try again."
+                        ZapEmpty.OFFLINE -> "Couldn't load titles. Check your connection."
                         else -> "Nothing matches those filters. Try loosening them."
                     },
                     style = MaterialTheme.typography.bodyLarge,
@@ -271,7 +271,7 @@ private fun ZapFilterPanel(
             }
         }
 
-        Label("Actors (any of the ones you pick)")
+        Label("Actors (any of the ones you add; matched by your add-ons' search)")
         if (draft.people.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 draft.people.forEach { person ->
@@ -285,9 +285,17 @@ private fun ZapFilterPanel(
             placeholder = "Search for an actor",
             modifier = Modifier.fillMaxWidth(0.6f)
         )
-        val visible = suggestions.filter { s -> draft.people.none { it.id == s.id } }
-        if (visible.isNotEmpty()) {
+        val typed = actorQuery.trim()
+        val visible = suggestions.filter { s -> draft.people.none { it.name.equals(s.name, ignoreCase = true) } }
+        if (typed.length >= 2 || visible.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (typed.length >= 2 && draft.people.none { it.name.equals(typed, ignoreCase = true) }) {
+                    Pill("Add \"$typed\"", false) {
+                        draft = draft.copy(people = draft.people + ZapPerson(0, typed))
+                        actorQuery = ""
+                        onClearSuggestions()
+                    }
+                }
                 visible.forEach { person ->
                     Pill(person.name, false) {
                         draft = draft.copy(people = draft.people + person)
