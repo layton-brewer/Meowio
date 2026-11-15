@@ -53,6 +53,7 @@ class LiveTvRepository @Inject constructor(
         loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis, streamText = ::streamText),
         scope = scope,
         defaultSources = LiveTvDefaults.builtInSources(java.util.Locale.getDefault().country),
+        homeGroup = LiveTvDefaults.groupForCountry(java.util.Locale.getDefault().country) ?: "USA",
         probe = ::answers
     )
 

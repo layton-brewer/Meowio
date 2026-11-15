@@ -53,6 +53,7 @@ object LiveTvRepository {
         ),
         scope = scope,
         defaultSources = LiveTvDefaults.builtInSources(liveTvCountryCode()),
+        homeGroup = LiveTvDefaults.groupForCountry(liveTvCountryCode()) ?: "USA",
         probe = { channel -> liveTvStreamAnswers(channel.url, channel.headers) },
     )
 

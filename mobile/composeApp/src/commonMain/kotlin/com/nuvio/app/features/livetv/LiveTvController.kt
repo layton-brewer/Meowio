@@ -82,6 +82,11 @@ class LiveTvController(
      * Free-TV and iptv-org for the device's country, merged into one list.
      */
     private val defaultSources: List<LiveSource> = LiveTvDefaults.builtInSources(null),
+    /**
+     * The built-in group listed first: the device country's (USA in the US). The other countries
+     * follow in their usual order.
+     */
+    private val homeGroup: String? = "USA",
     /** Whether a channel's stream answers: true, false, or null when that cannot be told. */
     private val probe: (suspend (LiveChannel) -> Boolean?)? = null,
 ) {
@@ -461,7 +466,7 @@ class LiveTvController(
                 channelKeys = withContext(Dispatchers.Default) { everyChannel.associate { it.id to LiveTvVariants.key(it.name) } }
                 // The built-in sources carry many of the same channels: list each once per group and
                 // keep the other copies as backups for when it does not play.
-                val shown = if (_state.value.usingDefault) mergedCopies(everyChannel, channelKeys) else everyChannel
+                val shown = if (_state.value.usingDefault) homeFirst(mergedCopies(everyChannel, channelKeys)) else everyChannel
                 val groups = LiveTvFilters.groups(shown)
                 val copies = if (_state.value.usingDefault) laterCopies(shown, channelKeys) else emptySet()
                 val accounts = loaded.mapNotNull { (source, list) -> list.account?.let { source.key to it } }.toMap()
@@ -497,6 +502,13 @@ class LiveTvController(
                 fail(LiveTvError.NETWORK)
             }
         }
+    }
+
+    /** [channels] with the home country's group moved to the front, keeping every other order. */
+    private fun homeFirst(channels: List<LiveChannel>): List<LiveChannel> {
+        val home = homeGroup ?: return channels
+        val (first, rest) = channels.partition { it.group == home }
+        return first + rest
     }
 
     /** [channels] with later copies of a channel in the same group left out. */
