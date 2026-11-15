@@ -53,3 +53,6 @@ commonMain/kotlin/com/nuvio/app/features/party/PartyRepository.kt
 commonMain/kotlin/com/nuvio/app/features/servers/mediabrowser/MediaBrowserProvider.kt
 commonMain/kotlin/com/nuvio/app/features/servers/mediabrowser/MediaBrowserClient.kt
 commonMain/kotlin/com/nuvio/app/core/i18n/LocalizedUiText.kt
+commonMain/kotlin/com/nuvio/app/features/zap/ZapModels.kt
+commonMain/kotlin/com/nuvio/app/features/zap/ZapRepository.kt
+commonMain/kotlin/com/nuvio/app/features/zap/ZapScreen.kt
