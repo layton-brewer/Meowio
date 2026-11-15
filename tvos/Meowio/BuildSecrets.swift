@@ -5,5 +5,7 @@ enum BuildSecrets {
     static let supabaseAnonKey = ""
     static let traktClientId = ""
     static let traktClientSecret = ""
+    static let simklClientId = ""
+    static let introDbURL = ""
     static let tmdbApiKey = ""
 }
