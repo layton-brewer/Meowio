@@ -15,6 +15,7 @@ Meowio would not exist without the work of the Nuvio team and the open-source pr
 | Default Live TV channel list | [Free-TV/IPTV](https://github.com/Free-TV/IPTV) | see that project |
 | Live TV playlists, guide, backup-channel failover and the Live TV VPN (ideas and design) | [NuvioPlusIPTV](https://github.com/homelessbrian/NuvioPlusIPTV) by homelessbrian, VPN design by ghbarker | GPL-3.0 |
 | Live TV VPN WireGuard engine (`native/livetv-vpn`) and profile checks | NuvioPlusIPTV's VPN by ghbarker (`vpn-android/native`), on [wireguard-go](https://git.zx2c4.com/wireguard-go), [gVisor](https://github.com/google/gvisor) netstack and the [WireGuard Android](https://git.zx2c4.com/wireguard-android) config parser | GPL-3.0 / MIT / Apache-2.0 |
+| TV Apps page and Home-app registration (idea only, own implementation) | [NuvioTVLauncher](https://github.com/Br0ck25/NuvioTVLauncher) by Br0ck25 | GPL-3.0 |
 | Audio decoder downmix module (`tv/ffmpeg-decoder-downmix`) | AndroidX Media3 `decoder_ffmpeg`, Kodi | Apache-2.0 / GPL-2.0+ (see `NOTICE.md` there) |
 
 Meowio also builds on many third-party libraries (AndroidX, Media3/ExoPlayer, Jetpack Compose, Kotlin, Ktor, Coil and others) under their own licenses. The apps list them under **Settings > About > Licenses and attributions**.

@@ -1269,6 +1269,10 @@ private fun PlaybackNavHost(
             )
         }
 
+        rootComposable(Screen.Apps.route) {
+            com.nuvio.tv.ui.screens.apps.AppsScreen()
+        }
+
         rootComposable(Screen.LiveTv.route) {
             com.nuvio.tv.ui.screens.livetv.LiveTvScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
