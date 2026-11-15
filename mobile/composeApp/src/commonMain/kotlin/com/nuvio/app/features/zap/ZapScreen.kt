@@ -115,7 +115,7 @@ fun ZapScreen(
     }
     LaunchedEffect(current?.key) {
         val title = current ?: return@LaunchedEffect
-        saved = runCatching { LibraryRepository.isSaved(title.imdbId, title.type) }.getOrDefault(false)
+        saved = runCatching { LibraryRepository.isSaved(title.id, title.type) }.getOrDefault(false)
     }
 
     PlatformBackHandler(enabled = true) {
@@ -223,7 +223,7 @@ fun ZapScreen(
                         onClick = {
                             scope.launch {
                                 runCatching { LibraryRepository.toggleSaved(title.toLibraryItem()) }
-                                saved = runCatching { LibraryRepository.isSaved(title.imdbId, title.type) }
+                                saved = runCatching { LibraryRepository.isSaved(title.id, title.type) }
                                     .getOrDefault(saved)
                             }
                         },
@@ -258,8 +258,8 @@ fun ZapScreen(
             ) {
                 Text(
                     text = when (empty) {
-                        ZapEmpty.NoKey -> "Zap needs a TMDB key. Add one under Settings, TMDB."
-                        ZapEmpty.Offline -> "Couldn't reach TMDB. Check your connection."
+                        ZapEmpty.NoSources -> "Zap draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
+                        ZapEmpty.Offline -> "Couldn't load titles. Check your connection."
                         else -> "Nothing matches those filters. Try loosening them."
                     },
                     style = MaterialTheme.typography.bodyLarge,
@@ -435,7 +435,7 @@ private fun ZapFilterPanel(
                 }
             }
 
-            FilterLabel("Actors (any of the ones you pick)")
+            FilterLabel("Actors (any of the ones you add; matched by your add-ons' search)")
             if (draft.people.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     draft.people.forEach { person ->
@@ -454,9 +454,21 @@ private fun ZapFilterPanel(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (suggestions.isNotEmpty()) {
+            val typed = actorQuery.trim()
+            if (typed.length >= 2 || suggestions.isNotEmpty()) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    suggestions.filter { s -> draft.people.none { it.id == s.id } }.forEach { person ->
+                    if (typed.length >= 2 && draft.people.none { it.name.equals(typed, ignoreCase = true) }) {
+                        Chip(
+                            label = "Add \"$typed\"",
+                            selected = false,
+                            onClick = {
+                                draft = draft.copy(people = draft.people + ZapPerson(0, typed))
+                                actorQuery = ""
+                                suggestions = emptyList()
+                            },
+                        )
+                    }
+                    suggestions.filter { s -> draft.people.none { it.name.equals(s.name, ignoreCase = true) } }.forEach { person ->
                         Chip(
                             label = person.name,
                             selected = false,
@@ -519,7 +531,7 @@ private fun zapMetaLine(title: ZapTitle): String = buildList {
 }.joinToString("  ·  ")
 
 private fun ZapTitle.toPreview(): MetaPreview = MetaPreview(
-    id = imdbId,
+    id = id,
     type = type,
     name = name,
     poster = poster,
@@ -531,7 +543,7 @@ private fun ZapTitle.toPreview(): MetaPreview = MetaPreview(
 )
 
 private fun ZapTitle.toLibraryItem(): LibraryItem = LibraryItem(
-    id = imdbId,
+    id = id,
     type = type,
     name = name,
     poster = poster,
@@ -540,7 +552,6 @@ private fun ZapTitle.toLibraryItem(): LibraryItem = LibraryItem(
     releaseInfo = year,
     imdbRating = rating?.let { (kotlin.math.round(it * 10) / 10.0).toString() },
     genres = genres,
-    imdbId = imdbId,
-    tmdbId = tmdbId,
+    imdbId = id.takeIf { it.startsWith("tt") },
     savedAtEpochMs = 0L,
 )

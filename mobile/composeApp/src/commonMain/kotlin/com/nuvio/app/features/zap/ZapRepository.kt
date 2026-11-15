@@ -1,221 +1,242 @@
 package com.nuvio.app.features.zap
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.features.addons.AddonCatalog
+import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
+import com.nuvio.app.features.catalog.fetchCatalogPage
+import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watched.WatchedRepository
+import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
 /** Why [ZapPool.next] returned nothing, so the screen can say something useful. */
-enum class ZapEmpty { NoKey, NoMatches, Offline }
+enum class ZapEmpty { NoSources, NoMatches, Offline }
 
 sealed interface ZapResult {
     data class Found(val title: ZapTitle) : ZapResult
     data class Empty(val reason: ZapEmpty) : ZapResult
 }
 
-private data class ZapCandidate(val tmdbId: Int, val isSeries: Boolean) {
-    val key: String get() = "${if (isSeries) "tv" else "movie"}:$tmdbId"
+/** One browsable catalog of one of the user's add-ons. */
+private data class ZapSource(
+    val manifestUrl: String,
+    val type: String,
+    val catalogId: String,
+    val genreOptions: List<String>,
+    val supportsSkip: Boolean,
+    val supportsSearch: Boolean,
+) {
+    val key: String get() = "$manifestUrl|$type|$catalogId"
 }
 
+private const val CINEMETA_MANIFEST = "https://v3-cinemeta.strem.io/manifest.json"
+private const val MAX_PAGE_INDEX = 9
+
 /**
- * A shuffled supply of random titles for one set of [ZapFilters]. Create a new one whenever the
- * filters change. It pulls random pages from TMDB discover (or from the chosen actors' credits),
- * hands out one title at a time and never repeats a title within its own lifetime.
+ * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
+ * add-ons the user has installed (the same ones Home and Search use). Needs no TMDB key.
+ * Make a new one whenever the filters change; it never repeats a title.
  */
 class ZapPool(private val filters: ZapFilters) {
     private val log = Logger.withTag("ZapPool")
-    private val queue = ArrayDeque<ZapCandidate>()
+    private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
-    private val totalPages = HashMap<Boolean, Int>()
-    private val triedPages = HashMap<Boolean, MutableSet<Int>>()
-    private var creditsLoaded = false
+    private val pageSize = HashMap<String, Int>()
+    private val triedPages = HashMap<String, MutableSet<Int>>()
+    private val lastPage = HashMap<String, Int>()
+    private val searched = HashSet<String>()
     private var failures = 0
+    private var sources: List<ZapSource>? = null
 
     suspend fun next(): ZapResult {
-        val apiKey = TmdbSettingsRepository.effectiveApiKey()
-        if (apiKey.isBlank()) return ZapResult.Empty(ZapEmpty.NoKey)
-        var attempts = 0
-        while (attempts < 40) {
-            if (queue.isEmpty()) {
-                refill(apiKey)
-                if (queue.isEmpty()) {
-                    return ZapResult.Empty(if (failures > 0) ZapEmpty.Offline else ZapEmpty.NoMatches)
-                }
+        val all = sources ?: loadSources().also { sources = it }
+        if (all.isEmpty()) return ZapResult.Empty(ZapEmpty.NoSources)
+        var refills = 0
+        while (refills <= 14) {
+            while (queue.isNotEmpty()) {
+                val item = queue.removeFirst()
+                if (!seen.add("${item.type}:${item.id}")) continue
+                if (filters.hideWatched && isWatched(item)) continue
+                return ZapResult.Found(item.toZapTitle())
             }
-            val candidate = queue.removeFirst()
-            if (!seen.add(candidate.key)) continue
-            attempts++
-            val title = loadTitle(candidate, apiKey) ?: continue
-            if (filters.minRating > 0f && (title.rating ?: 0.0) < filters.minRating) continue
-            if (filters.hideWatched && isWatched(title)) continue
-            return ZapResult.Found(title)
+            refills++
+            refill(all)
         }
         return ZapResult.Empty(if (failures > 0) ZapEmpty.Offline else ZapEmpty.NoMatches)
     }
 
-    private fun isWatched(title: ZapTitle): Boolean = runCatching {
-        WatchedRepository.isWatched(id = title.imdbId, type = title.type) ||
-            (title.isSeries && WatchedRepository.isFullyWatchedSeries(title.imdbId, title.type))
+    private fun isWatched(item: MetaPreview): Boolean = runCatching {
+        WatchedRepository.isWatched(id = item.id, type = item.type) ||
+            (item.type == "series" && WatchedRepository.isFullyWatchedSeries(item.id, item.type))
     }.getOrDefault(false)
 
-    private fun activeTypes(): List<Boolean> {
-        val wanted = when (filters.type) {
-            ZapMediaType.Both -> listOf(false, true)
-            ZapMediaType.Movies -> listOf(false)
-            ZapMediaType.Series -> listOf(true)
+    private suspend fun loadSources(): List<ZapSource> {
+        AddonRepository.initialize()
+        // Manifests load in the background; give them a moment on first use.
+        var waited = 0
+        while (waited < 12_000 && AddonRepository.uiState.value.addons.none { it.isActive }) {
+            delay(500)
+            waited += 500
         }
-        val chosen = zapGenres.filter { it.name in filters.genres }
-        // Genres are an AND filter, so a type that has no id for one of them can never match.
-        return wanted.filter { isSeries ->
-            chosen.all { (if (isSeries) it.tvId else it.movieId) != null }
-        }
-    }
-
-    private suspend fun refill(apiKey: String) {
-        val added = ArrayList<ZapCandidate>()
-        if (filters.people.isNotEmpty()) {
-            if (!creditsLoaded) {
-                creditsLoaded = true
-                added += loadCredits(apiKey)
-            }
-        } else {
-            for (isSeries in activeTypes()) {
-                added += discoverPage(isSeries, apiKey)
-            }
-        }
-        added.shuffle()
-        added.filter { it.key !in seen }.forEach(queue::addLast)
-    }
-
-    private suspend fun discoverPage(isSeries: Boolean, apiKey: String): List<ZapCandidate> {
-        val tried = triedPages.getOrPut(isSeries) { mutableSetOf() }
-        val known = totalPages[isSeries]
-        val page = if (known == null) 1 else {
-            val limit = minOf(known, 25)
-            val free = (1..limit).filter { it !in tried }
-            if (free.isEmpty()) return emptyList()
-            free[Random.nextInt(free.size)]
-        }
-        tried += page
-        val body = fetch<DiscoverResponse>(
-            endpoint = if (isSeries) "discover/tv" else "discover/movie",
-            apiKey = apiKey,
-            query = discoverQuery(isSeries, page),
-        ) ?: return emptyList()
-        totalPages[isSeries] = body.totalPages.coerceIn(1, 500)
-        return body.results.map { ZapCandidate(it.id, isSeries) }
-    }
-
-    private fun discoverQuery(isSeries: Boolean, page: Int): Map<String, String> {
-        val chosen = zapGenres.filter { it.name in filters.genres }
-        val ids = chosen.mapNotNull { if (isSeries) it.tvId else it.movieId }.distinct()
-        val dateKey = if (isSeries) "first_air_date" else "primary_release_date"
-        return buildMap {
-            put("sort_by", "popularity.desc")
-            put("include_adult", "false")
-            put("page", page.toString())
-            put("vote_count.gte", if (filters.yearTo != null && filters.yearTo < 2000) "80" else "150")
-            if (filters.minRating > 0f) put("vote_average.gte", filters.minRating.toString())
-            if (ids.isNotEmpty()) put("with_genres", ids.joinToString(","))
-            filters.yearFrom?.let { put("$dateKey.gte", "$it-01-01") }
-            filters.yearTo?.let { put("$dateKey.lte", "$it-12-31") }
-            val language = TmdbSettingsRepository.snapshot().language
-            if (language.isNotBlank()) put("language", language)
-        }
-    }
-
-    private suspend fun loadCredits(apiKey: String): List<ZapCandidate> {
-        val types = activeTypes()
-        val chosen = zapGenres.filter { it.name in filters.genres }
-        val out = LinkedHashMap<String, ZapCandidate>()
-        for (person in filters.people) {
-            val body = fetch<CreditsResponse>(
-                endpoint = "person/${person.id}/combined_credits",
-                apiKey = apiKey,
-            ) ?: continue
-            for (item in body.cast) {
-                val isSeries = when (item.mediaType) {
-                    "tv" -> true
-                    "movie" -> false
-                    else -> continue
+        val found = AddonRepository.uiState.value.addons
+            .filter { it.isActive }
+            .flatMap { addon ->
+                val manifest = addon.manifest ?: return@flatMap emptyList()
+                manifest.catalogs.filter { it.type == "movie" || it.type == "series" }.mapNotNull { catalog ->
+                    catalog.toSource(manifest.transportUrl)
                 }
-                if (isSeries !in types) continue
-                val genreIds = item.genreIds.toSet()
-                if (chosen.isNotEmpty() && chosen.any { g ->
-                        val id = if (isSeries) g.tvId else g.movieId
-                        id == null || id !in genreIds
-                    }
-                ) continue
-                val year = (item.releaseDate ?: item.firstAirDate)?.take(4)?.toIntOrNull()
-                if (filters.yearFrom != null && (year == null || year < filters.yearFrom)) continue
-                if (filters.yearTo != null && (year == null || year > filters.yearTo)) continue
-                if (filters.minRating > 0f && item.voteAverage < filters.minRating) continue
-                if (item.voteCount < 20) continue
-                val candidate = ZapCandidate(item.id, isSeries)
-                out[candidate.key] = candidate
+            }
+            .toMutableList()
+        // Cinemeta is the app's default metadata provider; fall back to it for a type nothing else lists.
+        for (type in listOf("movie", "series")) {
+            if (found.none { it.type == type }) {
+                found += ZapSource(CINEMETA_MANIFEST, type, "top", genreOptions = emptyList(), supportsSkip = true, supportsSearch = true)
             }
         }
-        return out.values.toList()
+        val wantedTypes = when (filters.type) {
+            ZapMediaType.Both -> setOf("movie", "series")
+            ZapMediaType.Movies -> setOf("movie")
+            ZapMediaType.Series -> setOf("series")
+        }
+        return found.filter { it.type in wantedTypes }.distinctBy { it.key }
     }
 
-    private suspend fun loadTitle(candidate: ZapCandidate, apiKey: String): ZapTitle? {
-        val body = fetch<DetailResponse>(
-            endpoint = "${if (candidate.isSeries) "tv" else "movie"}/${candidate.tmdbId}",
-            apiKey = apiKey,
-            query = buildMap {
-                put("append_to_response", "external_ids,credits")
-                val language = TmdbSettingsRepository.snapshot().language
-                if (language.isNotBlank()) put("language", language)
-            },
-        ) ?: return null
-        val imdb = (body.imdbId ?: body.externalIds?.imdbId)?.takeIf { it.startsWith("tt") } ?: return null
-        val name = (body.title ?: body.name)?.takeIf { it.isNotBlank() } ?: return null
-        val date = body.releaseDate ?: body.firstAirDate
-        return ZapTitle(
-            tmdbId = candidate.tmdbId,
-            isSeries = candidate.isSeries,
-            imdbId = imdb,
-            name = name,
-            year = date?.take(4)?.takeIf { it.length == 4 },
-            overview = body.overview.orEmpty(),
-            poster = body.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" },
-            backdrop = (body.backdropPath ?: body.posterPath)?.let { "https://image.tmdb.org/t/p/w1280$it" },
-            rating = body.voteAverage.takeIf { it > 0.0 },
-            genres = body.genres.map { it.name },
-            runtimeMinutes = body.runtime?.takeIf { it > 0 } ?: body.episodeRunTime.firstOrNull()?.takeIf { it > 0 },
-            seasons = body.numberOfSeasons,
-            cast = body.credits?.cast.orEmpty().take(6).map { it.name },
+    private fun AddonCatalog.toSource(manifestUrl: String): ZapSource? {
+        if (extra.any { it.name == "search" && it.isRequired }) return null
+        val blocked = extra.any { property ->
+            when (property.name) {
+                "genre" -> property.isRequired && property.options.isEmpty()
+                "skip", "search" -> false
+                else -> property.isRequired
+            }
+        }
+        if (blocked) return null
+        return ZapSource(
+            manifestUrl = manifestUrl,
+            type = type,
+            catalogId = id,
+            genreOptions = extra.firstOrNull { it.name == "genre" }?.options.orEmpty(),
+            supportsSkip = extra.any { it.name.equals("skip", ignoreCase = true) },
+            supportsSearch = extra.any { it.name == "search" } &&
+                extra.none { it.isRequired && it.name != "search" },
         )
     }
 
-    private suspend inline fun <reified T> fetch(
-        endpoint: String,
-        apiKey: String,
-        query: Map<String, String> = emptyMap(),
-    ): T? {
-        val url = zapUrl(endpoint, apiKey, query)
-        return runCatching { zapJson.decodeFromString<T>(httpGetText(url)) }
-            .onFailure { error ->
-                failures++
-                log.w { "Zap request failed for $endpoint: ${error.message}" }
+    private suspend fun refill(all: List<ZapSource>) {
+        val added = ArrayList<MetaPreview>()
+        if (filters.people.isNotEmpty()) {
+            for (person in filters.people) {
+                for (source in all.filter { it.supportsSearch }) {
+                    if (!searched.add("${source.key}|${person.name}")) continue
+                    added += fetch(source, search = person.name, skip = null)
+                }
             }
-            .getOrNull()
+        } else {
+            for (source in all) added += discoverPage(source)
+        }
+        added.shuffle()
+        added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
+    }
+
+    private suspend fun discoverPage(source: ZapSource): List<MetaPreview> {
+        val tried = triedPages.getOrPut(source.key) { mutableSetOf() }
+        val limit = minOf(lastPage[source.key] ?: MAX_PAGE_INDEX, MAX_PAGE_INDEX)
+        val page = when {
+            tried.isEmpty() -> 0
+            !source.supportsSkip -> return emptyList()
+            else -> (0..limit).filter { it !in tried }.randomOrNull() ?: return emptyList()
+        }
+        tried += page
+        val size = pageSize[source.key]
+        val skip = if (page == 0) null else (size ?: return emptyList()) * page
+        val genre = filters.genres.firstNotNullOfOrNull { wanted ->
+            source.genreOptions.firstOrNull { sameGenre(it, wanted) }
+        }
+        val items = fetch(source, genre = genre, search = null, skip = skip)
+        if (page == 0 && items.isNotEmpty()) pageSize[source.key] = items.size
+        if (items.isEmpty() && page > 0) lastPage[source.key] = page - 1
+        return items
+    }
+
+    private suspend fun fetch(source: ZapSource, genre: String? = null, search: String?, skip: Int?): List<MetaPreview> =
+        runCatching {
+            fetchCatalogPage(
+                manifestUrl = source.manifestUrl,
+                type = source.type,
+                catalogId = source.catalogId,
+                genre = genre,
+                search = search,
+                skip = skip,
+            ).items
+        }.onFailure {
+            failures++
+            log.w { "Zap catalog fetch failed for ${source.key}: ${it.message}" }
+        }.getOrDefault(emptyList())
+
+    private fun matches(item: MetaPreview): Boolean {
+        if (item.poster.isNullOrBlank() && item.banner.isNullOrBlank()) return false
+        if (filters.minRating > 0f) {
+            val rating = item.imdbRating?.toDoubleOrNull() ?: return false
+            if (rating < filters.minRating) return false
+        }
+        if (filters.yearFrom != null || filters.yearTo != null) {
+            val year = itemYear(item) ?: return false
+            if (filters.yearFrom != null && year < filters.yearFrom) return false
+            if (filters.yearTo != null && year > filters.yearTo) return false
+        }
+        if (filters.genres.isNotEmpty() && item.genres.isNotEmpty()) {
+            if (!filters.genres.all { wanted -> item.genres.any { sameGenre(it, wanted) } }) return false
+        }
+        return true
     }
 }
 
+private fun itemYear(item: MetaPreview): Int? =
+    (item.releaseInfo ?: item.rawReleaseDate)?.let { Regex("(19|20)\\d{2}").find(it)?.value?.toIntOrNull() }
+
+private fun normalizeGenre(value: String): String =
+    value.lowercase().filter(Char::isLetterOrDigit).replace("scifi", "sciencefiction")
+
+private fun sameGenre(a: String, b: String): Boolean {
+    val x = normalizeGenre(a)
+    val y = normalizeGenre(b)
+    return x == y || (x.length > 3 && y.length > 3 && (x.contains(y) || y.contains(x)))
+}
+
+private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
+    id = id,
+    isSeries = type == "series",
+    name = name,
+    year = itemYear(this)?.toString(),
+    overview = description.orEmpty(),
+    poster = poster,
+    backdrop = banner ?: landscapePoster ?: poster,
+    rating = imdbRating?.toDoubleOrNull()?.takeIf { it > 0.0 },
+    genres = genres,
+    runtimeMinutes = runtime?.let { Regex("\\d+").find(it)?.value?.toIntOrNull() },
+    seasons = null,
+    cast = emptyList(),
+)
+
 object ZapSearch {
     private val log = Logger.withTag("ZapSearch")
+    private val json = Json { ignoreUnknownKeys = true }
 
-    /** Looks up actors by name for the filter panel. */
+    /**
+     * Optional actor-name suggestions from TMDB. Returns nothing when no TMDB key is set; the filter
+     * panel then lets the user type a name, which is matched against the add-ons' own search.
+     */
     suspend fun people(query: String): List<ZapPerson> {
-        val apiKey = TmdbSettingsRepository.effectiveApiKey()
+        val apiKey = runCatching { TmdbSettingsRepository.effectiveApiKey() }.getOrDefault("")
         if (apiKey.isBlank() || query.isBlank()) return emptyList()
-        val url = zapUrl("search/person", apiKey, mapOf("query" to query.trim(), "include_adult" to "false"))
-        return runCatching { zapJson.decodeFromString<PersonSearchResponse>(httpGetText(url)) }
+        val url = "https://api.themoviedb.org/3/search/person?api_key=${percentEncode(apiKey)}" +
+            "&include_adult=false&query=${percentEncode(query.trim())}"
+        return runCatching { json.decodeFromString<PersonSearchResponse>(httpGetText(url)) }
             .onFailure { log.w { "Actor search failed: ${it.message}" } }
             .getOrNull()
             ?.results
@@ -231,24 +252,12 @@ object ZapFilterMemory {
     var filters: ZapFilters = ZapFilters()
 }
 
-private val zapJson = Json { ignoreUnknownKeys = true }
-
-private fun zapUrl(endpoint: String, apiKey: String, query: Map<String, String>): String = buildString {
-    append("https://api.themoviedb.org/3/")
-    append(endpoint)
-    append("?api_key=").append(percentEncode(apiKey))
-    query.forEach { (key, value) ->
-        if (value.isNotBlank()) append('&').append(key).append('=').append(percentEncode(value))
-    }
-}
-
 private fun percentEncode(value: String): String {
-    val unreserved = "-_.~"
     val out = StringBuilder()
     for (byte in value.encodeToByteArray()) {
         val c = byte.toInt() and 0xFF
         val ch = c.toChar()
-        if (c < 128 && (ch.isLetterOrDigit() || ch in unreserved)) {
+        if (c < 128 && (ch.isLetterOrDigit() || ch in "-_.~")) {
             out.append(ch)
         } else {
             out.append('%')
@@ -258,60 +267,6 @@ private fun percentEncode(value: String): String {
     }
     return out.toString()
 }
-
-@Serializable
-private data class DiscoverResponse(
-    val results: List<DiscoverItem> = emptyList(),
-    @SerialName("total_pages") val totalPages: Int = 1,
-)
-
-@Serializable
-private data class DiscoverItem(val id: Int)
-
-@Serializable
-private data class CreditsResponse(val cast: List<CreditItem> = emptyList())
-
-@Serializable
-private data class CreditItem(
-    val id: Int,
-    @SerialName("media_type") val mediaType: String? = null,
-    @SerialName("release_date") val releaseDate: String? = null,
-    @SerialName("first_air_date") val firstAirDate: String? = null,
-    @SerialName("vote_average") val voteAverage: Double = 0.0,
-    @SerialName("vote_count") val voteCount: Int = 0,
-    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
-)
-
-@Serializable
-private data class GenreItem(val id: Int = 0, val name: String = "")
-
-@Serializable
-private data class CastItem(val name: String = "")
-
-@Serializable
-private data class CreditsBlock(val cast: List<CastItem> = emptyList())
-
-@Serializable
-private data class ExternalIds(@SerialName("imdb_id") val imdbId: String? = null)
-
-@Serializable
-private data class DetailResponse(
-    val title: String? = null,
-    val name: String? = null,
-    val overview: String? = null,
-    @SerialName("release_date") val releaseDate: String? = null,
-    @SerialName("first_air_date") val firstAirDate: String? = null,
-    val runtime: Int? = null,
-    @SerialName("episode_run_time") val episodeRunTime: List<Int> = emptyList(),
-    @SerialName("number_of_seasons") val numberOfSeasons: Int? = null,
-    @SerialName("vote_average") val voteAverage: Double = 0.0,
-    val genres: List<GenreItem> = emptyList(),
-    @SerialName("poster_path") val posterPath: String? = null,
-    @SerialName("backdrop_path") val backdropPath: String? = null,
-    @SerialName("imdb_id") val imdbId: String? = null,
-    @SerialName("external_ids") val externalIds: ExternalIds? = null,
-    val credits: CreditsBlock? = null,
-)
 
 @Serializable
 private data class PersonSearchResponse(val results: List<PersonItem> = emptyList())

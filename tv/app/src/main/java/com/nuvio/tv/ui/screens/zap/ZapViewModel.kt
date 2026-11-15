@@ -11,6 +11,8 @@ import com.nuvio.tv.core.zap.ZapResult
 import com.nuvio.tv.core.zap.ZapTitle
 import com.nuvio.tv.core.zap.zapSearchPeople
 import com.nuvio.tv.domain.model.LibraryEntryInput
+import com.nuvio.tv.domain.repository.AddonRepository
+import com.nuvio.tv.domain.repository.CatalogRepository
 import com.nuvio.tv.domain.repository.LibraryRepository
 import com.nuvio.tv.domain.repository.WatchProgressRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import javax.inject.Inject
 
@@ -35,6 +38,8 @@ data class ZapUiState(
 @HiltViewModel
 class ZapViewModel @Inject constructor(
     private val client: OkHttpClient,
+    private val addonRepository: AddonRepository,
+    private val catalogRepository: CatalogRepository,
     private val libraryRepository: LibraryRepository,
     private val watchProgressRepository: WatchProgressRepository
 ) : ViewModel() {
@@ -50,9 +55,11 @@ class ZapViewModel @Inject constructor(
 
     private fun newPool(filters: ZapFilters) = ZapPool(
         filters = filters,
-        apiKey = BuildConfig.TMDB_API_KEY,
-        client = client,
-        isWatched = { title -> watchProgressRepository.isWatched(title.imdbId).first() }
+        addons = {
+            withTimeoutOrNull(8_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } } ?: emptyList()
+        },
+        catalogs = catalogRepository,
+        isWatched = { id -> watchProgressRepository.isWatched(id).first() }
     )
 
     fun zap() {
@@ -83,7 +90,7 @@ class ZapViewModel @Inject constructor(
     }
 
     private suspend fun show(title: ZapTitle) {
-        val saved = runCatching { libraryRepository.isInLibrary(title.imdbId, title.type).first() }.getOrDefault(false)
+        val saved = runCatching { libraryRepository.isInLibrary(title.id, title.type).first() }.getOrDefault(false)
         _state.value = _state.value.copy(
             title = title,
             loading = false,
@@ -99,12 +106,11 @@ class ZapViewModel @Inject constructor(
             runCatching {
                 libraryRepository.toggleDefault(
                     LibraryEntryInput(
-                        itemId = title.imdbId,
+                        itemId = title.id,
                         itemType = title.type,
                         title = title.name,
                         year = title.year?.toIntOrNull(),
-                        imdbId = title.imdbId,
-                        tmdbId = title.tmdbId,
+                        imdbId = title.id.takeIf { it.startsWith("tt") },
                         poster = title.poster,
                         background = title.backdrop,
                         description = title.overview,
@@ -114,7 +120,7 @@ class ZapViewModel @Inject constructor(
                     )
                 )
             }
-            val saved = runCatching { libraryRepository.isInLibrary(title.imdbId, title.type).first() }
+            val saved = runCatching { libraryRepository.isInLibrary(title.id, title.type).first() }
                 .getOrDefault(_state.value.saved)
             _state.value = _state.value.copy(saved = saved)
         }

@@ -31,11 +31,10 @@ data class ZapFilters(
         ).count { it }
 }
 
-/** One title ready to show: everything the Zap card needs, plus the IMDb id the rest of the app opens by. */
+/** One title ready to show, taken from an add-on catalog. [id] is the add-on's id, which the title page opens by. */
 data class ZapTitle(
-    val tmdbId: Int,
+    val id: String,
     val isSeries: Boolean,
-    val imdbId: String,
     val name: String,
     val year: String?,
     val overview: String,
@@ -48,7 +47,7 @@ data class ZapTitle(
     val cast: List<String>,
 ) {
     val type: String get() = if (isSeries) "series" else "movie"
-    val key: String get() = "${if (isSeries) "tv" else "movie"}:$tmdbId"
+    val key: String get() = "$type:$id"
 }
 
 internal val zapGenres: List<ZapGenre> = listOf(

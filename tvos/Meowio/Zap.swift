@@ -2,7 +2,8 @@ import SwiftUI
 
 // Zap: one random movie or series at a time. Zap for the next one, Play to open it and start the best source,
 // Save to My List, and narrow the pool by type, year, genre, actor and rating. Same behaviour as the Android and
-// desktop apps. Titles already watched are skipped. Needs a TMDB key (built in, or typed in Settings).
+// desktop apps. Titles already watched are skipped. Titles come from the catalogs of the user's own add-ons, so no
+// TMDB key is needed.
 
 enum ZapMediaType: String, CaseIterable {
     case both = "Movies & series", movies = "Movies", series = "Series"
@@ -34,9 +35,8 @@ struct ZapFilters: Equatable {
 }
 
 struct ZapTitle: Equatable {
-    var tmdbId: Int
+    var id: String
     var isSeries: Bool
-    var imdbId: String
     var name: String
     var year: String?
     var overview: String
@@ -47,13 +47,16 @@ struct ZapTitle: Equatable {
     var runtimeMinutes: Int?
     var seasons: Int?
     var cast: [String]
+    var addonBase: String?
 
-    var key: String { "\(isSeries ? "tv" : "movie"):\(tmdbId)" }
+    var key: String { "\(isSeries ? "series" : "movie"):\(id)" }
 
     var meta: MetaItem {
-        MetaItem(id: imdbId, type: isSeries ? "series" : "movie", name: name, poster: poster, background: backdrop,
-                 description: overview, releaseInfo: year,
-                 imdbRating: rating.map { String(format: "%.1f", $0) }, genres: genres)
+        var m = MetaItem(id: id, type: isSeries ? "series" : "movie", name: name, poster: poster, background: backdrop,
+                         description: overview, releaseInfo: year,
+                         imdbRating: rating.map { String(format: "%.1f", $0) }, genres: genres)
+        m.addonBase = addonBase
+        return m
     }
 
     var metaLine: String {
@@ -66,7 +69,7 @@ struct ZapTitle: Equatable {
     }
 }
 
-enum ZapEmpty { case noKey, noMatches, offline }
+enum ZapEmpty { case noSources, noMatches, offline }
 
 enum ZapData {
     static let genres: [ZapGenre] = [
@@ -89,167 +92,171 @@ enum ZapData {
     ]
 }
 
-/// A shuffled supply of random titles for one set of filters. Make a new one when the filters change.
+/// One browsable catalog of one of the user's add-ons.
+private struct ZapSource: Hashable {
+    var base: String
+    var type: String
+    var catalogId: String
+    var genreOptions: [String]
+    var supportsSkip: Bool
+    var supportsSearch: Bool
+    var key: String { "\(base)|\(type)|\(catalogId)" }
+}
+
+/// A shuffled supply of random titles for one set of filters, drawn from the catalogs of the user's add-ons.
+/// Make a new one when the filters change; it never repeats a title.
 @MainActor
 final class ZapPool {
-    private struct Candidate: Hashable { var tmdbId: Int; var isSeries: Bool
-        var key: String { "\(isSeries ? "tv" : "movie"):\(tmdbId)" } }
-
     private let filters: ZapFilters
+    private let addons: [String]
     private let isWatched: (String) -> Bool
-    private var queue: [Candidate] = []
+    private var queue: [MetaItem] = []
     private var seen = Set<String>()
-    private var totalPages: [Bool: Int] = [:]
-    private var triedPages: [Bool: Set<Int>] = [:]
-    private var creditsLoaded = false
-    private var failures = 0
+    private var sources: [ZapSource]?
+    private var pageSize: [String: Int] = [:]
+    private var triedPages: [String: Set<Int>] = [:]
+    private var lastPage: [String: Int] = [:]
+    private var searched = Set<String>()
+    private let maxPage = 9
 
-    init(filters: ZapFilters, isWatched: @escaping (String) -> Bool) {
+    init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool) {
         self.filters = filters
+        self.addons = addons
         self.isWatched = isWatched
     }
 
     /// The next title, or why there is none.
     func next() async -> (ZapTitle?, ZapEmpty?) {
-        guard TMDB.available else { return (nil, .noKey) }
-        var attempts = 0
-        while attempts < 40 {
-            if queue.isEmpty {
-                await refill()
-                if queue.isEmpty { return (nil, failures > 0 ? .offline : .noMatches) }
+        if sources == nil { sources = await loadSources() }
+        guard let all = sources, !all.isEmpty else { return (nil, .noSources) }
+        var refills = 0
+        while refills <= 14 {
+            while !queue.isEmpty {
+                let item = queue.removeFirst()
+                if !seen.insert("\(item.type):\(item.id)").inserted { continue }
+                if filters.hideWatched, isWatched(item.id) { continue }
+                return (title(from: item), nil)
             }
-            let candidate = queue.removeFirst()
-            if !seen.insert(candidate.key).inserted { continue }
-            attempts += 1
-            guard let title = await loadTitle(candidate) else { continue }
-            if filters.minRating > 0, (title.rating ?? 0) < filters.minRating { continue }
-            if filters.hideWatched, isWatched(title.imdbId) { continue }
-            return (title, nil)
+            refills += 1
+            await refill(all)
         }
-        return (nil, failures > 0 ? .offline : .noMatches)
+        return (nil, .noMatches)
     }
 
-    private func activeTypes() -> [Bool] {
-        let wanted: [Bool]
+    private func loadSources() async -> [ZapSource] {
+        let wanted: Set<String>
         switch filters.type {
-        case .both: wanted = [false, true]
-        case .movies: wanted = [false]
-        case .series: wanted = [true]
+        case .both: wanted = ["movie", "series"]
+        case .movies: wanted = ["movie"]
+        case .series: wanted = ["series"]
         }
-        let chosen = ZapData.genres.filter { filters.genres.contains($0.name) }
-        // Genres are an AND filter, so a type with no id for one of them can never match.
-        return wanted.filter { isSeries in chosen.allSatisfy { (isSeries ? $0.tvId : $0.movieId) != nil } }
+        var found: [ZapSource] = []
+        for base in addons {
+            guard let man = await AddonClient.manifest(for: base), man.has("catalog") else { continue }
+            for c in man.catalogs ?? [] where wanted.contains(c.type) && c.isBrowsable {
+                let extras = c.extra ?? []
+                found.append(ZapSource(
+                    base: base, type: c.type, catalogId: c.id,
+                    genreOptions: extras.first { $0.name == "genre" }?.options ?? [],
+                    supportsSkip: extras.contains { $0.name == "skip" },
+                    supportsSearch: c.isSearchable))
+            }
+        }
+        // Cinemeta is the app's default metadata provider; fall back to it for a type nothing else lists.
+        for type in wanted where !found.contains(where: { $0.type == type }) {
+            found.append(ZapSource(base: AddonClient.cinemeta, type: type, catalogId: "top", genreOptions: [],
+                                   supportsSkip: true, supportsSearch: true))
+        }
+        var unique: [ZapSource] = []
+        for s in found where !unique.contains(where: { $0.key == s.key }) { unique.append(s) }
+        return unique
     }
 
-    private func refill() async {
-        var added: [Candidate] = []
+    private func refill(_ all: [ZapSource]) async {
+        var added: [MetaItem] = []
         if !filters.people.isEmpty {
-            if !creditsLoaded {
-                creditsLoaded = true
-                added += await loadCredits()
+            for person in filters.people {
+                for source in all where source.supportsSearch {
+                    if !searched.insert("\(source.key)|\(person.name)").inserted { continue }
+                    added += await AddonClient.page(base: source.base, type: source.type, catalogId: source.catalogId,
+                                                    extra: ["search": person.name], skip: 0)
+                }
             }
         } else {
-            for isSeries in activeTypes() { added += await discoverPage(isSeries) }
+            for source in all { added += await discoverPage(source) }
         }
         added.shuffle()
-        for c in added where !seen.contains(c.key) { queue.append(c) }
+        for item in added where matches(item) && !seen.contains("\(item.type):\(item.id)") { queue.append(item) }
     }
 
-    private func discoverPage(_ isSeries: Bool) async -> [Candidate] {
-        var tried = triedPages[isSeries] ?? []
+    private func discoverPage(_ source: ZapSource) async -> [MetaItem] {
+        var tried = triedPages[source.key] ?? []
+        let limit = min(lastPage[source.key] ?? maxPage, maxPage)
         let page: Int
-        if let known = totalPages[isSeries] {
-            let free = (1...max(1, min(known, 25))).filter { !tried.contains($0) }
-            guard let pick = free.randomElement() else { return [] }
-            page = pick
+        if tried.isEmpty {
+            page = 0
+        } else if !source.supportsSkip {
+            return []
         } else {
-            page = 1
+            guard let pick = (0...limit).filter({ !tried.contains($0) }).randomElement() else { return [] }
+            page = pick
         }
         tried.insert(page)
-        triedPages[isSeries] = tried
-        guard let body = await TMDB.get(isSeries ? "/discover/tv" : "/discover/movie", discoverQuery(isSeries, page)) else {
-            failures += 1
-            return []
+        triedPages[source.key] = tried
+        var skip = 0
+        if page > 0 {
+            guard let size = pageSize[source.key] else { return [] }
+            skip = size * page
         }
-        totalPages[isSeries] = min(max(body["total_pages"] as? Int ?? 1, 1), 500)
-        let results = body["results"] as? [[String: Any]] ?? []
-        return results.compactMap { ($0["id"] as? Int).map { Candidate(tmdbId: $0, isSeries: isSeries) } }
+        var extra: [String: String] = [:]
+        for wanted in filters.genres {
+            if let option = source.genreOptions.first(where: { Self.sameGenre($0, wanted) }) { extra["genre"] = option; break }
+        }
+        let items = await AddonClient.page(base: source.base, type: source.type, catalogId: source.catalogId,
+                                           extra: extra, skip: skip)
+        if page == 0, !items.isEmpty { pageSize[source.key] = items.count }
+        if items.isEmpty, page > 0 { lastPage[source.key] = page - 1 }
+        return items
     }
 
-    private func discoverQuery(_ isSeries: Bool, _ page: Int) -> [String: String] {
-        let chosen = ZapData.genres.filter { filters.genres.contains($0.name) }
-        var ids: [Int] = []
-        for g in chosen { if let id = isSeries ? g.tvId : g.movieId, !ids.contains(id) { ids.append(id) } }
-        let dateKey = isSeries ? "first_air_date" : "primary_release_date"
-        var q: [String: String] = [
-            "sort_by": "popularity.desc", "include_adult": "false", "page": String(page), "language": "en-US",
-            "vote_count.gte": (filters.yearTo ?? 3000) < 2000 ? "80" : "150",
-        ]
-        if filters.minRating > 0 { q["vote_average.gte"] = String(filters.minRating) }
-        if !ids.isEmpty { q["with_genres"] = ids.map(String.init).joined(separator: ",") }
-        if let from = filters.yearFrom { q["\(dateKey).gte"] = "\(from)-01-01" }
-        if let to = filters.yearTo { q["\(dateKey).lte"] = "\(to)-12-31" }
-        return q
+    private func matches(_ item: MetaItem) -> Bool {
+        if (item.poster ?? "").isEmpty, (item.background ?? "").isEmpty { return false }
+        if filters.minRating > 0 {
+            guard let r = Double(item.imdbRating ?? ""), r >= filters.minRating else { return false }
+        }
+        if filters.yearFrom != nil || filters.yearTo != nil {
+            guard let y = Self.year(of: item) else { return false }
+            if let from = filters.yearFrom, y < from { return false }
+            if let to = filters.yearTo, y > to { return false }
+        }
+        let genres = item.genres ?? []
+        if !filters.genres.isEmpty, !genres.isEmpty {
+            for wanted in filters.genres where !genres.contains(where: { Self.sameGenre($0, wanted) }) { return false }
+        }
+        return true
     }
 
-    private func loadCredits() async -> [Candidate] {
-        let types = activeTypes()
-        let chosen = ZapData.genres.filter { filters.genres.contains($0.name) }
-        var out: [String: Candidate] = [:]
-        for person in filters.people {
-            guard let body = await TMDB.get("/person/\(person.id)/combined_credits") else { failures += 1; continue }
-            for item in body["cast"] as? [[String: Any]] ?? [] {
-                let isSeries: Bool
-                switch item["media_type"] as? String {
-                case "tv": isSeries = true
-                case "movie": isSeries = false
-                default: continue
-                }
-                guard types.contains(isSeries), let id = item["id"] as? Int else { continue }
-                let genreIds = Set(item["genre_ids"] as? [Int] ?? [])
-                if chosen.contains(where: { g in
-                    guard let gid = isSeries ? g.tvId : g.movieId else { return true }
-                    return !genreIds.contains(gid)
-                }) { continue }
-                let date = (item["release_date"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? (item["first_air_date"] as? String) ?? ""
-                let year = Int(date.prefix(4))
-                if let from = filters.yearFrom, year == nil || year! < from { continue }
-                if let to = filters.yearTo, year == nil || year! > to { continue }
-                if filters.minRating > 0, (item["vote_average"] as? Double ?? 0) < filters.minRating { continue }
-                if (item["vote_count"] as? Int ?? 0) < 20 { continue }
-                let c = Candidate(tmdbId: id, isSeries: isSeries)
-                out[c.key] = c
-            }
-        }
-        return Array(out.values)
+    private func title(from item: MetaItem) -> ZapTitle {
+        ZapTitle(id: item.id, isSeries: item.type == "series", name: item.name,
+                 year: Self.year(of: item).map(String.init), overview: item.description ?? "",
+                 poster: item.poster, backdrop: item.background ?? item.poster,
+                 rating: Double(item.imdbRating ?? "").flatMap { $0 > 0 ? $0 : nil },
+                 genres: item.genres ?? [], runtimeMinutes: nil, seasons: nil, cast: [], addonBase: item.addonBase)
     }
 
-    private func loadTitle(_ c: Candidate) async -> ZapTitle? {
-        guard let body = await TMDB.get("/\(c.isSeries ? "tv" : "movie")/\(c.tmdbId)",
-                                        ["append_to_response": "external_ids,credits", "language": "en-US"]) else {
-            failures += 1
-            return nil
-        }
-        let ext = body["external_ids"] as? [String: Any]
-        let imdb = (body["imdb_id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? (ext?["imdb_id"] as? String) ?? ""
-        guard imdb.hasPrefix("tt") else { return nil }
-        let name = (body["title"] as? String) ?? (body["name"] as? String) ?? ""
-        guard !name.isEmpty else { return nil }
-        let date = (body["release_date"] as? String) ?? (body["first_air_date"] as? String) ?? ""
-        let poster = body["poster_path"] as? String
-        let backdrop = (body["backdrop_path"] as? String) ?? poster
-        let genres = (body["genres"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
-        let cast = ((body["credits"] as? [String: Any])?["cast"] as? [[String: Any]] ?? []).prefix(6).compactMap { $0["name"] as? String }
-        var runtime = body["runtime"] as? Int
-        if runtime == nil || runtime == 0 { runtime = (body["episode_run_time"] as? [Int])?.first }
-        let rating = body["vote_average"] as? Double
-        return ZapTitle(tmdbId: c.tmdbId, isSeries: c.isSeries, imdbId: imdb, name: name,
-                        year: date.count >= 4 ? String(date.prefix(4)) : nil,
-                        overview: body["overview"] as? String ?? "",
-                        poster: TMDB.imageURL(poster, size: "w500"), backdrop: TMDB.imageURL(backdrop, size: "w1280"),
-                        rating: (rating ?? 0) > 0 ? rating : nil, genres: genres,
-                        runtimeMinutes: (runtime ?? 0) > 0 ? runtime : nil, seasons: body["number_of_seasons"] as? Int,
-                        cast: Array(cast))
+    private static func year(of item: MetaItem) -> Int? {
+        guard let info = item.releaseInfo,
+              let range = info.range(of: "(19|20)\\d{2}", options: .regularExpression) else { return nil }
+        return Int(info[range])
+    }
+
+    private static func normalize(_ g: String) -> String {
+        g.lowercased().filter { $0.isLetter || $0.isNumber }.replacingOccurrences(of: "scifi", with: "sciencefiction")
+    }
+
+    private static func sameGenre(_ a: String, _ b: String) -> Bool {
+        let x = normalize(a), y = normalize(b)
+        return x == y || (x.count > 3 && y.count > 3 && (x.contains(y) || y.contains(x)))
     }
 }
 
@@ -344,14 +351,14 @@ struct ZapView: View {
 
     private var emptyText: String {
         switch empty {
-        case .noKey: return "Zap needs a TMDB key. Add one in Settings."
-        case .offline: return "Couldn't reach TMDB. Check your connection."
+        case .noSources: return "Zap draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
+        case .offline: return "Couldn't load titles. Check your connection."
         default: return "Nothing matches those filters. Try loosening them."
         }
     }
 
     private func makePool() {
-        pool = ZapPool(filters: filters) { id in library.isWatched(id) }
+        pool = ZapPool(filters: filters, addons: settings.addons) { id in library.isWatched(id) }
     }
 
     private func zap() async {
@@ -407,18 +414,22 @@ struct ZapFilterSheet: View {
                         pill(g.name, on) { if on { draft.genres.remove(g.name) } else { draft.genres.insert(g.name) } }
                     }
                 }
-                Text("Actors (any of the ones you pick)").font(.headline).foregroundStyle(.secondary)
+                Text("Actors (any of the ones you add; matched by your add-ons' search)").font(.headline).foregroundStyle(.secondary)
                 if !draft.people.isEmpty {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 20) {
                         ForEach(draft.people, id: \.id) { p in
-                            pill(p.name + "  ✕", true) { draft.people.removeAll { $0.id == p.id } }
+                            pill(p.name + "  ✕", true) { draft.people.removeAll { $0.name == p.name } }
                         }
                     }
                 }
-                TextField("Search for an actor", text: $actorQuery)
-                if !suggestions.isEmpty {
+                TextField("Type an actor's name", text: $actorQuery)
+                let typed = actorQuery.trimmingCharacters(in: .whitespaces)
+                if typed.count >= 2 || !suggestions.isEmpty {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 20) {
-                        ForEach(suggestions.filter { s in !draft.people.contains { $0.id == s.id } }, id: \.id) { p in
+                        if typed.count >= 2, !draft.people.contains(where: { $0.name.lowercased() == typed.lowercased() }) {
+                            pill("Add \u{201C}\(typed)\u{201D}", false) { draft.people.append(ZapPerson(id: 0, name: typed)); actorQuery = ""; suggestions = [] }
+                        }
+                        ForEach(suggestions.filter { s in !draft.people.contains { $0.name.lowercased() == s.name.lowercased() } }, id: \.id) { p in
                             pill(p.name, false) { draft.people.append(p); actorQuery = ""; suggestions = [] }
                         }
                     }
