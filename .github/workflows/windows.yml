@@ -23,7 +23,7 @@ on:
 
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
-  MEOWIO_TAG: v0.2.17
+  MEOWIO_TAG: v0.2.18
 
 permissions:
   contents: write
@@ -108,7 +108,7 @@ jobs:
             :composeApp:packageReleaseExe `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
-            "-Pnuvio.desktop.versionName=0.2.17" `
+            "-Pnuvio.desktop.versionName=0.2.18" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace

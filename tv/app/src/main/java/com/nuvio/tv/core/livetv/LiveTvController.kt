@@ -221,6 +221,8 @@ class LiveTvController(
      * file are covered by the guide loaded with the channel list instead.
      */
     fun requestChannelGuide(channel: LiveChannel) {
+        // A worldwide list loads its guide one group at a time, also while every channel is shown.
+        channel.group?.let(::requestGroupGuide)
         val source = sourceOf(channel) ?: return
         if (source.type != LiveSourceType.XTREAM || channel.xtreamStreamId == null) return
         if (channel.id in _state.value.guide || !guideRequested.add(channel.id)) return
@@ -235,7 +237,6 @@ class LiveTvController(
      * first time that group is opened. Other playlists get their whole guide with the channels.
      */
     fun requestGroupGuide(group: String) {
-        if (!_state.value.usingDefault) return
         val source = _state.value.source ?: return
         val loaded = playlist ?: return
         if (!loader.hasGuidePerGroup(source, loaded) || !groupGuideRequested.add(group)) return
