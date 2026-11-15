@@ -175,6 +175,7 @@ class LibraryViewModel @Inject constructor(
     private val authManager: AuthManager,
     private val trackingProviderRegistry: TrackingLibraryProviderRegistry,
     private val trackingRegistry: com.nuvio.tv.core.tracking.TrackingProviderRegistry,
+    private val traktPublicLists: com.nuvio.tv.core.trakt.TraktPublicListSourceResolver,
     private val trackingSourceController: com.nuvio.tv.core.tracking.TrackingSourceController,
     private val watchProgressRepository: com.nuvio.tv.domain.repository.WatchProgressRepository,
     private val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
@@ -202,6 +203,94 @@ class LibraryViewModel @Inject constructor(
             primarySource = effectiveWatchProgressSource(progress) { it in connected }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryTrackingPickerState())
+
+    private val _discover = MutableStateFlow(LibraryDiscoverState(configured = traktPublicLists.isConfigured))
+    val discover: StateFlow<LibraryDiscoverState> = _discover.asStateFlow()
+    private var discoverListsJob: Job? = null
+    private var discoverItemsJob: Job? = null
+
+    fun onOpenDiscover() {
+        val current = _discover.value
+        if (current.configured && current.lists.isEmpty() && !current.listsLoading) loadDiscoverLists(current.kind)
+    }
+
+    fun onSelectDiscoverKind(kind: LibraryDiscoverKind) {
+        if (kind == _discover.value.kind && _discover.value.lists.isNotEmpty()) return
+        _discover.update { it.copy(kind = kind, selected = null, items = emptyList(), nextPage = null) }
+        loadDiscoverLists(kind)
+    }
+
+    private fun loadDiscoverLists(kind: LibraryDiscoverKind) {
+        discoverListsJob?.cancel()
+        _discover.update { it.copy(listsLoading = true, listsError = null) }
+        discoverListsJob = viewModelScope.launch {
+            runCatching {
+                (1..3).flatMap { page ->
+                    when (kind) {
+                        LibraryDiscoverKind.POPULAR -> traktPublicLists.popularPublicLists(page, 100)
+                        LibraryDiscoverKind.TRENDING -> traktPublicLists.trendingPublicLists(page, 100)
+                    }
+                }.distinctBy { it.traktListId }
+            }.onSuccess { lists ->
+                _discover.update { it.copy(lists = lists, listsLoading = false) }
+            }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                _discover.update { it.copy(listsLoading = false, listsError = error.message ?: "Could not load lists.") }
+            }
+        }
+    }
+
+    fun onSelectDiscoverList(listId: Long) {
+        val list = _discover.value.lists.firstOrNull { it.traktListId == listId } ?: return
+        _discover.update { it.copy(selected = list, items = emptyList(), nextPage = null, itemsError = null) }
+        loadDiscoverItems(list, page = 1)
+    }
+
+    private fun loadDiscoverItems(list: com.nuvio.tv.core.trakt.TraktPublicListSearchResult, page: Int) {
+        discoverItemsJob?.cancel()
+        _discover.update { it.copy(itemsLoading = true, itemsError = null) }
+        discoverItemsJob = viewModelScope.launch {
+            runCatching {
+                // Trakt serves movies and shows separately, so a list is two requests.
+                listOf(
+                    com.nuvio.tv.domain.model.TmdbCollectionMediaType.MOVIE,
+                    com.nuvio.tv.domain.model.TmdbCollectionMediaType.TV
+                ).map { type ->
+                    val source = com.nuvio.tv.domain.model.TraktCollectionSource(
+                        title = list.title,
+                        traktListId = list.traktListId,
+                        mediaType = type,
+                        sortBy = com.nuvio.tv.domain.model.TraktListSort.normalize(list.sortBy),
+                        sortHow = com.nuvio.tv.domain.model.TraktSortHow.normalize(list.sortHow)
+                    )
+                    traktPublicLists.resolve(source, page).first { it !is com.nuvio.tv.core.network.NetworkResult.Loading }
+                }
+            }.onSuccess { results ->
+                if (_discover.value.selected?.traktListId != list.traktListId) return@onSuccess
+                val rows = results.mapNotNull { (it as? com.nuvio.tv.core.network.NetworkResult.Success)?.data }
+                val error = results.firstNotNullOfOrNull { (it as? com.nuvio.tv.core.network.NetworkResult.Error)?.message }
+                val merged = rows.flatMap { it.items }
+                _discover.update { state ->
+                    state.copy(
+                        items = if (page == 1) merged else (state.items + merged).distinctBy { "${it.apiType}:${it.id}" },
+                        nextPage = if (rows.any { it.hasMore }) page + 1 else null,
+                        itemsLoading = false,
+                        itemsError = if (merged.isEmpty() && state.items.isEmpty()) error else null
+                    )
+                }
+            }.onFailure { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                _discover.update { it.copy(itemsLoading = false, itemsError = error.message ?: "Could not load this list.") }
+            }
+        }
+    }
+
+    fun onDiscoverLoadMore() {
+        val state = _discover.value
+        val page = state.nextPage ?: return
+        val list = state.selected ?: return
+        if (!state.itemsLoading) loadDiscoverItems(list, page)
+    }
 
     fun onSelectLibraryService(mode: LibrarySourceMode) {
         val id = mode.providerId
@@ -1188,4 +1277,22 @@ data class LibraryTrackingPickerState(
     val connected: Set<com.nuvio.tv.core.tracking.TrackingProviderId> = emptySet(),
     val librarySource: LibrarySourceMode = LibrarySourceMode.LOCAL,
     val primarySource: com.nuvio.tv.data.local.WatchProgressSource = com.nuvio.tv.data.local.WatchProgressSource.NUVIO_SYNC
+)
+
+enum class LibraryDiscoverKind(val label: String) {
+    POPULAR("Most popular lists"),
+    TRENDING("Trending lists")
+}
+
+data class LibraryDiscoverState(
+    val configured: Boolean = false,
+    val kind: LibraryDiscoverKind = LibraryDiscoverKind.POPULAR,
+    val lists: List<com.nuvio.tv.core.trakt.TraktPublicListSearchResult> = emptyList(),
+    val listsLoading: Boolean = false,
+    val listsError: String? = null,
+    val selected: com.nuvio.tv.core.trakt.TraktPublicListSearchResult? = null,
+    val items: List<com.nuvio.tv.domain.model.MetaPreview> = emptyList(),
+    val itemsLoading: Boolean = false,
+    val itemsError: String? = null,
+    val nextPage: Int? = null
 )
