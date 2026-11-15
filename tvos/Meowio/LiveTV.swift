@@ -891,6 +891,9 @@ final class LiveTVStore: ObservableObject {
                     let k = channelKeys[c.id] ?? ""
                     return k.isEmpty || seenInGroup.insert("\(c.group ?? "")\u{0}\(k)").inserted
                 }
+                // The device country's group (USA in the US) comes first; the other countries follow.
+                let home = LiveTvDefaults.groupForCountry(Locale.current.region?.identifier) ?? "USA"
+                shown = shown.filter { $0.group == home } + shown.filter { $0.group != home }
                 var seenAll = Set<String>()
                 copiesInAll = Set(shown.filter { c in
                     let k = channelKeys[c.id] ?? ""
