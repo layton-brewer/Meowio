@@ -49,6 +49,8 @@ data class LiveTvState(
     val offline: Set<String> = emptySet(),
     /** The Live TV VPN. Used for Live TV playback only. */
     val vpn: LiveVpnSettings = LiveVpnSettings(),
+    /** Why a channel could not be played the last time it was tried, by channel id. */
+    val playbackProblems: Map<String, LivePlaybackProblem> = emptyMap(),
 )
 
 /** Which channels the list shows. Anything else is a group name. */
@@ -182,6 +184,17 @@ class LiveTvController(
         )
         _state.update { it.copy(vpn = cleanedSettings) }
         scope.launch { storage.write(KEY_VPN, LiveTvCodec.encodeVpn(cleanedSettings)) }
+    }
+
+    /** Records how playing [channelId] went: [problem] is why it failed, or null when it played. */
+    fun reportPlayback(channelId: String, problem: LivePlaybackProblem?) {
+        _state.update {
+            if (it.playbackProblems[channelId] == problem) it
+            else it.copy(
+                playbackProblems = if (problem == null) it.playbackProblems - channelId
+                else it.playbackProblems + (channelId to problem)
+            )
+        }
     }
 
     fun toggleFavorite(channelId: String) {
@@ -416,6 +429,10 @@ class LiveTvController(
         }
 
         fun isOffline(state: LiveTvState, channel: LiveChannel): Boolean = channel.id in state.offline
+
+        /** Why [channel] could not be played the last time it was tried, or null. */
+        fun playbackProblem(state: LiveTvState, channel: LiveChannel): LivePlaybackProblem? =
+            state.playbackProblems[channel.id]
 
         private fun matchingChannels(state: LiveTvState, query: String, selection: String): List<LiveChannel> = when (selection) {
             LiveTvSelection.FAVORITES ->

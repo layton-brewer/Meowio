@@ -134,6 +134,7 @@ private val liveTvRelay by lazy {
             )
         },
         log = { android.util.Log.i("LiveTv", it) },
+        onResult = { channelId, problem -> LiveTvRepository.controller.reportPlayback(channelId, problem) },
     )
 }
 

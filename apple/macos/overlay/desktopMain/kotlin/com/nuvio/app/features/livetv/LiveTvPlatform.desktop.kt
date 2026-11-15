@@ -113,6 +113,7 @@ private val liveTvRelay by lazy {
             .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .build(),
         wireGuard = null,
+        onResult = { channelId, problem -> LiveTvRepository.controller.reportPlayback(channelId, problem) },
     )
 }
 

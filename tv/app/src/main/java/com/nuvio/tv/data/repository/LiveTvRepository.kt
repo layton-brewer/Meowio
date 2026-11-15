@@ -61,7 +61,8 @@ class LiveTvRepository @Inject constructor(
                 close = running::close
             )
         },
-        log = { android.util.Log.i("LiveTv", it) }
+        log = { android.util.Log.i("LiveTv", it) },
+        onResult = { channelId, problem -> scope.launch { controller.reportPlayback(channelId, problem) } }
     )
 
     /** Whether WireGuard can be used for the Live TV VPN in this build. */
