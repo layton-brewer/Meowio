@@ -195,10 +195,10 @@ fun LiveTvScreen(
                         Text(stringResource(if (page == LiveTvPage.GUIDE) Res.string.live_tv_channels else Res.string.live_tv_guide))
                     }
                     IconButton(onClick = controller::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(Res.string.live_tv_refresh))
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(Res.string.live_tv_refresh), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     IconButton(onClick = { page = LiveTvPage.SETTINGS }) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(Res.string.live_tv_settings))
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(Res.string.live_tv_settings), tint = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -339,7 +339,6 @@ private val GUIDE_DP_PER_MINUTE = 4.dp
 private val GUIDE_CHANNEL_WIDTH = 120.dp
 private val GUIDE_ROW_HEIGHT = 56.dp
 
-@OptIn(ExperimentalTime::class)
 /** The words shown on a channel that could not be played the last time it was tried. */
 private fun playbackProblemText(problem: LivePlaybackProblem): StringResource = when (problem) {
     LivePlaybackProblem.BLOCKED -> Res.string.live_tv_problem_blocked
@@ -351,6 +350,7 @@ private fun playbackProblemText(problem: LivePlaybackProblem): StringResource = 
     LivePlaybackProblem.VPN -> Res.string.live_tv_problem_vpn
 }
 
+@OptIn(ExperimentalTime::class)
 private fun nowMs(): Long = Clock.System.now().toEpochMilliseconds()
 
 /**

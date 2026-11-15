@@ -6,6 +6,7 @@ import com.meowio.livetv.LiveTvWireGuard
 import com.nuvio.tv.core.livetv.LiveChannel
 import com.nuvio.tv.core.livetv.LiveProxy
 import com.nuvio.tv.core.livetv.LiveTvController
+import com.nuvio.tv.core.livetv.LiveTvDefaults
 import com.nuvio.tv.core.livetv.LiveTvLoader
 import com.nuvio.tv.core.livetv.LiveTvRelay
 import com.nuvio.tv.core.livetv.LiveTvStorage
@@ -147,7 +148,7 @@ class LiveTvRepository @Inject constructor(
 
     private suspend fun fetchText(url: String): String? = withContext(Dispatchers.IO) {
         runCatching {
-            client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            client.newCall(Request.Builder().url(url).header("User-Agent", LiveTvDefaults.DOWNLOAD_USER_AGENT).build()).execute().use { response ->
                 if (!response.isSuccessful) return@use null
                 val body = response.body ?: return@use null
                 body.byteStream().use { stream -> readText(stream) }
@@ -158,7 +159,7 @@ class LiveTvRepository @Inject constructor(
     /** Hands a guide over in pieces, so its full size never has to fit in memory. */
     private suspend fun streamText(url: String, onChunk: (String) -> Unit): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            client.newCall(Request.Builder().url(url).header("User-Agent", LiveTvDefaults.DOWNLOAD_USER_AGENT).build()).execute().use { response ->
                 if (!response.isSuccessful) return@use false
                 val body = response.body ?: return@use false
                 body.byteStream().use { raw ->

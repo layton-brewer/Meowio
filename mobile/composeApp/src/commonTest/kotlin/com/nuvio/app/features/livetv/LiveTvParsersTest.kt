@@ -236,6 +236,54 @@ class LiveTvParsersTest {
         assertEquals("USA", LiveTvDefaults.groupForCountry("US"))
     }
 
+    @Test
+    fun `matches guide channels by name when the ids differ`() {
+        val base = XmltvParser.parseTime("20260101000000 +0000")!!
+        val channels = listOf(
+            LiveChannel(id = "buzzr", name = "Buzzr Ⓖ", url = "https://s/1.m3u8", guideId = "Buzzr.us"),
+            LiveChannel(id = "cnbc", name = "CNBC Ⓨ", url = "https://s/2.m3u8", guideId = "CNBC.us"),
+            LiveChannel(id = "retro", name = "Retro TV", url = "https://s/3.m3u8"),
+            LiveChannel(id = "other", name = "Other", url = "https://s/4.m3u8", guideId = "Other.us"),
+        )
+        val xml = """
+            <tv>
+              <channel id="BUZZR.TV.us2"><display-name>BUZZR</display-name></channel>
+              <channel id="CNBC.us"><display-name>CNBC USA</display-name></channel>
+              <channel id="RetroTV.us"/>
+              <channel id="Nothing.us"><display-name>Nothing Here</display-name></channel>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="BUZZR.TV.us2"><title>Game Show</title></programme>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="CNBC.us"><title>Markets</title></programme>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="RetroTV.us"><title>Old Show</title></programme>
+              <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="Nothing.us"><title>Skip</title></programme>
+            </tv>
+        """.trimIndent()
+        val matcher = GuideMatcher(channels)
+        val reader = XmltvParser.Reader(nowMs = base + 60_000L, matcher = matcher)
+        xml.chunked(11).forEach(reader::feed)
+        val found = reader.result()
+        assertNull(found["nothing.us"])
+        val assigned = matcher.assign(found.keys)
+        assertEquals("buzzr.tv.us2", assigned["buzzr"])
+        assertEquals("cnbc.us", assigned["cnbc"])
+        assertEquals("retrotv.us", assigned["retro"])
+        assertNull(assigned["other"])
+        assertEquals("Game Show", found[assigned["buzzr"]]?.now?.title)
+    }
+
+    @Test
+    fun `fills the guide of a worldwide list by name`() = kotlinx.coroutines.test.runTest {
+        val base = XmltvParser.parseTime("20260101000000 +0000")!!
+        val playlist = LivePlaylist(
+            channels = listOf(LiveChannel(id = "1", name = "Buzzr Ⓖ", url = "https://s/1.m3u8", group = "USA", guideId = "Buzzr.us")),
+            guideUrls = (1..8).map { "https://host/epg_ripper_X${it}1.xml.gz" } + "https://host/epg_ripper_US1.xml.gz",
+        )
+        val guide = """<tv><channel id="BUZZR.us2"><display-name>Buzzr</display-name></channel>
+            <programme start="20260101000000 +0000" stop="20260101010000 +0000" channel="BUZZR.us2"><title>Now</title></programme></tv>"""
+        val loader = loader(mapOf("https://host/epg_ripper_US1.xml.gz" to guide), nowMs = base + 1_000L)
+        val source = LiveSource(type = LiveSourceType.M3U, url = "https://host/list.m3u")
+        assertEquals("Now", loader.loadGroupGuide(source, playlist, "USA")["1"]?.now?.title)
+    }
+
     private fun loader(pages: Map<String, String>, nowMs: Long = 0L) =
         LiveTvLoader(fetchText = { url -> pages[url] }, nowMs = { nowMs })
 
