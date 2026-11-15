@@ -1242,7 +1242,6 @@
     <string name="mdblist_last_synced">סונכרן לאחרונה %1$s</string>
     <string name="mdblist_disconnect_title">לנתק את MDBList?</string>
     <string name="mdblist_disconnect_subtitle">הפסקת שליחת עדכוני צפייה מהפרופיל הזה. היסטוריית ה-MDBList נשמרת.</string>
-    <string name="mdblist_missing_client">חיבור MDBList אינו זמין בגרסה זו.</string>
     <string name="mdblist_invalid_response">MDBList החזיר תגובה לא שלמה. כדאי לנסות שוב.</string>
     <string name="mdblist_code_expired">פג תוקף הקוד. כדאי לנסות שוב כדי לקבל קוד חדש.</string>
     <string name="mdblist_access_denied">החיבור נדחה. כדאי לנסות שוב כדי לחבר את החשבון.</string>
@@ -1522,7 +1521,6 @@
     <string name="trakt_code_expires">הקוד יפוג בעוד %1$s</string>
     <string name="trakt_token_refreshes">אסימון גישה Trakt יתחדש בעוד %1$s</string>
     <string name="trakt_login_instruction">יש ללחוץ על \"התחברות\" להתחלת אימות מכשיר Trakt.</string>
-    <string name="trakt_missing_credentials">חסר TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET ב-local.properties.</string>
     <string name="trakt_watch_progress_title">התקדמות צפייה</string>
     <string name="trakt_watch_progress_subtitle">בחירת מקור ההתקדמות שמנהל את חידוש הצפייה ואת המשך הצפייה</string>
     <string name="trakt_watch_progress_dialog_title">התקדמות צפייה</string>
@@ -3036,7 +3034,6 @@
     <string name="simkl_sync_info_library_statuses">פריטים שנמצאים ברשימות On Hold או Dropped של Simkl מוסתרים מהמשך צפייה. הם יישארו מוסתרים כל עוד הם נמצאים באחת מהרשימות הללו.</string>
     <string name="simkl_sync_info_docs">מדריך הסנכרון של Simkl</string>
     <string name="error_open_browser_failed">פתיחת הדפדפן נכשלה</string>
-    <string name="simkl_missing_credentials">חסר SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">הזנת הקוד באתר Simkl כדי להשלים את החיבור</string>
     <string name="simkl_status_waiting">ממתין לאישור Simkl…</string>
     <string name="simkl_status_connected">מחובר ל-Simkl</string>

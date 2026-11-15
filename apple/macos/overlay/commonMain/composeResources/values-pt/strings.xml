@@ -1018,7 +1018,6 @@
     <string name="settings_trakt_features">FUNCIONALIDADES</string>
     <string name="settings_trakt_finish_sign_in">Conclui o início de sessão do Trakt no teu navegador</string>
     <string name="settings_trakt_intro_description">Sincroniza a tua lista de conteúdos, o progresso de visualização, o Continuar a Ver, os scrobbles e as listas pessoais com o Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Faltam as credenciais do Trakt no local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Abrir início de sessão do Trakt</string>
     <string name="settings_trakt_save_actions_description">As ações de Guardar podem agora utilizar a lista de conteúdos do Trakt e as tuas listas pessoais.</string>
     <string name="settings_trakt_sign_in_description">Inicia sessão com o Trakt para ativares a gravação em listas e o modo de biblioteca do Trakt.</string>
@@ -1400,7 +1399,6 @@
     <string name="trakt_library_load_failed">Falha ao carregar a biblioteca do Trakt</string>
     <string name="trakt_list_fallback_title">Lista %1$d</string>
     <string name="trakt_missing_auth_code">O Trakt não devolveu um código de autorização</string>
-    <string name="trakt_missing_credentials">Faltam as credenciais do Trakt</string>
     <string name="trakt_progress_load_failed">Falha ao carregar o progresso do Trakt</string>
     <string name="trakt_public_list">Lista pública do Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Introduz um ID ou URL válido de uma lista do Trakt</string>

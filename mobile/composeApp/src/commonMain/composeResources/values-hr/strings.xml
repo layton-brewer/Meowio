@@ -1295,7 +1295,6 @@
     <string name="settings_trakt_features">ZNAČAJKE</string>
     <string name="settings_trakt_finish_sign_in">Dovrši odobrenje veze</string>
     <string name="settings_trakt_intro_description">Sinkronizirajte svoj popis za gledanje, napredak gledanja, popis Nastavi gledati, scrobblove i osobne popise s Traktom.</string>
-    <string name="settings_trakt_missing_credentials">Nedostaju TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET u local.properties.</string>
     <string name="settings_trakt_open_login">Otvori Trakt prijavu</string>
     <string name="settings_trakt_save_actions_description">Sinkronizirajte svoj popis za gledanje, napredak gledanja, popis Nastavi gledati, scrobblove i osobne popise s Traktom.</string>
     <string name="settings_trakt_sign_in_description">Sinkronizirajte svoj popis za gledanje, napredak gledanja, popis Nastavi gledati, scrobblove i osobne popise s Traktom.</string>
@@ -1347,7 +1346,6 @@
     <string name="settings_simkl_finish_sign_in">Dovrši odobrenje veze</string>
     <string name="settings_simkl_open_login">Otvori Simkl prijavu</string>
     <string name="settings_simkl_sign_in_description">Povežite Simkl za sinkronizaciju popisa, povijesti gledanja, napretka reprodukcije i scrobblova.</string>
-    <string name="settings_simkl_missing_credentials">Nedostaje SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Posjeti Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl nije prihvatio povratni poziv prijave. Pokušajte ponovno.</string>
     <string name="settings_simkl_authorization_expired">Simkl kôd je istekao. Započnite ponovno.</string>
@@ -1805,7 +1803,6 @@
     <string name="trakt_library_load_failed">Nije uspjelo učitavanje Trakt medijateke</string>
     <string name="trakt_list_fallback_title">Popis %1$d</string>
     <string name="trakt_missing_auth_code">Trakt nije vratio autorizacijski kôd</string>
-    <string name="trakt_missing_credentials">Nedostaju Trakt vjerodajnice</string>
     <string name="trakt_progress_load_failed">Nije uspjelo učitavanje Trakt napretka</string>
     <string name="trakt_public_list">Trakt javni popis</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Unesite valjani Trakt ID popisa ili URL</string>

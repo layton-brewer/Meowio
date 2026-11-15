@@ -13,7 +13,6 @@
     <string name="settings_trakt_features">அம்சங்கள்</string>
     <string name="settings_trakt_finish_sign_in">இணைப்பு அனுமதியை நிறைவு செய்யவும்</string>
     <string name="settings_trakt_intro_description">Trakt-உடன் உங்கள் பார்க்கும் பட்டியல், பார்வை முன்னேற்றம், தொடர்ந்து பார்ப்பவை, scrobble-கள் மற்றும் தனிப்பட்ட பட்டியல்களை ஒத்திசைக்கவும்.</string>
-    <string name="settings_trakt_missing_credentials">local.properties-இல் TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET இல்லை.</string>
     <string name="settings_trakt_open_login">Trakt உள்நுழைவைத் திற</string>
     <string name="settings_trakt_save_actions_description">Trakt-உடன் உங்கள் பார்க்கும் பட்டியல், பார்வை முன்னேற்றம், தொடர்ந்து பார்ப்பவை, scrobble-கள் மற்றும் தனிப்பட்ட பட்டியல்களை ஒத்திசைக்கவும்.</string>
     <string name="settings_trakt_sign_in_description">Trakt-உடன் உங்கள் பார்க்கும் பட்டியல், பார்வை முன்னேற்றம், தொடர்ந்து பார்ப்பவை, scrobble-கள் மற்றும் தனிப்பட்ட பட்டியல்களை ஒத்திசைக்கவும்.</string>
@@ -65,7 +64,6 @@
     <string name="settings_simkl_finish_sign_in">இணைப்பு அனுமதியை நிறைவு செய்யவும்</string>
     <string name="settings_simkl_open_login">Simkl உள்நுழைவைத் திற</string>
     <string name="settings_simkl_sign_in_description">பட்டியல்கள், பார்த்த வரலாறு, பிளேபேக் முன்னேற்றம் மற்றும் scrobble-களை ஒத்திசைக்க Simkl-ஐ இணைக்கவும்.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID இல்லை</string>
     <string name="settings_simkl_visit">Simkl-ஐப் பார்வையிடவும்</string>
     <string name="settings_simkl_invalid_callback">Simkl உள்நுழைவு callback-ஐ ஏற்கவில்லை. மீண்டும் முயற்சிக்கவும்.</string>
     <string name="settings_simkl_authorization_expired">Simkl குறியீடு காலாவதியாகிவிட்டது. மீண்டும் தொடங்கவும்.</string>

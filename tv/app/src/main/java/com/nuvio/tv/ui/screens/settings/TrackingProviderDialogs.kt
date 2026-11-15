@@ -384,7 +384,7 @@ internal fun TrackingDeviceAuthContent(
                     missingCredentialsMessage
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (errorMessage != null || !credentialsConfigured) {
+                color = if (errorMessage != null) {
                     NuvioTheme.colors.Error
                 } else {
                     NuvioTheme.colors.TextSecondary

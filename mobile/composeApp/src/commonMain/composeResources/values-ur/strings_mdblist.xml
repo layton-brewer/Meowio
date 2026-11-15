@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">اپنے MDBList اکاؤنٹ میں کنکشن کی منظوری دیں۔</string>
     <string name="settings_mdblist_open_login">سائن اِن صفحہ کھولیں</string>
     <string name="settings_mdblist_disconnect">MDBList کا کنکشن ختم کریں</string>
-    <string name="settings_mdblist_missing_credentials">اس بلڈ میں MDBList کنکشن دستیاب نہیں ہے۔</string>
     <string name="settings_mdblist_sync_now">ابھی سنک کریں</string>
     <string name="settings_mdblist_visit">MDBList کھولیں</string>
     <string name="settings_mdblist_unavailable">MDBList کے ساتھ سنک نہیں ہو سکا۔ دوبارہ کوشش کریں۔</string>

@@ -1238,7 +1238,6 @@
     <string name="mdblist_last_synced">Última sincronização %1$s</string>
     <string name="mdblist_disconnect_title">Desconectar o MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Pare de enviar atualizações deste perfil. Seu histórico no MDBList é mantido.</string>
-    <string name="mdblist_missing_client">A conexão com o MDBList não está disponível nesta versão.</string>
     <string name="mdblist_invalid_response">O MDBList retornou uma resposta incompleta. Tente novamente.</string>
     <string name="mdblist_code_expired">Este código expirou. Tente novamente para gerar um novo código.</string>
     <string name="mdblist_access_denied">A conexão foi recusada. Tente novamente para conectar sua conta.</string>
@@ -1518,7 +1517,6 @@
     <string name="trakt_code_expires">O código expira em %1$s</string>
     <string name="trakt_token_refreshes">O token de acesso renova em %1$s</string>
     <string name="trakt_login_instruction">Selecione Login para autenticar o Trakt. Um QR Code aparece aqui.</string>
-    <string name="trakt_missing_credentials">TRAKT_CLIENT_ID/SECRET ausentes no local.properties.</string>
     <string name="trakt_watch_progress_title">Progresso de Reprodução</string>
     <string name="trakt_watch_progress_subtitle">Escolha qual fonte controla o progresso e o continuar assistindo</string>
     <string name="trakt_watch_progress_dialog_title">Progresso de Reprodução</string>
@@ -3037,7 +3035,6 @@
     <string name="simkl_sync_info_library_statuses">Séries colocadas nas listas “Em espera” ou “Abandonadas” do Simkl ficam ocultas em Continuar assistindo. Elas permanecem ocultas enquanto estiverem em uma dessas listas.</string>
     <string name="simkl_sync_info_docs">Leia o guia de sincronização do Simkl</string>
     <string name="error_open_browser_failed">Falha ao abrir o navegador</string>
-    <string name="simkl_missing_credentials">Faltando SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Digite o código no Simkl para concluir a conexão</string>
     <string name="simkl_status_waiting">Aguardando aprovação do Simkl…</string>
     <string name="simkl_status_connected">Conectado ao Simkl</string>

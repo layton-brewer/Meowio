@@ -1139,7 +1139,6 @@
     <string name="mdblist_last_synced">上次同步 %1$s</string>
     <string name="mdblist_disconnect_title">中斷 MDBList 連線？</string>
     <string name="mdblist_disconnect_subtitle">停止從此個人資料傳送觀看更新。您的 MDBList 歷史記錄將保留。</string>
-    <string name="mdblist_missing_client">此版本中 MDBList 連線無法使用。</string>
     <string name="mdblist_invalid_response">MDBList 回傳了不完整的回應。請重試。</string>
     <string name="mdblist_code_expired">此代碼已過期。請重試以取得新代碼。</string>
     <string name="mdblist_access_denied">連線已被拒絕。請重試以連接您的帳戶。</string>
@@ -1404,7 +1403,6 @@
     <string name="trakt_code_expires">代碼將在 %1$s 後過期</string>
     <string name="trakt_token_refreshes">Trakt 存取權杖將在 %1$s 後重新整理</string>
     <string name="trakt_login_instruction">按下「登入」以啟動 Trakt 裝置驗證。QR 碼將在此顯示。</string>
-    <string name="trakt_missing_credentials">local.properties 中缺少 TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET。</string>
     <string name="trakt_watch_progress_title">觀看進度</string>
     <string name="trakt_watch_progress_subtitle">選擇哪個進度來源提供繼續播放和繼續觀看功能</string>
     <string name="trakt_watch_progress_dialog_title">觀看進度</string>
@@ -2870,7 +2868,6 @@
     <string name="simkl_sync_info_library_statuses">放入 Simkl 的「暫時擱置」或「已放棄」清單的節目會從繼續觀看中隱藏。只要它們留在任一清單中，就會保持隱藏。</string>
     <string name="simkl_sync_info_docs">閱讀 Simkl 同步指南</string>
     <string name="error_open_browser_failed">無法開啟瀏覽器</string>
-    <string name="simkl_missing_credentials">缺少 SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">在 Simkl 上輸入代碼以完成連線</string>
     <string name="simkl_status_waiting">正在等待 Simkl 批准…</string>
     <string name="simkl_status_connected">已連線至 Simkl</string>

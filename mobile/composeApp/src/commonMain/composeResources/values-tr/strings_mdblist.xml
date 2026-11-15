@@ -18,7 +18,6 @@
     <string name="settings_mdblist_approval_description">Bağlantıyı MDBList hesabınızdan onaylayın.</string>
     <string name="settings_mdblist_open_login">Giriş sayfasını aç</string>
     <string name="settings_mdblist_disconnect">MDBList Bağlantısını Kes</string>
-    <string name="settings_mdblist_missing_credentials">Bu derlemede MDBList bağlantısı kullanılamıyor.</string>
     <string name="settings_mdblist_sync_now">Şimdi senkronize et</string>
     <string name="settings_mdblist_visit">MDBList'i Ziyaret Et</string>
     <string name="settings_mdblist_unavailable">MDBList ile senkronize edilemedi. Lütfen tekrar deneyin.</string>

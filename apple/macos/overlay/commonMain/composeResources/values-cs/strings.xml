@@ -1028,7 +1028,6 @@
     <string name="settings_trakt_features">FUNKCE</string>
     <string name="settings_trakt_finish_sign_in">Dokončete přihlášení do Trakt ve svém prohlížeči.</string>
     <string name="settings_trakt_intro_description">Synchronizujte svůj seznam sledovaných (watchlist), postup sledování, scrobblování, pokračování ve sledování a osobní seznamy s Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Chybí pověření pro Trakt v local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Otevřít přihlášení k Trakt</string>
     <string name="settings_trakt_save_actions_description">Vaše akce Uložit teď mohou zacílit na seznam sledovaných (watchlist) a osobní seznamy na Trakt.</string>
     <string name="settings_trakt_sign_in_description">Přihlaste se přes Trakt, abyste povolili ukládání přes seznamy a režim knihovny Trakt.</string>
@@ -1412,7 +1411,6 @@
     <string name="trakt_library_load_failed">Nepodařilo se načíst knihovnu Trakt</string>
     <string name="trakt_list_fallback_title">Seznam %1$d</string>
     <string name="trakt_missing_auth_code">Trakt nevrátil autorizační kód</string>
-    <string name="trakt_missing_credentials">Chybí pověření pro Trakt</string>
     <string name="trakt_progress_load_failed">Nepodařilo se načíst postup Trakt</string>
     <string name="trakt_public_list">Veřejný seznam Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Zadejte platné ID nebo URL seznamu Trakt</string>
@@ -2150,7 +2148,6 @@
     <string name="settings_simkl_finish_sign_in">Dokončit schválení připojení</string>
     <string name="settings_simkl_open_login">Otevřít přihlášení Simkl</string>
     <string name="settings_simkl_sign_in_description">Připojte Simkl pro synchronizaci seznamů, historie sledování, průběhu přehrávání a scrobblingu.</string>
-    <string name="settings_simkl_missing_credentials">Chybí SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Navštívit Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl nepřijal zpětné přesměrování po přihlášení. Zkuste to znovu.</string>
     <string name="settings_simkl_authorization_expired">Platnost kódu Simkl vypršela. Začněte znovu.</string>

@@ -1257,7 +1257,6 @@
     <string name="settings_trakt_features">ফিচার</string>
     <string name="settings_trakt_finish_sign_in">সংযোগ অনুমোদন শেষ করুন</string>
     <string name="settings_trakt_intro_description">ওয়াচলিস্ট, দেখার অগ্রগতি, দেখা চালিয়ে যান, স্ক্রবল এবং ব্যক্তিগত তালিকা Trakt-এর সাথে সিঙ্ক করুন।</string>
-    <string name="settings_trakt_missing_credentials">local.properties-এ TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET অনুপস্থিত।</string>
     <string name="settings_trakt_open_login">Trakt সাইন-ইন খুলুন</string>
     <string name="settings_trakt_save_actions_description">ওয়াচলিস্ট, দেখার অগ্রগতি, দেখা চালিয়ে যান, স্ক্রবল এবং ব্যক্তিগত তালিকা Trakt-এর সাথে সিঙ্ক করুন।</string>
     <string name="settings_trakt_sign_in_description">ওয়াচলিস্ট, দেখার অগ্রগতি, দেখা চালিয়ে যান, স্ক্রবল এবং ব্যক্তিগত তালিকা Trakt-এর সাথে সিঙ্ক করুন।</string>
@@ -1304,7 +1303,6 @@
     <string name="settings_simkl_finish_sign_in">সংযোগ অনুমোদন শেষ করুন</string>
     <string name="settings_simkl_open_login">Simkl সাইন-ইন খুলুন</string>
     <string name="settings_simkl_sign_in_description">তালিকা, দেখার হিস্ট্রি, প্লেব্যাক অগ্রগতি এবং স্ক্রবলিং সিঙ্ক করতে Simkl সংযোগ করুন।</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID অনুপস্থিত</string>
     <string name="settings_simkl_visit">Simkl দেখুন</string>
     <string name="settings_simkl_invalid_callback">Simkl সাইন ইন কলব্যাক গ্রহণ করেনি। আবার চেষ্টা করুন।</string>
     <string name="settings_simkl_authorization_expired">Simkl কোডের মেয়াদ শেষ। আবার শুরু করুন।</string>
@@ -1751,7 +1749,6 @@
     <string name="trakt_library_load_failed">Trakt লাইব্রেরি লোড করতে ব্যর্থ</string>
     <string name="trakt_list_fallback_title">তালিকা %1$d</string>
     <string name="trakt_missing_auth_code">Trakt কোনো অথোরাইজেশন কোড প্রদান করেনি</string>
-    <string name="trakt_missing_credentials">Trakt ক্রেডেনশিয়াল অনুপস্থিত</string>
     <string name="trakt_progress_load_failed">Trakt অগ্রগতি লোড করতে ব্যর্থ</string>
     <string name="trakt_public_list">Trakt পাবলিক তালিকা</string>
     <string name="trakt_public_list_enter_valid_id_or_url">একটি বৈধ Trakt তালিকা আইডি বা URL লিখুন</string>

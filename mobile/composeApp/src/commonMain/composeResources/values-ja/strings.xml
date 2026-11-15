@@ -1323,7 +1323,6 @@
     <string name="settings_trakt_features">機能</string>
     <string name="settings_trakt_finish_sign_in">ブラウザでTraktのサインインを完了してください</string>
     <string name="settings_trakt_intro_description">ウォッチリスト、視聴進捗、「視聴を続ける」、スクロブル、個人リストをTraktと同期します。</string>
-    <string name="settings_trakt_missing_credentials">local.propertiesにTraktの認証情報がありません（TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET）。</string>
     <string name="settings_trakt_open_login">Traktログインを開く</string>
     <string name="settings_trakt_save_actions_description">保存アクションでTraktのウォッチリストと個人リストをターゲットにできます。</string>
     <string name="settings_trakt_sign_in_description">Traktにサインインして、リストベースの保存とTraktライブラリモードを有効にしてください。</string>
@@ -1375,7 +1374,6 @@
     <string name="settings_simkl_finish_sign_in">連携の承認を完了してください</string>
     <string name="settings_simkl_open_login">Simklログインを開く</string>
     <string name="settings_simkl_sign_in_description">Simklに連携して、リスト、視聴履歴、再生進捗、スクロブルを同期します。</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_IDがありません</string>
     <string name="settings_simkl_visit">Simklを開く</string>
     <string name="settings_simkl_invalid_callback">Simklがサインインのコールバックを受け付けませんでした。もう一度お試しください。</string>
     <string name="settings_simkl_authorization_expired">Simklのコードが期限切れです。最初からやり直してください。</string>
@@ -1832,7 +1830,6 @@
     <string name="trakt_library_load_failed">Traktライブラリの読み込みに失敗しました</string>
     <string name="trakt_list_fallback_title">リスト %1$d</string>
     <string name="trakt_missing_auth_code">Traktが認証コードを返しませんでした</string>
-    <string name="trakt_missing_credentials">Traktの認証情報がありません</string>
     <string name="trakt_progress_load_failed">Traktの進捗の読み込みに失敗しました</string>
     <string name="trakt_public_list">Traktの公開リスト</string>
     <string name="trakt_public_list_enter_valid_id_or_url">有効なTraktリストIDまたはURLを入力してください</string>

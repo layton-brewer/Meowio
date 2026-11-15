@@ -1324,7 +1324,6 @@
     <string name="settings_trakt_features">FUNCTIES</string>
     <string name="settings_trakt_finish_sign_in">Goedkeuring van de verbinding voltooien</string>
     <string name="settings_trakt_intro_description">Synchroniseer je kijklijst, kijkvoortgang, Verder kijken, scrobbelen en persoonlijke lijsten met Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Trakt-inloggegevens ontbreken in local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Trakt-inlog openen</string>
     <string name="settings_trakt_save_actions_description">Synchroniseer je kijklijst, kijkvoortgang, Verder kijken, scrobbelen en persoonlijke lijsten met Trakt.</string>
     <string name="settings_trakt_sign_in_description">Synchroniseer je kijklijst, kijkvoortgang, Verder kijken, scrobbelen en persoonlijke lijsten met Trakt.</string>
@@ -1376,7 +1375,6 @@
     <string name="settings_simkl_finish_sign_in">Goedkeuring van de verbinding voltooien</string>
     <string name="settings_simkl_open_login">Simkl-login openen</string>
     <string name="settings_simkl_sign_in_description">Verbind Simkl om lijsten, kijkgeschiedenis, afspeelvoortgang en scrobbelen te synchroniseren.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID ontbreekt</string>
     <string name="settings_simkl_visit">Simkl bezoeken</string>
     <string name="settings_simkl_invalid_callback">Simkl heeft de inlogcallback niet geaccepteerd. Probeer het opnieuw.</string>
     <string name="settings_simkl_authorization_expired">Simkl-code verlopen. Begin opnieuw.</string>
@@ -1834,7 +1832,6 @@
     <string name="trakt_library_load_failed">Laden van Trakt-bibliotheek mislukt</string>
     <string name="trakt_list_fallback_title">Lijst %1$d</string>
     <string name="trakt_missing_auth_code">Trakt heeft geen autorisatiecode teruggegeven</string>
-    <string name="trakt_missing_credentials">Trakt-inloggegevens ontbreken</string>
     <string name="trakt_progress_load_failed">Laden van Trakt-voortgang mislukt</string>
     <string name="trakt_public_list">Openbare Trakt-lijst</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Voer een geldige Trakt-lijst-ID of URL in</string>

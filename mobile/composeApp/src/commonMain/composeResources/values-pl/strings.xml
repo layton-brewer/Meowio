@@ -984,7 +984,6 @@
     <string name="settings_trakt_features">FUNKCJE</string>
     <string name="settings_trakt_finish_sign_in">Dokończ logowanie Trakt w przeglądarce</string>
     <string name="settings_trakt_intro_description">Śledź, co oglądasz, zapisuj na liście obserwowanych lub listach niestandardowych i synchronizuj bibliotekę z Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Brak danych uwierzytelniających Trakt w local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Otwórz logowanie Trakt</string>
     <string name="settings_trakt_save_actions_description">Twoje akcje zapisywania mogą teraz celować w listę obserwowanych i osobiste listy Trakt.</string>
     <string name="settings_trakt_sign_in_description">Zaloguj się w Trakt, aby włączyć zapisywanie na listach i tryb biblioteki Trakt.</string>
@@ -1351,7 +1350,6 @@
     <string name="trakt_library_load_failed">Nie udało się załadować biblioteki Trakt</string>
     <string name="trakt_list_fallback_title">Lista %1$d</string>
     <string name="trakt_missing_auth_code">Trakt nie zwrócił kodu autoryzacji</string>
-    <string name="trakt_missing_credentials">Brak danych uwierzytelniających Trakt</string>
     <string name="trakt_progress_load_failed">Nie udało się załadować postępu Trakt</string>
     <string name="trakt_sign_in_complete_failed">Nie udało się dokończyć logowania Trakt</string>
     <string name="trakt_user_fallback">Użytkownik Trakt</string>
@@ -2211,7 +2209,6 @@
     <string name="settings_simkl_finish_sign_in">Dokończ zatwierdzanie połączenia</string>
     <string name="settings_simkl_open_login">Otwórz logowanie Simkl</string>
     <string name="settings_simkl_sign_in_description">Połącz Simkl, aby synchronizować listy, historię, postęp i scrobbling.</string>
-    <string name="settings_simkl_missing_credentials">Brak SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Odwiedź Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl nie zaakceptował odpowiedzi logowania. Spróbuj ponownie.</string>
     <string name="settings_simkl_authorization_expired">Kod Simkl wygasł. Zacznij ponownie.</string>

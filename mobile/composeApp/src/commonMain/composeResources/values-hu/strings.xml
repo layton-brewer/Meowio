@@ -864,7 +864,6 @@
     <string name="settings_trakt_features">FUNKCIÓK</string>
     <string name="settings_trakt_finish_sign_in">Fejezd be a Trakt bejelentkezést a böngésződben</string>
     <string name="settings_trakt_intro_description">Szinkronizáld a megnézendők listáját, a megtekintési előrehaladást, a lejátszás folytatását, a scrobble-öket és a személyes listáidat a Trakttal.</string>
-    <string name="settings_trakt_missing_credentials">Hiányzó Trakt hitelesítési adatok a local.properties fájlban (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Trakt bejelentkezés megnyitása</string>
     <string name="settings_trakt_save_actions_description">A mentési műveletek mostantól a Trakt megnézendők listáját és a személyes listákat is célozhatják.</string>
     <string name="settings_trakt_sign_in_description">Jelentkezz be a Trakt fiókodba a listaalapú mentés és a Trakt könyvtár mód engedélyezéséhez.</string>
@@ -1226,7 +1225,6 @@
     <string name="trakt_library_load_failed">Nem sikerült betölteni a Trakt könyvtárat</string>
     <string name="trakt_list_fallback_title">%1$d. lista</string>
     <string name="trakt_missing_auth_code">A Trakt nem adott vissza hitelesítési kódot</string>
-    <string name="trakt_missing_credentials">Hiányzó Trakt hitelesítési adatok</string>
     <string name="trakt_progress_load_failed">Nem sikerült betölteni a Trakt előrehaladást</string>
     <string name="trakt_sign_in_complete_failed">Nem sikerült befejezni a Trakt bejelentkezést</string>
     <string name="trakt_user_fallback">Trakt felhasználó</string>
@@ -2051,7 +2049,6 @@
     <string name="settings_simkl_finish_sign_in">Kapcsolat jóváhagyásának befejezése</string>
     <string name="settings_simkl_open_login">Simkl bejelentkezés megnyitása</string>
     <string name="settings_simkl_sign_in_description">Csatlakoztasd a Simkl-t a listák, megtekintési előzmények, lejátszási állapot és scrobble-ök szinkronizálásához.</string>
-    <string name="settings_simkl_missing_credentials">Hiányzó SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Simkl meglátogatása</string>
     <string name="settings_simkl_invalid_callback">A Simkl nem fogadta el a bejelentkezési visszahívást (callback). Kérjük, próbáld újra.</string>
     <string name="settings_simkl_authorization_expired">A Simkl kód lejárt. Kezdje újra.</string>
