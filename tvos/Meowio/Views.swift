@@ -475,6 +475,9 @@ struct LibraryView: View {
                     HStack(spacing: 30) {
                         Text("Library").font(.largeTitle.bold())
                         Spacer()
+                        NavigationLink { DiscoverListsView() } label: {
+                            Label("Popular lists", systemImage: "list.star")
+                        }
                         Menu {
                             Button { showing = "all" } label: {
                                 Label("All services", systemImage: showing == "all" ? "checkmark" : "square.stack")
