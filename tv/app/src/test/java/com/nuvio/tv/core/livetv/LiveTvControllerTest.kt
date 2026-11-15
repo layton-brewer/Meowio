@@ -43,7 +43,7 @@ class LiveTvControllerTest {
     @Test
     fun `saving a source loads its channels and remembers it`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
-        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         controller.ensureChannels()
         assertTrue(controller.state.value.ready)
         assertNull(controller.state.value.source)
@@ -61,7 +61,7 @@ class LiveTvControllerTest {
 
     @Test
     fun `a failed load reports why`() = runTest(UnconfinedTestDispatcher()) {
-        val controller = LiveTvController(MemoryStorage(), LiveTvLoader({ "<html>" }, { 0L }), backgroundScope, defaultSource = null)
+        val controller = LiveTvController(MemoryStorage(), LiveTvLoader({ "<html>" }, { 0L }), backgroundScope, defaultSources = emptyList())
         controller.start()
         controller.setSource(source)
         Thread.sleep(200)
@@ -73,7 +73,7 @@ class LiveTvControllerTest {
     fun `favorites recent channels and the tab setting are kept`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
         storage.values["source"] = LiveTvCodec.encodeSource(source)
-        val first = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val first = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         first.ensureChannels()
         Thread.sleep(200)
         val ids = first.state.value.channels.map(LiveChannel::id)
@@ -83,7 +83,7 @@ class LiveTvControllerTest {
         first.markWatched(ids[0])
         first.setTabVisible(false)
 
-        val second = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val second = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         second.ensureChannels()
         Thread.sleep(200)
         val state = second.state.value
@@ -100,7 +100,7 @@ class LiveTvControllerTest {
     fun `built-in channels show until the user adds a source and come back when it is removed`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
         val builtIn = LiveSource(LiveSourceType.M3U, "http://example.com/free.m3u")
-        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = builtIn)
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = listOf(builtIn))
         controller.ensureChannels()
         Thread.sleep(200)
         assertTrue(controller.state.value.usingDefault)
@@ -133,7 +133,7 @@ class LiveTvControllerTest {
             "http://other.example/list.m3u" to second,
         )
         val storage = MemoryStorage()
-        val controller = LiveTvController(storage, LiveTvLoader({ pages[it] }, { 0L }), backgroundScope, defaultSource = null)
+        val controller = LiveTvController(storage, LiveTvLoader({ pages[it] }, { 0L }), backgroundScope, defaultSources = emptyList())
         controller.start()
         controller.addSource(source)
         controller.addSource(LiveSource(LiveSourceType.M3U, "http://other.example/list.m3u", name = "Other"))
@@ -166,7 +166,7 @@ class LiveTvControllerTest {
     fun `a playlist saved by an older version is still read`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
         storage.values["source"] = LiveTvCodec.encodeSource(source)
-        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         controller.ensureChannels()
         Thread.sleep(200)
         assertEquals(listOf(source.copy(id = source.key)), controller.state.value.sources)
@@ -176,7 +176,7 @@ class LiveTvControllerTest {
     @Test
     fun `vpn settings are kept and only count as ready with a usable config`() = runTest(UnconfinedTestDispatcher()) {
         val storage = MemoryStorage()
-        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val controller = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         controller.start()
         assertFalse(controller.state.value.vpn.enabled)
         val wireGuard = "[Interface]\nPrivateKey = a\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = b\nEndpoint = vpn.example:51820"
@@ -186,7 +186,7 @@ class LiveTvControllerTest {
         assertFalse(LiveVpnSettings(enabled = true).withProfile("", "nonsense").ready)
         assertFalse(LiveVpnSettings(enabled = false).withProfile("", wireGuard).ready)
 
-        val again = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSource = null)
+        val again = LiveTvController(storage, LiveTvLoader({ playlist }, { 0L }), backgroundScope, defaultSources = emptyList())
         again.start()
         assertEquals(controller.state.value.vpn, again.state.value.vpn)
     }
