@@ -75,10 +75,11 @@ fun TrackingSettingsContent(
     val mdbListState by mdbListViewModel.uiState.collectAsStateWithLifecycle()
     val mdbListLibraryLists by mdbListViewModel.libraryLists.collectAsStateWithLifecycle()
     val trackingState by trackingViewModel.uiState.collectAsStateWithLifecycle()
-    // A provider whose sign-in keys aren't in this build is hidden instead of showing setup errors.
-    val traktOffered = traktState.credentialsConfigured || traktState.mode == TraktConnectionMode.CONNECTED
-    val simklOffered = simklState.credentialsConfigured || simklState.mode == SimklConnectionMode.CONNECTED
-    val mdbListOffered = mdbListState.credentialsConfigured || mdbListState.isConnected
+    // Every provider card is always shown. A build without that provider's sign-in keys shows a
+    // friendly "Not set up yet" state instead of a developer error.
+    val traktOffered = true
+    val simklOffered = true
+    val mdbListOffered = true
     val ownTraktFocusRequester = remember { FocusRequester() }
     val ownSimklFocusRequester = remember { FocusRequester() }
     val ownMdbListFocusRequester = remember { FocusRequester() }

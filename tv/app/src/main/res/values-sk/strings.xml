@@ -1063,7 +1063,6 @@
     <string name="trakt_code_expires">Kód vyprší o %1$s</string>
     <string name="trakt_token_refreshes">Prístupový token Trakt sa obnoví o %1$s</string>
     <string name="trakt_login_instruction">Stlačte Prihlásiť sa pre spustenie autentifikácie Trakt. Tu sa zobrazí QR kód.</string>
-    <string name="trakt_missing_credentials">Chýba TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET v local.properties.</string>
     <string name="trakt_watch_progress_title">Postup sledovania</string>
     <string name="trakt_watch_progress_subtitle">Vyberte, ktorý zdroj postupu sledovania riadi pokračovanie a obnovenie</string>
     <string name="trakt_watch_progress_dialog_title">Postup sledovania</string>
@@ -2904,7 +2903,6 @@
 <string name="simkl_sync_info_library_statuses">Seriály zaradené do zoznamov Pozastavené (On Hold) alebo Zrušené (Dropped) na Simkl sa v sekcii Pokračovať v sledovaní skryjú. Zostanú skryté dovtedy, kým sa nachádzajú v týchto zoznamoch.</string>
 <string name="simkl_sync_info_docs">Prečítať si sprievodcu synchronizáciou Simkl</string>
 <string name="error_open_browser_failed">Nepodarilo sa otvoriť prehliadač</string>
-<string name="simkl_missing_credentials">Chýba SIMKL_CLIENT_ID</string>
 <string name="simkl_status_enter_code">Zadajte kód na stránke Simkl pre dokončenie pripojenia</string>
 <string name="simkl_status_waiting">Čaká sa na schválenie Simkl…</string>
 <string name="simkl_status_connected">Pripojené k Simkl</string>
@@ -3234,7 +3232,6 @@
     <string name="mdblist_last_synced">Naposledy synchronizované %1$s</string>
     <string name="mdblist_disconnect_title">Odpojiť MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Prestať odosielať aktualizácie o sledovaní z tohto profilu. Vaša história na MDBList sa zachová.</string>
-    <string name="mdblist_missing_client">Pripojenie MDBList nie je v tejto verzii dostupné.</string>
     <string name="mdblist_invalid_response">MDBList vrátil neúplnú odpoveď. Skúste to znova.</string>
     <string name="mdblist_code_expired">Platnosť tohto kódu vypršala. Skúste to znova, aby ste získali nový kód.</string>
     <string name="mdblist_access_denied">Pripojenie bolo odmietnuté. Skúste znova pripojiť svoj účet.</string>

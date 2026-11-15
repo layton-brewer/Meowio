@@ -1093,7 +1093,6 @@
   <string name="mdblist_last_synced">Τελευταίος συγχρονισμός: %1$s</string>
   <string name="mdblist_disconnect_title">Αποσύνδεση από το MDBList;</string>
   <string name="mdblist_disconnect_subtitle">Διακοπή αποστολής ενημερώσεων προβολών από αυτό το προφίλ. Το ιστορικό σας στο MDBList διατηρείται.</string>
-  <string name="mdblist_missing_client">Η σύνδεση με το MDBList δεν είναι διαθέσιμη σε αυτή την έκδοση.</string>
   <string name="mdblist_invalid_response">Το MDBList επέστρεψε ελλιπή απάντηση. Δοκιμάστε ξανά.</string>
   <string name="mdblist_code_expired">Ο κωδικός έληξε. Δοκιμάστε ξανά για να λάβετε νέο κωδικό.</string>
   <string name="mdblist_access_denied">Η σύνδεση απορρίφθηκε. Δοκιμάστε ξανά για να συνδέσετε τον λογαριασμό σας.</string>
@@ -1294,7 +1293,6 @@
   <string name="trakt_code_expires">Ο κωδικός λήγει σε %1$s</string>
   <string name="trakt_token_refreshes">Το token πρόσβασης Trakt ανανεώνεται σε %1$s</string>
   <string name="trakt_login_instruction">Πατήστε Σύνδεση για να ξεκινήσει η πιστοποίηση Trakt. Θα εμφανιστεί QR code εδώ.</string>
-  <string name="trakt_missing_credentials">Λείπουν TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET στο local.properties.</string>
   <string name="trakt_watch_progress_title">Πρόοδος παρακολούθησης</string>
   <string name="trakt_watch_progress_subtitle">Επιλέξτε ποια πηγή θα τροφοδοτεί την επανάληψη και τη Συνέχεια παρακολούθησης</string>
   <string name="trakt_watch_progress_dialog_title">Πρόοδος παρακολούθησης</string>
@@ -1402,7 +1400,6 @@
   <string name="simkl_sync_info_library_statuses">Οι σειρές που τοποθετούνται στις λίστες On Hold ή Dropped του Simkl κρύβονται από τη Συνέχεια παρακολούθησης. Παραμένουν κρυφές όσο βρίσκονται σε οποιαδήποτε από τις δύο λίστες.</string>
   <string name="simkl_sync_info_docs">Διαβάστε τον οδηγό συγχρονισμού Simkl</string>
   <string name="error_open_browser_failed">Αποτυχία ανοίγματος προγράμματος περιήγησης</string>
-  <string name="simkl_missing_credentials">Λείπει το SIMKL_CLIENT_ID</string>
   <string name="simkl_status_enter_code">Εισάγετε τον κωδικό στο Simkl για ολοκλήρωση σύνδεσης</string>
   <string name="simkl_status_waiting">Αναμονή έγκρισης από το Simkl…</string>
   <string name="simkl_status_connected">Συνδεδεμένο με το Simkl</string>

@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Odobrite povezivanje u svom MDBList računu.</string>
     <string name="settings_mdblist_open_login">Otvori stranicu za prijavu</string>
     <string name="settings_mdblist_disconnect">Prekini vezu s MDBListom</string>
-    <string name="settings_mdblist_missing_credentials">MDBList povezivanje nije dostupno u ovoj verziji aplikacije.</string>
     <string name="settings_mdblist_sync_now">Sinkroniziraj sada</string>
     <string name="settings_mdblist_visit">Posjeti MDBList</string>
     <string name="settings_mdblist_unavailable">Sinkronizacija s MDBListom nije uspjela. Pokušajte ponovno.</string>

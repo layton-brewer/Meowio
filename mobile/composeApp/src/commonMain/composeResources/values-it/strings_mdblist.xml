@@ -4,7 +4,6 @@
     <string name="settings_mdblist_sign_in_description">Sincronizza la cronologia di visione e i progressi di riproduzione tra i dispositivi.</string>
     <string name="settings_mdblist_finish_sign_in">Completa l'approvazione della connessione</string>
     <string name="settings_mdblist_approval_description">Approva la connessione dal tuo account MDBList.</string>
-    <string name="settings_mdblist_missing_credentials">La connessione a MDBList non è disponibile in questa versione.</string>
     <string name="settings_mdblist_sync_now">Sincronizza ora</string>
     <string name="settings_mdblist_unavailable">Impossibile sincronizzare con MDBList. Riprova.</string>
     <string name="settings_mdblist_rate_limited">È stato raggiunto il limite di richieste di MDBList. La sincronizzazione riprenderà al ripristino del limite.</string>

@@ -1311,7 +1311,6 @@
     <string name="settings_trakt_features">الميزات</string>
     <string name="settings_trakt_finish_sign_in">إكمال الموافقة على الربط</string>
     <string name="settings_trakt_intro_description">مزامنة قائمة المشاهدة وتقدم المشاهدة ومتابعة المشاهدة وبيانات scrobbling وقوائمك الشخصية مع Trakt.</string>
-    <string name="settings_trakt_missing_credentials">بيانات TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET مفقودة في local.properties.</string>
     <string name="settings_trakt_open_login">فتح تسجيل الدخول إلى Trakt</string>
     <string name="settings_trakt_save_actions_description">مزامنة قائمة المشاهدة وتقدم المشاهدة ومتابعة المشاهدة وبيانات scrobbling وقوائمك الشخصية مع Trakt.</string>
     <string name="settings_trakt_sign_in_description">مزامنة قائمة المشاهدة وتقدم المشاهدة ومتابعة المشاهدة وبيانات scrobbling وقوائمك الشخصية مع Trakt.</string>
@@ -1363,7 +1362,6 @@
     <string name="settings_simkl_finish_sign_in">إكمال الموافقة على الربط</string>
     <string name="settings_simkl_open_login">فتح تسجيل الدخول إلى Simkl</string>
     <string name="settings_simkl_sign_in_description">اربط Simkl لمزامنة القوائم وسجل المشاهدة وتقدم التشغيل وميزة scrobbling.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID مفقود</string>
     <string name="settings_simkl_visit">زيارة Simkl</string>
     <string name="settings_simkl_invalid_callback">لم يقبل Simkl رد تسجيل الدخول. حاول مرة أخرى.</string>
     <string name="settings_simkl_authorization_expired">انتهت صلاحية رمز Simkl. ابدأ من جديد.</string>
@@ -1824,7 +1822,6 @@
     <string name="trakt_library_load_failed">فشل تحميل مكتبة Trakt</string>
     <string name="trakt_list_fallback_title">القائمة %1$d</string>
     <string name="trakt_missing_auth_code">لم يُرجع Trakt رمز تفويض</string>
-    <string name="trakt_missing_credentials">بيانات اعتماد Trakt مفقودة</string>
     <string name="trakt_progress_load_failed">فشل تحميل تقدم Trakt</string>
     <string name="trakt_public_list">قائمة Trakt عامة</string>
     <string name="trakt_public_list_enter_valid_id_or_url">أدخل معرّف قائمة Trakt صالحًا أو رابطًا صالحًا</string>

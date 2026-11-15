@@ -1116,7 +1116,6 @@
     <string name="trakt_code_expires">تنتهي صلاحية الرمز خلال %1$s</string>
     <string name="trakt_token_refreshes">يتجدد رمز وصول Trakt خلال %1$s</string>
     <string name="trakt_login_instruction">اضغط تسجيل دخول لبدء مصادقة جهاز Trakt. سيظهر رمز QR هنا.</string>
-    <string name="trakt_missing_credentials">بيانات TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET مفقودة في local.properties.</string>
     <string name="trakt_watch_progress_title">مستوى المشاهدة</string>
     <string name="trakt_watch_progress_subtitle">إختر مصدر مستوى المشاهدة الذي يتحكم في الاستئناف ومتابعة المشاهدة</string>
     <string name="trakt_watch_progress_dialog_title">مستوى المشاهدة</string>
@@ -2902,7 +2901,6 @@
     <string name="simkl_error_code_expired">انتهت صلاحية رمز Simkl. ابدأ من جديد.</string>
     <string name="simkl_error_network">تعذر الوصول إلى Simkl. حاول مجددًا.</string>
     <string name="simkl_library_source_selected">اختير Simkl للمكتبة</string>
-    <string name="simkl_missing_credentials">ينقص SIMKL_CLIENT_ID</string>
     <string name="simkl_name">Simkl</string>
     <string name="simkl_status_connected">متصل بـ Simkl</string>
     <string name="simkl_status_disconnected">انقطع الاتصال بـ Simkl</string>

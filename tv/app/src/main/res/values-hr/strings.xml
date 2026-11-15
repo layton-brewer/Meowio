@@ -1167,7 +1167,6 @@
     <string name="mdblist_last_synced">Zadnja sinkronizacija %1$s</string>
     <string name="mdblist_disconnect_title">Prekinuti vezu s MDBListom?</string>
     <string name="mdblist_disconnect_subtitle">Prestani slati ažuriranja gledanja s ovog profila. Tvoja MDBList povijest se čuva.</string>
-    <string name="mdblist_missing_client">Povezivanje s MDBListom nije dostupno u ovom buildu.</string>
     <string name="mdblist_invalid_response">MDBList je vratio nepotpun odgovor. Pokušaj ponovno.</string>
     <string name="mdblist_code_expired">Ovaj kôd je istekao. Pokušaj ponovno za novi kôd.</string>
     <string name="mdblist_access_denied">Povezivanje je odbijeno. Pokušaj ponovno povezati račun.</string>
@@ -1436,7 +1435,6 @@
     <string name="trakt_code_expires">Kôd istječe za %1$s</string>
     <string name="trakt_token_refreshes">Trakt pristupni token osvježava se za %1$s</string>
     <string name="trakt_login_instruction">Pritisni Prijava za pokretanje Trakt autentifikacije uređaja. Ovdje će se pojaviti QR kôd.</string>
-    <string name="trakt_missing_credentials">Nedostaju TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET u local.properties.</string>
     <string name="trakt_watch_progress_title">Napredak gledanja</string>
     <string name="trakt_watch_progress_subtitle">Odaberi koji izvor napretka pokreće nastavak reprodukcije i Nastavi gledati</string>
     <string name="trakt_watch_progress_dialog_title">Napredak gledanja</string>
@@ -2917,7 +2915,6 @@
     <string name="simkl_sync_info_library_statuses">Serije stavljene na Simkl popise Na čekanju ili Odustajem skrivene su iz Nastavi gledati. Ostaju skrivene dok god su na nekom od tih popisa.</string>
     <string name="simkl_sync_info_docs">Pročitaj vodič za Simkl sinkronizaciju</string>
     <string name="error_open_browser_failed">Otvaranje preglednika nije uspjelo</string>
-    <string name="simkl_missing_credentials">Nedostaje SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Unesi kôd na Simklu za dovršetak povezivanja</string>
     <string name="simkl_status_waiting">Čeka se Simkl odobrenje…</string>
     <string name="simkl_status_connected">Povezano sa Simklom</string>

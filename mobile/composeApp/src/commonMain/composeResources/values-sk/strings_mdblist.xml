@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Schváľte pripojenie vo svojom účte MDBList.</string>
     <string name="settings_mdblist_open_login">Otvoriť prihlasovaciu stránku</string>
     <string name="settings_mdblist_disconnect">Odpojiť MDBList</string>
-    <string name="settings_mdblist_missing_credentials">Pripojenie k MDBList nie je v tejto verzii k dispozícii.</string>
     <string name="settings_mdblist_sync_now">Synchronizovať teraz</string>
     <string name="settings_mdblist_visit">Navštíviť MDBList</string>
     <string name="settings_mdblist_unavailable">Nepodarilo sa synchronizovať s MDBList. Skúste to znova.</string>

@@ -1137,7 +1137,6 @@
     <string name="mdblist_last_synced">সর্বশেষ সিঙ্ক করা হয়েছে %1$s</string>
     <string name="mdblist_disconnect_title">MDBList ডিসকানেক্ট করবেন?</string>
     <string name="mdblist_disconnect_subtitle">এই প্রোফাইল থেকে ওয়াচ আপডেট পাঠানো বন্ধ করুন। আপনার MDBList হিস্ট্রি থেকে যাবে।</string>
-    <string name="mdblist_missing_client">MDBList কানেকশন এই বিল্ডে অ্যাভেইলেবল নয়।</string>
     <string name="mdblist_invalid_response">MDBList একটি অসম্পূর্ণ রেসপন্স দিয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
     <string name="mdblist_code_expired">এই কোডের মেয়াদ শেষ। নতুন কোড পেতে আবার চেষ্টা করুন।</string>
     <string name="mdblist_access_denied">কানেকশন ডিক্লাইন করা হয়েছে। আপনার অ্যাকাউন্ট কানেক্ট করতে আবার চেষ্টা করুন।</string>
@@ -1397,7 +1396,6 @@
     <string name="trakt_code_expires">কোডটির মেয়াদ %1$s-এ শেষ হবে</string>
     <string name="trakt_token_refreshes">Trakt অ্যাক্সেস টোকেন %1$s-এ রিফ্রেশ হবে</string>
     <string name="trakt_login_instruction">Trakt ডিভাইস অথেন্টিকেশন শুরু করতে লগইন-এ চাপ দিন। এখানে একটি কিউআর কোড দেখা যাবে।</string>
-    <string name="trakt_missing_credentials">local.properties-এ TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET অনুপস্থিত।</string>
     <string name="trakt_watch_progress_title">ওয়াচ প্রগ্রেস</string>
     <string name="trakt_watch_progress_subtitle">কোন প্রগ্রেস সোর্স \'রিজিউম\' এবং \'Continue Watching\' পরিচালনা করবে তা বাছুন</string>
     <string name="trakt_watch_progress_dialog_title">ওয়াচ প্রগ্রেস</string>
@@ -2784,7 +2782,6 @@
     <string name="simkl_sync_info_library_statuses">Simkl-এর \'On Hold\' বা \'Dropped\' লিস্টে রাখা শোগুলো \'Continue Watching\' থেকে হাইড করা থাকে। ওই লিস্টগুলোর যেকোনো একটিতে থাকা পর্যন্ত এগুলো হাইড করা থাকবে।</string>
     <string name="simkl_sync_info_docs">Simkl সিঙ্ক গাইড পড়ুন</string>
     <string name="error_open_browser_failed">ব্রাউজার খুলতে ব্যর্থ</string>
-    <string name="simkl_missing_credentials">অনুপস্থিত SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">কানেক্ট করা শেষ করতে Simkl-এ কোডটি দিন</string>
     <string name="simkl_status_waiting">Simkl অ্যাপ্রুভালের জন্য অপেক্ষা করা হচ্ছে…</string>
     <string name="simkl_status_connected">Simkl-এর সাথে কানেক্টেড</string>

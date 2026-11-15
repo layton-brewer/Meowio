@@ -1334,7 +1334,6 @@
     <string name="settings_trakt_features">ФУНКЦИИ</string>
     <string name="settings_trakt_finish_sign_in">Завърши влизането в Trakt в браузъра си</string>
     <string name="settings_trakt_intro_description">Синхронизирай своя списък за гледане, напредък, продължи гледането, scrobbles и лични списъци с Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Липсват Trakt идентификационни данни в local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Отвори Trakt вход</string>
     <string name="settings_trakt_save_actions_description">Вашите действия за запазване вече могат да насочват към Trakt списък за гледане и лични списъци.</string>
     <string name="settings_trakt_sign_in_description">Влезте с Trakt, за да активирате запазване базирано на списъци и режим на Trakt библиотека.</string>
@@ -1377,7 +1376,6 @@
     <string name="settings_simkl_finish_sign_in">Завърши одобрението</string>
     <string name="settings_simkl_open_login">Отвори Simkl вход</string>
     <string name="settings_simkl_sign_in_description">Свържете Simkl, за да синхронизирате списъци, история на гледане, напредък и скроблинг.</string>
-    <string name="settings_simkl_missing_credentials">Липсва SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Посети Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl не прие callback-а за вход. Опитайте отново.</string>
     <string name="settings_simkl_authorization_expired">Simkl кодът е изтекъл. Започнете отново.</string>
@@ -1809,7 +1807,6 @@
     <string name="trakt_library_load_failed">Trakt библиотеката не можа да се зареди</string>
     <string name="trakt_list_fallback_title">Списък %1$d</string>
     <string name="trakt_missing_auth_code">Trakt не върна код за оторизация</string>
-    <string name="trakt_missing_credentials">Липсват Trakt идентификационни данни</string>
     <string name="trakt_progress_load_failed">Trakt напредъкът не можа да се зареди</string>
     <string name="trakt_public_list">Публичен Trakt списък</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Въведете валиден Trakt ID или URL на списък</string>

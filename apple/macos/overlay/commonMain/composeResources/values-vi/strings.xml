@@ -1323,7 +1323,6 @@
     <string name="settings_trakt_features">TÍNH NĂNG</string>
     <string name="settings_trakt_finish_sign_in">Hoàn tất phê duyệt kết nối</string>
     <string name="settings_trakt_intro_description">Đồng bộ danh sách muốn xem, tiến độ xem, tiếp tục xem, nhật ký phát lại và danh sách cá nhân với Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Thiếu TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET trong local.properties.</string>
     <string name="settings_trakt_open_login">Mở trang đăng nhập Trakt</string>
     <string name="settings_trakt_save_actions_description">Đồng bộ danh sách muốn xem, tiến độ xem, tiếp tục xem, nhật ký phát lại và danh sách cá nhân với Trakt.</string>
     <string name="settings_trakt_sign_in_description">Đồng bộ danh sách muốn xem, tiến độ xem, tiếp tục xem, nhật ký phát lại và danh sách cá nhân với Trakt.</string>
@@ -1375,7 +1374,6 @@
     <string name="settings_simkl_finish_sign_in">Hoàn tất phê duyệt kết nối</string>
     <string name="settings_simkl_open_login">Mở đăng nhập Simkl</string>
     <string name="settings_simkl_sign_in_description">Kết nối Simkl để đồng bộ danh sách, lịch sử đã xem, tiến trình và nhật ký phát lại.</string>
-    <string name="settings_simkl_missing_credentials">Thiếu SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_visit">Truy cập Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl không chấp nhận phản hồi đăng nhập. Vui lòng thử lại.</string>
     <string name="settings_simkl_authorization_expired">Mã Simkl đã hết hạn. Vui lòng bắt đầu lại.</string>
@@ -1833,7 +1831,6 @@
     <string name="trakt_library_load_failed">Không thể tải thư viện Trakt</string>
     <string name="trakt_list_fallback_title">Danh sách %1$d</string>
     <string name="trakt_missing_auth_code">Trakt đã không trả về mã ủy quyền</string>
-    <string name="trakt_missing_credentials">Thiếu thông tin xác thực Trakt</string>
     <string name="trakt_progress_load_failed">Không thể tải tiến trình xem từ Trakt</string>
     <string name="trakt_public_list">Danh sách công khai Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Nhập ID hoặc URL danh sách Trakt hợp lệ</string>

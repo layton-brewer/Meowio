@@ -1057,7 +1057,6 @@
     <string name="trakt_code_expires">Kode kedaluwarsa dalam %1$s</string>
     <string name="trakt_token_refreshes">Token akses Trakt diperbarui dalam %1$s</string>
     <string name="trakt_login_instruction">Tekan Login untuk memulai autentikasi perangkat Trakt. Kode QR akan muncul di sini.</string>
-    <string name="trakt_missing_credentials">TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET tidak ada di local.properties.</string>
     <string name="trakt_watch_progress_title">Progres Tonton</string>
     <string name="trakt_watch_progress_subtitle">Pilih sumber progres mana yang menggerakkan lanjutkan dan continue watching</string>
     <string name="trakt_watch_progress_dialog_title">Progres Tonton</string>
@@ -2884,7 +2883,6 @@
     <string name="mdblist_last_synced">Terakhir disinkronkan %1$s</string>
     <string name="mdblist_disconnect_title">Putuskan MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Berhenti mengirim pembaruan tontonan dari profil ini. Riwayat MDBList Anda tetap disimpan.</string>
-    <string name="mdblist_missing_client">Koneksi MDBList tidak tersedia pada build ini.</string>
     <string name="mdblist_invalid_response">MDBList mengembalikan respons yang tidak lengkap. Silakan coba lagi.</string>
     <string name="mdblist_code_expired">Kode ini sudah kedaluwarsa. Coba lagi untuk mendapatkan kode baru.</string>
     <string name="mdblist_access_denied">Koneksi ditolak. Coba lagi untuk menghubungkan akun Anda.</string>
@@ -3200,7 +3198,6 @@
     <string name="simkl_sync_info_library_statuses">Acara yang ditempatkan di daftar Ditunda atau Dihentikan Simkl disembunyikan dari Lanjutkan Menonton. Acara tersebut tetap tersembunyi selama berada di salah satu daftar itu.</string>
     <string name="simkl_sync_info_docs">Baca panduan sinkronisasi Simkl</string>
     <string name="error_open_browser_failed">Gagal membuka browser</string>
-    <string name="simkl_missing_credentials">SIMKL_CLIENT_ID tidak ada</string>
     <string name="simkl_status_enter_code">Masukkan kode di Simkl untuk menyelesaikan koneksi</string>
     <string name="simkl_status_waiting">Menunggu persetujuan Simkl…</string>
     <string name="simkl_status_connected">Terhubung ke Simkl</string>

@@ -1329,7 +1329,6 @@
     <string name="settings_trakt_features">FONCTIONNALITÉS</string>
     <string name="settings_trakt_finish_sign_in">Terminer l’approbation de la connexion</string>
     <string name="settings_trakt_intro_description">Synchronisez votre liste de suivi, votre progression de visionnage, la section Continuer à regarder, vos scrobbles et vos listes personnelles avec Trakt.</string>
-    <string name="settings_trakt_missing_credentials">TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET manquants dans local.properties.</string>
     <string name="settings_trakt_open_login">Ouvrir la connexion à Trakt</string>
     <string name="settings_trakt_save_actions_description">Synchronisez votre liste de suivi, votre progression de visionnage, la section Continuer à regarder, vos scrobbles et vos listes personnelles avec Trakt.</string>
     <string name="settings_trakt_sign_in_description">Synchronisez votre liste de suivi, votre progression de visionnage, la section Continuer à regarder, vos scrobbles et vos listes personnelles avec Trakt.</string>
@@ -1381,7 +1380,6 @@
     <string name="settings_simkl_finish_sign_in">Terminer l’approbation de la connexion</string>
     <string name="settings_simkl_open_login">Ouvrir la connexion à Simkl</string>
     <string name="settings_simkl_sign_in_description">Connectez Simkl pour synchroniser vos listes, votre historique de visionnage, votre progression de lecture et vos scrobbles.</string>
-    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID manquant</string>
     <string name="settings_simkl_visit">Visiter Simkl</string>
     <string name="settings_simkl_invalid_callback">Simkl n’a pas accepté le callback de connexion. Veuillez réessayer.</string>
     <string name="settings_simkl_authorization_expired">Le code Simkl a expiré. Recommencez.</string>
@@ -1839,7 +1837,6 @@
     <string name="trakt_library_load_failed">Impossible de charger la bibliothèque Trakt</string>
     <string name="trakt_list_fallback_title">Liste %1$d</string>
     <string name="trakt_missing_auth_code">Trakt n’a pas renvoyé de code d’autorisation</string>
-    <string name="trakt_missing_credentials">Identifiants Trakt manquants</string>
     <string name="trakt_progress_load_failed">Impossible de charger la progression Trakt</string>
     <string name="trakt_public_list">Liste Trakt publique</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Saisissez un ID ou une URL de liste Trakt valide</string>

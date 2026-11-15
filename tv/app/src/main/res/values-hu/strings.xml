@@ -1232,7 +1232,6 @@
     <string name="mdblist_last_synced">Utolsó szinkronizálás: %1$s</string>
     <string name="mdblist_disconnect_title">Leválasztod az MDBList-fiókot?</string>
     <string name="mdblist_disconnect_subtitle">Ha leválasztod a fiókot, ez a profil nem küld több megtekintési adatot. Az MDBList-előzményeid megmaradnak.</string>
-    <string name="mdblist_missing_client">Az MDBList-kapcsolat nem érhető el ebben a verzióban.</string>
     <string name="mdblist_invalid_response">Az MDBList hiányos választ küldött. Próbáld újra.</string>
     <string name="mdblist_code_expired">Ez a kód lejárt. Próbáld újra, hogy új kódot kapj.</string>
     <string name="mdblist_access_denied">A csatlakozást elutasították. Próbáld újra csatlakoztatni a fiókodat.</string>
@@ -1514,7 +1513,6 @@
     <string name="trakt_code_expires">A kód lejár: %1$s múlva</string>
     <string name="trakt_token_refreshes">Trakt token frissítése: %1$s múlva</string>
     <string name="trakt_login_instruction">Nyomd meg a Bejelentkezés gombot a Trakt hitelesítéshez. Egy QR-kód fog megjelenni.</string>
-    <string name="trakt_missing_credentials">Hiányzó TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET a local.properties fájlban.</string>
     <string name="trakt_watch_progress_title">Megtekintési folyamat</string>
     <string name="trakt_watch_progress_subtitle">Válaszd ki, melyik folyamatforrás vezérelje a lejátszás folytatását</string>
     <string name="trakt_watch_progress_dialog_title">Megtekintési folyamat</string>
@@ -3045,7 +3043,6 @@ Próbálj meg egy másik forrást. [%1$s]</string>
     <string name="simkl_sync_info_library_statuses">A Simkl Félretéve (On Hold) vagy Abbahagyott (Dropped) listájára helyezett sorozatok nem jelennek meg a Megtekintés folytatása sorban. Addig maradnak elrejtve, amíg valamelyik listán szerepelnek.</string>
     <string name="simkl_sync_info_docs">Olvasd el a Simkl szinkronizálási útmutatót</string>
     <string name="error_open_browser_failed">A böngésző megnyitása nem sikerült</string>
-    <string name="simkl_missing_credentials">Hiányzó SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Írd be a kódot a Simklen a csatlakozás befejezéséhez</string>
     <string name="simkl_status_waiting">Várakozás a Simkl jóváhagyására…</string>
     <string name="simkl_status_connected">Csatlakoztatva a Simklhez</string>

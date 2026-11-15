@@ -1227,7 +1227,6 @@
     <string name="trakt_code_expires">Kodi skadon pas %1$s</string>
     <string name="trakt_token_refreshes">Tokeni i qasjes Trakt rifreskohet pas %1$s</string>
     <string name="trakt_login_instruction">Shtyp Hyr për të nisur autentifikimin e pajisjes Trakt. Këtu do të shfaqet një kod QR.</string>
-    <string name="trakt_missing_credentials">Mungon TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET në local.properties.</string>
     <string name="trakt_watch_progress_title">Progresi i shikimit</string>
     <string name="trakt_watch_progress_subtitle">Zgjidh cili burim progresi furnizon vazhdimin dhe Vazhdo shikimin</string>
     <string name="trakt_watch_progress_dialog_title">Progresi i shikimit</string>
@@ -2571,7 +2570,6 @@
     <string name="simkl_sync_info_library_statuses">Serialet e vendosura në listat Në pritje ose Braktisur të Simkl fshihen nga Vazhdo shikimin. Ato mbeten të fshehura për sa kohë që qëndrojnë në njërën prej këtyre listave.</string>
     <string name="simkl_sync_info_docs">Lexo udhëzuesin e sinkronizimit Simkl</string>
     <string name="error_open_browser_failed">Hapja e shfletuesit dështoi</string>
-    <string name="simkl_missing_credentials">Mungon SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Shkruaj kodin në Simkl për të përfunduar lidhjen</string>
     <string name="simkl_status_waiting">Në pritje të miratimit nga Simkl…</string>
     <string name="simkl_status_connected">U lidh me Simkl</string>

@@ -112,10 +112,7 @@ class TraktViewModel @Inject constructor(
     fun onConnectClick() {
         if (!traktAuthService.hasRequiredCredentials()) {
             _uiState.update {
-                it.copy(
-                    errorMessage = context.getString(R.string.trakt_missing_credentials),
-                    credentialsConfigured = false
-                )
+                it.copy(credentialsConfigured = false)
             }
             return
         }

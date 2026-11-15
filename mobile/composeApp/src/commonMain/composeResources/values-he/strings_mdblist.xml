@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">יש לאשר את החיבור בחשבון ה-MDBList.</string>
     <string name="settings_mdblist_open_login">פתיחת דף ההתחברות</string>
     <string name="settings_mdblist_disconnect">ניתוק MDBList</string>
-    <string name="settings_mdblist_missing_credentials">חיבור MDBList אינו זמין בגרסה זו.</string>
     <string name="settings_mdblist_sync_now">סנכרון עכשיו</string>
     <string name="settings_mdblist_visit">מעבר אל MDBList</string>
     <string name="settings_mdblist_unavailable">לא ניתן היה לסנכרן עם MDBList. כדאי לנסות שוב.</string>

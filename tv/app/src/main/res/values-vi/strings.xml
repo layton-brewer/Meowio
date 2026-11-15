@@ -1273,7 +1273,6 @@
     <string name="mdblist_last_synced">Đồng bộ lần cuối %1$s</string>
     <string name="mdblist_disconnect_title">Ngắt kết nối MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Dừng gửi cập nhật xem từ hồ sơ này. Lịch sử MDBList của bạn vẫn được giữ lại.</string>
-    <string name="mdblist_missing_client">Kết nối MDBList không có sẵn trong bản dựng này.</string>
     <string name="mdblist_invalid_response">MDBList trả về phản hồi chưa đầy đủ. Vui lòng thử lại.</string>
     <string name="mdblist_code_expired">Mã này đã hết hạn. Vui lòng thử lại để nhận mã mới.</string>
     <string name="mdblist_access_denied">Kết nối bị từ chối. Vui lòng thử lại để kết nối tài khoản của bạn.</string>
@@ -1553,7 +1552,6 @@
     <string name="trakt_code_expires">Mã hết hạn sau %1$s</string>
     <string name="trakt_token_refreshes">Token truy cập Trakt làm mới sau %1$s</string>
     <string name="trakt_login_instruction">Nhấn Đăng nhập để bắt đầu xác thực thiết bị Trakt. Mã QR sẽ xuất hiện ở đây.</string>
-    <string name="trakt_missing_credentials">Thiếu TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET trong local.properties.</string>
     <string name="trakt_watch_progress_title">Tiến trình xem</string>
     <string name="trakt_watch_progress_subtitle">Chọn nguồn tiến trình dùng để tiếp tục xem</string>
     <string name="trakt_watch_progress_dialog_title">Tiến trình xem</string>
@@ -3072,7 +3070,6 @@
     <string name="simkl_sync_info_library_statuses">Các chương trình nằm trong danh sách Tạm hoãn hoặc Đã bỏ của Simkl sẽ bị ẩn khỏi mục Tiếp tục xem. Chúng vẫn bị ẩn trong suốt thời gian nằm trong một trong hai danh sách đó.</string>
     <string name="simkl_sync_info_docs">Đọc hướng dẫn đồng bộ Simkl</string>
     <string name="error_open_browser_failed">Không thể mở trình duyệt</string>
-    <string name="simkl_missing_credentials">Thiếu SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Nhập mã trên Simkl để hoàn tất kết nối</string>
     <string name="simkl_status_waiting">Đang chờ Simkl phê duyệt…</string>
     <string name="simkl_status_connected">Đã kết nối với Simkl</string>

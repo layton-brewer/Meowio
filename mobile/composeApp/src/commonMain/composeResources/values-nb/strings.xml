@@ -1957,7 +1957,6 @@ Du bruker denne funksjonen helt på eget ansvar. P2P kan deaktiveres når som he
     <string name="settings_simkl_disconnect_description">Dette fjerner Simkl-kontoen og bufrede Simkl-data fra denne profilen.</string>
     <string name="settings_simkl_finish_sign_in">Fullfør tilkoblingsgodkjenning</string>
     <string name="settings_simkl_invalid_callback">Simkl godtok ikke innloggings-callbacken. Prøv igjen.</string>
-    <string name="settings_simkl_missing_credentials">Mangler SIMKL_CLIENT_ID</string>
     <string name="settings_simkl_open_login">Åpne Simkl-innlogging</string>
     <string name="settings_simkl_sign_in_description">Koble til Simkl for å synkronisere lister, seerhistorikk, avspillingsfremdrift og scrobbles.</string>
     <string name="settings_simkl_sign_in_failed">Kunne ikke fullføre Simkl-innlogging. Prøv igjen.</string>
@@ -2069,7 +2068,6 @@ Du bruker denne funksjonen helt på eget ansvar. P2P kan deaktiveres når som he
     <string name="settings_trakt_features">FUNKSJONER</string>
     <string name="settings_trakt_finish_sign_in">Fullfør Trakt-innlogging i nettleseren din</string>
     <string name="settings_trakt_intro_description">Synkroniser seerliste, fremdrift, Fortsett å se, scrobbles og personlige lister med Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Mangler Trakt-legitimasjon i local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Åpne Trakt-innlogging</string>
     <string name="settings_trakt_save_actions_description">Lagre-handlinger kan nå målrette Trakt watchlist og personlige lister.</string>
     <string name="settings_trakt_sign_in_description">Logg inn med Trakt for å aktivere listebasert lagring og Trakt-bibliotekmodus.</string>
@@ -2218,7 +2216,6 @@ Du bruker denne funksjonen helt på eget ansvar. P2P kan deaktiveres når som he
     <string name="trakt_lists_load_failed">Kunne ikke laste Trakt-lister</string>
     <string name="trakt_lists_update_failed">Kunne ikke oppdatere Trakt-lister</string>
     <string name="trakt_missing_auth_code">Trakt returnerte ikke en autorisasjonskode</string>
-    <string name="trakt_missing_credentials">Mangler Trakt-legitimasjon</string>
     <string name="trakt_more_like_this_source_dialog_subtitle">Velg kilden for anbefalinger som vises på detaljsider.</string>
     <string name="trakt_more_like_this_source_dialog_title">Kilde for Mer som dette</string>
     <string name="trakt_more_like_this_source_subtitle">Velg hvor anbefalinger kommer fra på detaljsider</string>

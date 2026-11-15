@@ -17,7 +17,6 @@
     <string name="settings_mdblist_approval_description">Phê duyệt kết nối trong tài khoản MDBList của bạn.</string>
     <string name="settings_mdblist_open_login">Mở trang đăng nhập</string>
     <string name="settings_mdblist_disconnect">Ngắt kết nối MDBList</string>
-    <string name="settings_mdblist_missing_credentials">Kết nối MDBList không khả dụng trong bản dựng này.</string>
     <string name="settings_mdblist_sync_now">Đồng bộ ngay</string>
     <string name="settings_mdblist_visit">Truy cập MDBList</string>
     <string name="settings_mdblist_unavailable">Không thể đồng bộ với MDBList. Vui lòng thử lại.</string>

@@ -930,7 +930,6 @@
     <string name="settings_trakt_features">FITUR</string>
     <string name="settings_trakt_finish_sign_in">Selesaikan masuk Trakt di browser Anda</string>
     <string name="settings_trakt_intro_description">Sinkronkan daftar tonton, progres menonton, lanjutkan menonton, scrobble, dan daftar pribadi Anda dengan Trakt.</string>
-    <string name="settings_trakt_missing_credentials">Kredensial Trakt hilang di local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
     <string name="settings_trakt_open_login">Buka Login Trakt</string>
     <string name="settings_trakt_save_actions_description">Anda sekarang dapat menyimpan ke daftar tonton Trakt dan personal.</string>
     <string name="settings_trakt_sign_in_description">Masuk dengan Trakt untuk mengaktifkan penyimpanan berbasis daftar dan mode pustaka Trakt.</string>
@@ -1294,7 +1293,6 @@
     <string name="trakt_library_load_failed">Gagal memuat pustaka Trakt</string>
     <string name="trakt_list_fallback_title">Daftar %1$d</string>
     <string name="trakt_missing_auth_code">Trakt tidak memberikan kode otorisasi</string>
-    <string name="trakt_missing_credentials">Kredensial Trakt hilang</string>
     <string name="trakt_progress_load_failed">Gagal memuat progres Trakt</string>
     <string name="trakt_sign_in_complete_failed">Gagal menyelesaikan masuk Trakt</string>
     <string name="trakt_user_fallback">Pengguna Trakt</string>
