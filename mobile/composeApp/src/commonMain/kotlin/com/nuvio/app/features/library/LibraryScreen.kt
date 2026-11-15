@@ -391,6 +391,10 @@ fun LibraryScreen(
                             },
                             modifier = Modifier.padding(horizontal = 16.dp),
                         )
+                        if (sourceMode == LibraryViewMode.Saved) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LibraryTrackingPicker(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                     }
                 }

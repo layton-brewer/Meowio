@@ -20,6 +20,10 @@ import com.nuvio.tv.core.debrid.supports
 import com.nuvio.tv.core.tracking.TrackingListManagementCapabilities
 import com.nuvio.tv.core.tracking.TrackingLibraryProviderRegistry
 import com.nuvio.tv.core.tracking.providerId
+import com.nuvio.tv.core.tracking.effectiveLibrarySourceMode
+import com.nuvio.tv.core.tracking.effectiveWatchProgressSource
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import com.nuvio.tv.core.poster.withCustomPosterUrls
 import com.nuvio.tv.data.local.DebridSettingsDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
@@ -170,6 +174,8 @@ class LibraryViewModel @Inject constructor(
     private val libraryPreferences: LibraryPreferences,
     private val authManager: AuthManager,
     private val trackingProviderRegistry: TrackingLibraryProviderRegistry,
+    private val trackingRegistry: com.nuvio.tv.core.tracking.TrackingProviderRegistry,
+    private val trackingSourceController: com.nuvio.tv.core.tracking.TrackingSourceController,
     private val watchProgressRepository: com.nuvio.tv.domain.repository.WatchProgressRepository,
     private val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
     private val profileManager: com.nuvio.tv.core.profile.ProfileManager,
@@ -179,6 +185,35 @@ class LibraryViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+
+    /** Library header pickers: which service's lists are shown, and which service is primary. */
+    val trackingPickerState: StateFlow<LibraryTrackingPickerState> = kotlinx.coroutines.flow.combine(
+        kotlinx.coroutines.flow.combine(
+            trackingRegistry.providers().map { provider ->
+                provider.isAuthenticated.map { provider.descriptor.id to it }
+            }
+        ) { pairs -> pairs.filter { it.second }.map { it.first }.toSet() },
+        trackingSourceController.librarySourceMode,
+        trackingSourceController.watchProgressSource
+    ) { connected, library, progress ->
+        LibraryTrackingPickerState(
+            connected = connected,
+            librarySource = effectiveLibrarySourceMode(library) { it in connected },
+            primarySource = effectiveWatchProgressSource(progress) { it in connected }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryTrackingPickerState())
+
+    fun onSelectLibraryService(mode: LibrarySourceMode) {
+        val id = mode.providerId
+        if (id != null && id !in trackingPickerState.value.connected) return
+        viewModelScope.launch { trackingSourceController.selectLibrarySourceMode(mode) }
+    }
+
+    fun onSelectPrimaryService(source: com.nuvio.tv.data.local.WatchProgressSource) {
+        val id = source.providerId
+        if (id != null && id !in trackingPickerState.value.connected) return
+        viewModelScope.launch { trackingSourceController.selectWatchProgressSource(source) }
+    }
 
     private val _watchedMovieIds = MutableStateFlow<Set<String>>(emptySet())
     val watchedMovieIds: StateFlow<Set<String>> = _watchedMovieIds.asStateFlow()
@@ -1148,3 +1183,9 @@ private val LEADING_ARTICLE_REGEX = Regex("^(the|an|a)\\s+", RegexOption.IGNORE_
 
 private fun titleSortKey(title: String): String =
     title.trim().replace(LEADING_ARTICLE_REGEX, "").lowercase(Locale.ROOT)
+
+data class LibraryTrackingPickerState(
+    val connected: Set<com.nuvio.tv.core.tracking.TrackingProviderId> = emptySet(),
+    val librarySource: LibrarySourceMode = LibrarySourceMode.LOCAL,
+    val primarySource: com.nuvio.tv.data.local.WatchProgressSource = com.nuvio.tv.data.local.WatchProgressSource.NUVIO_SYNC
+)

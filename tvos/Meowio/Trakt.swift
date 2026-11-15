@@ -271,7 +271,7 @@ final class TraktStore: ObservableObject {
         }
         watchlist = list
         guard let library else { return }
-        library.mergeSaved(list)
+        library.mergeSaved(list, source: "trakt")
 
         if let movies = await get("/sync/watched/movies").json as? [[String: Any]] {
             for it in movies {

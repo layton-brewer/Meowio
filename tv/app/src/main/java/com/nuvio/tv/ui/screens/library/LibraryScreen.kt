@@ -141,6 +141,7 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
+    val trackingPickerState by viewModel.trackingPickerState.collectAsState()
     val watchedSeriesIds by viewModel.watchedSeriesIds.collectAsState()
     val activityContext = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -442,6 +443,15 @@ fun LibraryScreen(
                     },
                     onSelectWatchedFilter = { filter ->
                         viewModel.onSelectWatchedFilter(filter)
+                        expandedPicker = null
+                    },
+                    trackingPickerState = trackingPickerState,
+                    onSelectLibraryService = { mode ->
+                        viewModel.onSelectLibraryService(mode)
+                        expandedPicker = null
+                    },
+                    onSelectPrimaryService = { source ->
+                        viewModel.onSelectPrimaryService(source)
                         expandedPicker = null
                     }
                 )
@@ -1176,7 +1186,10 @@ private fun LibrarySelectorsRow(
     onSelectSort: (LibrarySortOption) -> Unit,
     onSelectGenre: (String?) -> Unit,
     onSelectYear: (String?) -> Unit,
-    onSelectWatchedFilter: (LibraryWatchedFilter) -> Unit
+    onSelectWatchedFilter: (LibraryWatchedFilter) -> Unit,
+    trackingPickerState: LibraryTrackingPickerState,
+    onSelectLibraryService: (LibrarySourceMode) -> Unit,
+    onSelectPrimaryService: (com.nuvio.tv.data.local.WatchProgressSource) -> Unit
 ) {
     val selectedListLabel = listTabs.firstOrNull { it.key == selectedListKey }?.localizedTitle()
         ?: stringResource(R.string.action_select)
@@ -1312,6 +1325,62 @@ private fun LibrarySelectorsRow(
                         ?.let(onSelectWatchedFilter)
                 }
             )
+        }
+
+        val notSetUp = " \u00B7 Not set up yet"
+        val connectedIds = trackingPickerState.connected
+        fun serviceName(id: com.nuvio.tv.core.tracking.TrackingProviderId) = when (id) {
+            com.nuvio.tv.core.tracking.TrackingProviderId.TRAKT -> "Trakt"
+            com.nuvio.tv.core.tracking.TrackingProviderId.SIMKL -> "Simkl"
+            com.nuvio.tv.core.tracking.TrackingProviderId.MDBLIST -> "MDBList"
+        }
+        val libraryOptions = buildList {
+            add(LibraryOption("Meowio library", LibrarySourceMode.LOCAL.name))
+            com.nuvio.tv.core.tracking.TrackingProviderId.entries.forEach { id ->
+                val label = serviceName(id) + if (id in connectedIds) "" else notSetUp
+                add(LibraryOption(label, id.name))
+            }
+        }
+        val primaryOptions = buildList {
+            add(LibraryOption("Meowio sync", com.nuvio.tv.data.local.WatchProgressSource.NUVIO_SYNC.name))
+            com.nuvio.tv.core.tracking.TrackingProviderId.entries.forEach { id ->
+                val label = serviceName(id) + if (id in connectedIds) "" else notSetUp
+                add(LibraryOption(label, id.name))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        ) {
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Show library from",
+                value = libraryOptions.first { it.value == trackingPickerState.librarySource.name }.label
+                    .substringBefore(" \u00B7"),
+                selectedValue = trackingPickerState.librarySource.name,
+                expanded = expandedPicker == "service",
+                options = libraryOptions,
+                onExpandedChange = { onExpandedChange("service", it) },
+                onSelect = { option ->
+                    LibrarySourceMode.entries.firstOrNull { it.name == option.value }
+                        ?.let(onSelectLibraryService)
+                }
+            )
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Primary service (watching syncs to all connected)",
+                value = primaryOptions.first { it.value == trackingPickerState.primarySource.name }.label
+                    .substringBefore(" \u00B7"),
+                selectedValue = trackingPickerState.primarySource.name,
+                expanded = expandedPicker == "primary",
+                options = primaryOptions,
+                onExpandedChange = { onExpandedChange("primary", it) },
+                onSelect = { option ->
+                    com.nuvio.tv.data.local.WatchProgressSource.entries.firstOrNull { it.name == option.value }
+                        ?.let(onSelectPrimaryService)
+                }
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
