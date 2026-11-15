@@ -13,6 +13,9 @@ struct MetaItem: Identifiable, Codable, Hashable {
     var videos: [Video]?
     /// Add-on that listed this title, for titles that are not on Cinemeta. Filled in by the client.
     var addonBase: String?
+    /// Trailer links some metadata sources list (YouTube ids).
+    var trailers: [TrailerRef]?
+    var trailerStreams: [TrailerRef]?
 
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
     var backgroundURL: URL? { (background ?? poster).flatMap(URL.init(string:)) }
@@ -45,6 +48,8 @@ struct StreamItem: Codable, Hashable {
     var behaviorHints: BehaviorHints?
     /// Name of the add-on that returned this stream. Filled in by the client, never decoded.
     var addonName: String? = nil
+    /// Comes from one of the user's own media servers (Jellyfin, Emby). Filled in by the client, never decoded.
+    var isServer: Bool = false
 
     struct BehaviorHints: Codable, Hashable {
         var notWebReady: Bool?

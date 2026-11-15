@@ -13,6 +13,7 @@ extension View {
         self
             .navigationDestination(for: MetaItem.self) { DetailView(item: $0) }
             .navigationDestination(for: AutoPlayRoute.self) { DetailView(item: $0.item, autoplay: true) }
+            .navigationDestination(for: FolderRoute.self) { FolderView(route: $0) }
     }
 }
 
@@ -295,6 +296,10 @@ struct AddonRow: Identifiable {
 struct HomeView: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var settings: SettingsStore
+    @EnvironmentObject var collections: CollectionsStore
+    @EnvironmentObject var servers: MediaServerStore
+    @EnvironmentObject var party: PartyRepository
+    @State private var serverShelves: [ServerShelf] = []
     @State private var movies: [MetaItem] = []
     @State private var series: [MetaItem] = []
     @State private var addonRows: [AddonRow] = []
@@ -319,17 +324,27 @@ struct HomeView: View {
                             Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
                                 .padding(.leading, 60).padding(.top, 40)
                         }
-                        if settings.addons.isEmpty {
-                            Text("Add a stream add-on in Settings and Meowio will pick and play sources for you.")
+                        if settings.addons.isEmpty && !servers.hasEnabled {
+                            Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
                                 .padding(24).glass().padding(.horizontal, 60)
                         }
                         if case .available(let tag) = updates.state {
-                            Label("Meowio \(tag) is out. Get Meowio-tvos.ipa from the Meowio releases page on GitHub and sideload it over this version.",
-                                  systemImage: "arrow.down.circle")
-                                .font(.callout)
-                                .padding(24).glass().padding(.horizontal, 60)
+                            UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
+                                .padding(.horizontal, 60)
+                        }
+                        if party.party != nil {
+                            Button { party.reopen() } label: {
+                                Label("Watch party \(party.party?.formattedCode ?? "") · open what everyone is watching", systemImage: "person.2.fill")
+                            }
+                            .padding(.horizontal, 60)
                         }
                         ContinueShelf(onFocus: focus)
+                        ForEach(serverShelves) { shelf in
+                            Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
+                        }
+                        ForEach(collections.ordered) { collection in
+                            CollectionShelf(collection: collection)
+                        }
                         Shelf(title: "Popular Movies", items: movies, onFocus: focus)
                         Shelf(title: "Popular Series", items: series, onFocus: focus)
                         ForEach(addonRows) { row in
@@ -355,6 +370,9 @@ struct HomeView: View {
             series = await s
             heroItem = movies.prefix(5).randomElement()
             loaded = true
+        }
+        .task(id: servers.connections) {
+            serverShelves = await servers.shelves()
         }
         .task(id: settings.addons) {
             let catalogs = await AddonClient.addonCatalogs(settings.addons)
@@ -440,6 +458,7 @@ struct DetailView: View {
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var streams: StreamStore
+    @EnvironmentObject var servers: MediaServerStore
     let item: MetaItem
     var autoplay = false
     @State private var full: MetaItem?
@@ -449,6 +468,8 @@ struct DetailView: View {
     @State private var message: String?
     @State private var picker: PickerState?
     @State private var didAutoplay = false
+    @State private var trailerURL: URL?
+    @State private var showTrailer = false
     @FocusState private var playFocused: Bool
 
     struct PickerState: Identifiable {
@@ -530,11 +551,16 @@ struct DetailView: View {
                                       systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye")
                             }
                         }
-                        if settings.streamMode == .smart, !settings.addons.isEmpty {
+                        if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled {
                             Button { Task { await chooseSource() } } label: {
                                 Label("Sources", systemImage: "list.bullet")
                             }
                             .disabled(resolving)
+                        }
+                        if trailerURL != nil {
+                            Button { showTrailer = true } label: {
+                                Label("Trailer", systemImage: "film")
+                            }
                         }
                     }
                     if let message { Text(message).foregroundStyle(.orange) }
@@ -546,7 +572,11 @@ struct DetailView: View {
             .scrollClipDisabled()
         }
         .task {
-            full = await AddonClient.meta(type: item.type, id: item.id, addonBase: item.addonBase, addons: settings.addons)
+            if MediaServerStore.isServerId(item.id) {
+                full = await servers.nativeMeta(item)
+            } else {
+                full = await AddonClient.meta(type: item.type, id: item.id, addonBase: item.addonBase, addons: settings.addons)
+            }
             if let resume = library.continueWatching.first(where: { $0.id == item.id })?.videoId,
                let s = (full?.videos ?? []).first(where: { $0.id == resume })?.season, s > 0 {
                 season = s
@@ -564,8 +594,15 @@ struct DetailView: View {
                 }
             }
         }
+        .task(id: full?.id) {
+            guard let loaded = full else { return }
+            trailerURL = await Trailers.playableURL(for: loaded)
+        }
         .fullScreenCover(item: $playRequest) { req in
             PlayerScreen(request: req, settings: settings)
+        }
+        .fullScreenCover(isPresented: $showTrailer) {
+            if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
         }
         .sheet(item: $picker) { state in
             SourcePicker(state: state) { chosen in
@@ -670,12 +707,12 @@ struct DetailView: View {
 
     private func play(videoId: String, title: String, forcePicker: Bool = false) async {
         message = nil
-        guard !settings.addons.isEmpty else {
-            message = "Add a stream add-on in Settings first."
+        guard !settings.addons.isEmpty || servers.hasEnabled else {
+            message = "Add a stream add-on or a media server in Settings first."
             return
         }
         resolving = true
-        let list = await streams.candidates(type: meta.type, id: videoId, parentId: meta.id, settings: settings)
+        let list = await streams.candidates(type: meta.type, id: videoId, parentId: meta.id, settings: settings, name: meta.name)
         resolving = false
         guard !list.isEmpty else {
             message = "No playable sources found. Check your add-ons in Settings, then try again, or use the Sources button."
@@ -723,7 +760,7 @@ struct DetailView: View {
             let next = ordered[idx + 1]
             if settings.preloadNext { streams.preload(type: "series", id: next.id, settings: settings) }
             req.nextEpisode = {
-                let list = await streams.candidates(type: "series", id: next.id, parentId: meta.id, settings: settings)
+                let list = await streams.candidates(type: "series", id: next.id, parentId: meta.id, settings: settings, name: meta.name)
                 guard !list.isEmpty else { return nil }
                 library.record(meta: meta, videoId: next.id)
                 var nextReq = DetailView.chain(meta: meta, ordered: ordered, current: next, candidates: list,

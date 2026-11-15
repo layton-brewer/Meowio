@@ -5,9 +5,10 @@ import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIApplication
 
 /**
- * iPhone and iPad builds are sideloaded, so the app cannot install an update itself. It still checks the
- * Meowio releases like the Android app does, and "install" opens the release page so the new IPA can be
- * downloaded and re-sideloaded (AltStore, SideStore or Sideloadly).
+ * iPhone and iPad builds are sideloaded, so the app cannot install an update itself: iOS gives an app no way to
+ * install another build of itself. It checks the Meowio releases like the Android app does, and "install" hands the
+ * new IPA to SideStore or AltStore (whichever is installed) through their install link, so updating is one tap and
+ * the sideloader does the signing. With neither installed it opens the release page.
  */
 actual object AppUpdaterPlatform {
     private const val IGNORED_TAG_KEY = "meowio_updater_ignored_tag"
@@ -49,7 +50,29 @@ actual object AppUpdaterPlatform {
     actual fun openUnknownSourcesSettings() = Unit
 
     actual fun installDownloadedApk(path: String): Result<Unit> = runCatching {
-        val url = requireNotNull(NSURL.URLWithString(RELEASES_PAGE))
-        UIApplication.sharedApplication.openURL(url = url, options = emptyMap<Any?, Any>(), completionHandler = null)
+        val ipa = path.takeIf { it.startsWith("https://") && it.endsWith(".ipa") }
+        val targets = buildList {
+            if (ipa != null) {
+                add("sidestore://install?url=$ipa")
+                add("altstore://install?url=$ipa")
+            }
+            add(RELEASES_PAGE)
+        }
+        openFirst(targets, 0)
+    }
+
+    /** Opens the first link something on this device handles; each failure falls through to the next. */
+    private fun openFirst(targets: List<String>, index: Int) {
+        if (index >= targets.size) return
+        val url = NSURL.URLWithString(targets[index])
+        if (url == null) {
+            openFirst(targets, index + 1)
+            return
+        }
+        UIApplication.sharedApplication.openURL(
+            url = url,
+            options = emptyMap<Any?, Any>(),
+            completionHandler = { opened -> if (!opened) openFirst(targets, index + 1) },
+        )
     }
 }
