@@ -442,4 +442,28 @@ class LiveTvParsersTest {
         assertNull(LiveVpnGuard.parseProxy("p.example"))
         assertEquals("http://me:p%40ss@p.example:3128", LiveProxy("p.example", 3128, "me", "p@ss").asUrl())
     }
+
+    @Test
+    fun `reads a large guide handed over in one piece and uses a second guide for the gaps`() {
+        val now = XmltvParser.parseTime("20231114220000 +0000")!!
+        fun stamp(ms: Long): String {
+            val minutes = (ms - now) / 60_000L
+            // Times in the test are whole minutes from 22:00 on the same day, within a few hours.
+            val total = 22 * 60 + minutes
+            val day = 14 + total.floorDiv(1440)
+            val inDay = total.mod(1440)
+            return "202311${day.toString().padStart(2, '0')}${(inDay / 60).toString().padStart(2, '0')}${(inDay % 60).toString().padStart(2, '0')}00 +0000"
+        }
+        val xml = StringBuilder("<tv>")
+        for (i in 0 until 3000) xml.append("<channel id=\"Other$i.us\"><display-name>Other $i</display-name></channel>")
+        xml.append("<channel id=\"Buzzr.us\"><display-name>Buzzr</display-name></channel>")
+        for (i in 0 until 40000) {
+            xml.append("<programme start=\"${stamp(now - 7_200_000L)}\" stop=\"${stamp(now - 3_600_000L)}\" channel=\"Other${i % 3000}.us\"><title>Old $i</title></programme>")
+        }
+        xml.append("<programme start=\"${stamp(now - 600_000L)}\" stop=\"${stamp(now + 1_200_000L)}\" channel=\"Buzzr.us\"><title>Match Game</title></programme></tv>")
+        val matcher = GuideMatcher(listOf(LiveChannel(id = "1", name = "Buzzr", url = "u", guideId = "Buzzr.us")))
+        val reader = XmltvParser.Reader(now, matcher = matcher)
+        reader.feed(xml.toString())
+        assertEquals("Match Game", reader.result()["buzzr.us"]?.now?.title)
+    }
 }

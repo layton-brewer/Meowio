@@ -11,7 +11,18 @@ import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.sizeOf
 import kotlinx.cinterop.toKString
 import kotlinx.cinterop.usePinned
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.darwin.Darwin
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.header
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
+import kotlinx.cinterop.nativeHeap
+import kotlinx.cinterop.free
 import platform.zlib.Z_NO_FLUSH
+import platform.zlib.Z_STREAM_END
 import platform.zlib.Z_OK
 import platform.zlib.inflate
 import platform.zlib.inflateEnd
@@ -90,7 +101,130 @@ internal actual fun liveTvGunzip(bytes: ByteArray, maxBytes: Int): ByteArray? {
 internal actual fun liveTvCountryCode(): String? =
     NSLocale.currentLocale.objectForKey(NSLocaleCountryCode) as? String
 
-internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean = false
+/** Guide files are big, so they get a client with room to finish; the shared one gives up after a minute. */
+private val guideHttpClient = HttpClient(Darwin) {
+    install(HttpTimeout) {
+        requestTimeoutMillis = 15 * 60_000L
+        connectTimeoutMillis = 30_000
+        socketTimeoutMillis = 120_000
+    }
+    expectSuccess = false
+}
+
+/** Characters read from a guide before it is cut, the same limit as on Android. */
+private const val MAX_GUIDE_CHARS = 600L * 1024 * 1024
+
+/** Unpacks gzip piece by piece with the system zlib, so a guide never has to fit in memory. */
+@OptIn(ExperimentalForeignApi::class)
+private class GzipStream {
+    private val stream = nativeHeap.alloc<z_stream>()
+    private val ready = inflateInit2_(stream.ptr, 15 + 32, zlibVersion()?.toKString(), sizeOf<z_stream>().toInt()) == Z_OK
+    private val buffer = ByteArray(64 * 1024)
+    var failed = !ready
+        private set
+    var ended = false
+        private set
+
+    /** Unpacks [input], passing the result on in pieces. */
+    fun feed(input: ByteArray, sink: (ByteArray, Int) -> Unit) {
+        if (failed || ended || input.isEmpty()) return
+        input.usePinned { inPin ->
+            buffer.usePinned { outPin ->
+                stream.next_in = inPin.addressOf(0).reinterpret()
+                stream.avail_in = input.size.convert()
+                do {
+                    stream.next_out = outPin.addressOf(0).reinterpret()
+                    stream.avail_out = buffer.size.convert()
+                    val status = inflate(stream.ptr, Z_NO_FLUSH)
+                    val produced = buffer.size - stream.avail_out.toInt()
+                    if (produced > 0) sink(buffer, produced)
+                    if (status == Z_STREAM_END) {
+                        ended = true
+                        return@usePinned
+                    }
+                    if (status != Z_OK) {
+                        failed = true
+                        return@usePinned
+                    }
+                } while (stream.avail_in.toInt() > 0 || stream.avail_out.toInt() == 0)
+            }
+        }
+    }
+
+    fun close() {
+        if (ready) inflateEnd(stream.ptr)
+        nativeHeap.free(stream)
+    }
+}
+
+/** Turns bytes into text, holding back the end of a character that a piece cut in two. */
+private class Utf8Pieces(private val onText: (String) -> Unit) {
+    private var carry = ByteArray(0)
+
+    fun add(bytes: ByteArray, count: Int) {
+        val all = if (carry.isEmpty()) bytes.copyOf(count) else carry + bytes.copyOf(count)
+        var cut = all.size
+        var back = 0
+        while (back < 3 && cut - 1 - back >= 0) {
+            val b = all[cut - 1 - back].toInt() and 0xFF
+            if (b and 0xC0 == 0x80) {
+                back++
+                continue
+            }
+            val needed = when {
+                b >= 0xF0 -> 4
+                b >= 0xE0 -> 3
+                b >= 0xC0 -> 2
+                else -> 1
+            }
+            if (needed > back + 1) cut = cut - 1 - back
+            break
+        }
+        carry = all.copyOfRange(cut, all.size)
+        if (cut > 0) onText(all.decodeToString(0, cut))
+    }
+}
+
+internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> Unit): Boolean = runCatching {
+    guideHttpClient.prepareGet(url) {
+        header("User-Agent", LiveTvDefaults.DOWNLOAD_USER_AGENT)
+    }.execute { response ->
+        if (!response.status.isSuccess()) return@execute false
+        val channel = response.bodyAsChannel()
+        var total = 0L
+        val text = Utf8Pieces { piece ->
+            total += piece.length
+            onChunk(piece)
+        }
+        var gzip: GzipStream? = null
+        var decided = false
+        val read = ByteArray(64 * 1024)
+        try {
+            while (total < MAX_GUIDE_CHARS) {
+                val count = channel.readAvailable(read, 0, read.size)
+                if (count < 0) break
+                if (count == 0) continue
+                if (!decided) {
+                    decided = true
+                    if (count > 1 && read[0] == 0x1f.toByte() && read[1] == 0x8b.toByte()) gzip = GzipStream()
+                }
+                val unpacker = gzip
+                if (unpacker == null) {
+                    text.add(read, count)
+                } else {
+                    unpacker.feed(read.copyOf(count)) { bytes, produced -> text.add(bytes, produced) }
+                    if (unpacker.failed || unpacker.ended) break
+                }
+            }
+        } catch (e: Exception) {
+            // Keep what was read from a download that was cut off.
+            if (total == 0L) throw e
+        } finally {
+            gzip?.close()
+        }
+        total > 0
+    }
+}.getOrDefault(false)
 
 internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String, String>): Boolean? = null
 
