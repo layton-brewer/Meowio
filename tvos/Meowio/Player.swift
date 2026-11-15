@@ -123,6 +123,23 @@ final class PlaybackController: ObservableObject {
         player.allowsExternalPlayback = true
     }
 
+    private let serverReport = ServerPlayReporter()
+
+    /// Tells Trakt, Simkl and MDBList (through onScrobble) and the Jellyfin or Emby server that served the file.
+    private func emitProgress() {
+        serverReport.report("progress", stream: request.candidates.indices.contains(index) ? request.candidates[index] : nil,
+                            seconds: lastSeconds, paused: false)
+    }
+
+    private func emitScrobble(_ action: String, _ percent: Double) {
+        onScrobble?(request, action, percent)
+        if request.candidates.indices.contains(index) {
+            serverReport.report(action, stream: request.candidates[index], seconds: lastSeconds, paused: action == "pause")
+        } else {
+            serverReport.report(action, stream: nil, seconds: lastSeconds, paused: action == "pause")
+        }
+    }
+
     var percent: Double { lastDuration > 0 ? min(100, max(0, lastSeconds / lastDuration * 100)) : 0 }
 
     func start() {
@@ -158,7 +175,7 @@ final class PlaybackController: ObservableObject {
 
     func stop() {
         finishRecording(completed: false)
-        if started { onScrobble?(request, "stop", percent) }
+        if started { emitScrobble("stop", percent) }
         started = false
         timeout?.cancel()
         ticker?.invalidate()
@@ -223,8 +240,9 @@ final class PlaybackController: ObservableObject {
         guard !request.isLive else { return }
         // Pause and resume for scrobbling.
         let paused = usingMPV ? mpv.isPaused : player.timeControlStatus == .paused
-        if started, paused != wasPaused { onScrobble?(request, paused ? "pause" : "start", percent) }
+        if started, paused != wasPaused { emitScrobble(paused ? "pause" : "start", percent) }
         wasPaused = paused
+        if started, !paused { emitProgress() }
         // Next Episode card for the last stretch of an episode.
         let remaining = lastDuration - lastSeconds
         let showUpNext = settings.upNextCard && request.nextEpisode != nil && !upNextDismissed && lastDuration > 300
@@ -432,7 +450,7 @@ final class PlaybackController: ObservableObject {
         if !request.isLive, !started {
             started = true
             wasPaused = false
-            onScrobble?(request, "start", percent)
+            emitScrobble("start", percent)
         }
     }
 
@@ -500,7 +518,7 @@ final class PlaybackController: ObservableObject {
     private func advance(completedCurrent: Bool, userAsked: Bool = false) {
         guard !advancing else { return }
         finishRecording(completed: completedCurrent)
-        if started { onScrobble?(request, "stop", completedCurrent ? max(percent, 95) : percent) }
+        if started { emitScrobble("stop", completedCurrent ? max(percent, 95) : percent) }
         started = false
         lastSeconds = 0
         if SleepTimer.shared.consumeEndOfEpisode() {
@@ -540,7 +558,7 @@ final class PlaybackController: ObservableObject {
     private func finishRecordingIfNeeded() {
         guard started else { return }
         finishRecording(completed: false)
-        onScrobble?(request, "stop", percent)
+        emitScrobble("stop", percent)
         started = false
     }
 }
