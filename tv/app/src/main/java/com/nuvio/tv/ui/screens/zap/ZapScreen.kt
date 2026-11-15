@@ -19,7 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
@@ -60,7 +60,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 import kotlinx.coroutines.delay
 
 /**
- * "Zap" on Android TV: one random movie or series at a time. D-pad: Play opens the title and
+ * "Surprise Me" on Android TV: one random movie or series at a time. D-pad: Play opens the title and
  * starts auto-play, Zap shows another one, Save adds it to the library, Filters narrows the pool.
  */
 @Composable
@@ -118,7 +118,7 @@ fun ZapScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "ZAP",
+                    text = "SURPRISE ME",
                     style = MaterialTheme.typography.labelLarge,
                     color = NuvioTheme.colors.Secondary
                 )
@@ -163,7 +163,7 @@ fun ZapScreen(
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     ZapButton("Play", Icons.Default.PlayArrow, true, Modifier.focusRequester(playFocus)) { onPlay(title) }
-                    ZapButton("Zap", Icons.Default.Bolt, false, enabled = !state.loading) { viewModel.zap() }
+                    ZapButton("Another", Icons.Default.Shuffle, false, enabled = !state.loading) { viewModel.zap() }
                     ZapButton(if (state.saved) "Saved" else "Save", if (state.saved) Icons.Default.Check else Icons.Default.Add, false) {
                         viewModel.toggleSaved()
                     }
@@ -190,7 +190,7 @@ fun ZapScreen(
             ) {
                 Text(
                     text = when (state.empty) {
-                        ZapEmpty.NO_SOURCES -> "Zap draws from your add-ons' catalogs. Install a catalog add-on and try again."
+                        ZapEmpty.NO_SOURCES -> "Surprise Me draws from your add-ons' catalogs. Install a catalog add-on and try again."
                         ZapEmpty.OFFLINE -> "Couldn't load titles. Check your connection."
                         else -> "Nothing matches those filters. Try loosening them."
                     },
@@ -240,7 +240,7 @@ private fun ZapFilterPanel(
             .padding(horizontal = 48.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Zap filters", style = MaterialTheme.typography.headlineMedium, color = NuvioTheme.colors.TextPrimary)
+        Text("Surprise Me filters", style = MaterialTheme.typography.headlineMedium, color = NuvioTheme.colors.TextPrimary)
 
         Label("Show")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
