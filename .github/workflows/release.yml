@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.19 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.20 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.19 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.20 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,13 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.19"
+          tag="v0.2.20"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.19
+          ## What's new in 0.2.20
 
-          - **Live TV VPN with WireGuard now on Mac, Windows, iPhone and iPad.** Same rules as before: only Live TV uses it, never debrid, and it is off by default. Apple TV can't run it (HTTP proxy only).
-          - **Apple TV** now shows why a Live TV channel did not play (blocked, gone, server down, not live).
-          - **iPhone and iPad** move to a backup copy of a Live TV channel automatically when it fails.
+          - **Apple TV catches up with the other apps:** Simkl and MDBList sign-in and sync, skip buttons for intros, recaps and credits (IntroDB and AniSkip), a collection editor, playback reporting to Jellyfin and Emby, trailers behind the Home header, and chat in watch parties.
+          - Simkl needs a Simkl app client ID in the build (or one pasted in Settings). MDBList uses your own API key.
+          - Still not on Apple TV: raw torrents (debrid only), CloudStream (Android only) and downloads (TV rule).
 
           ## Download
 

@@ -134,6 +134,7 @@ final class SettingsStore: ObservableObject {
     @Published var subtitlesOn: Bool { didSet { save() } }
     @Published var skipIntro: Bool { didSet { save() } }
     @Published var upNextCard: Bool { didSet { save() } }
+    @Published var heroTrailers: Bool { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -177,6 +178,7 @@ final class SettingsStore: ObservableObject {
         subtitlesOn = d.object(forKey: "subtitlesOn") as? Bool ?? false
         skipIntro = d.object(forKey: "skipIntro") as? Bool ?? true
         upNextCard = d.object(forKey: "upNextCard") as? Bool ?? true
+        heroTrailers = d.object(forKey: "heroTrailers") as? Bool ?? true
     }
 
     private func save() {
@@ -205,6 +207,7 @@ final class SettingsStore: ObservableObject {
         d.set(subtitlesOn, forKey: "subtitlesOn")
         d.set(skipIntro, forKey: "skipIntro")
         d.set(upNextCard, forKey: "upNextCard")
+        d.set(heroTrailers, forKey: "heroTrailers")
     }
 
     func addAddon(_ raw: String) {
