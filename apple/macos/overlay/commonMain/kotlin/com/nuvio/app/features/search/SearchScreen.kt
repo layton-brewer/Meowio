@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -298,8 +298,8 @@ fun SearchScreen(
                         actions = {
                             IconButton(onClick = { zapOpen = true }) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Bolt,
-                                    contentDescription = "Zap a random title",
+                                    imageVector = Icons.Rounded.Shuffle,
+                                    contentDescription = "Surprise me with a random title",
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
