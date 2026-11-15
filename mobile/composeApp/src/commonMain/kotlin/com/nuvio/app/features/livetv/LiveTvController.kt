@@ -307,7 +307,7 @@ class LiveTvController(
         if (guide.isEmpty() || playlist !== merged) return
         _state.update { current ->
             val combined = HashMap(current.guide)
-            guide.forEach { (id, entry) -> combined.putIfAbsent(id, entry) }
+            guide.forEach { (id, entry) -> if (id !in combined) combined[id] = entry }
             current.copy(guide = withSharedGuides(combined))
         }
     }
@@ -315,7 +315,7 @@ class LiveTvController(
     private fun withSharedGuides(guide: Map<String, LiveNowNext>): Map<String, LiveNowNext> {
         if (channelKeys.isEmpty()) return guide
         val byKey = HashMap<String, LiveNowNext>()
-        guide.forEach { (id, entry) -> channelKeys[id]?.takeIf(String::isNotEmpty)?.let { byKey.putIfAbsent(it, entry) } }
+        guide.forEach { (id, entry) -> channelKeys[id]?.takeIf(String::isNotEmpty)?.let { if (it !in byKey) byKey[it] = entry } }
         if (byKey.isEmpty()) return guide
         val result = HashMap(guide)
         channelKeys.forEach { (id, key) ->
