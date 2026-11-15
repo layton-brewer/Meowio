@@ -43,6 +43,9 @@ struct ProfileRoot: View {
     @StateObject private var streams = StreamStore()
     @StateObject private var live = LiveTVStore()
     @StateObject private var trakt = TraktStore()
+    @StateObject private var servers = MediaServerStore()
+    @StateObject private var collections = CollectionsStore()
+    @StateObject private var party = PartyRepository()
     @Environment(\.scenePhase) private var scenePhase
 
     init(profile: Profile) {
@@ -58,6 +61,9 @@ struct ProfileRoot: View {
             .environmentObject(streams)
             .environmentObject(live)
             .environmentObject(trakt)
+            .environmentObject(servers)
+            .environmentObject(collections)
+            .environmentObject(party)
             .tint(settings.theme.accent)
             .task {
                 wire()
@@ -77,6 +83,9 @@ struct ProfileRoot: View {
             await account.sync(profile: profile, settings: settings, library: library)
         }
         if trakt.connected { await trakt.sync(into: library) }
+        if account.signedIn { await collections.sync(account: account, profileId: profile.id) }
+        party.configure(account: account, profiles: profiles)
+        await party.refreshAvailability()
     }
 
     /// My List and play progress go to the account and Trakt as they change.
@@ -84,6 +93,8 @@ struct ProfileRoot: View {
         let id = profile.id
         let acc = account
         let tr = trakt
+        streams.servers = servers
+        party.configure(account: account, profiles: profiles)
         library.onSavedChanged = { [weak acc, weak tr] item, added in
             Task { @MainActor in
                 tr?.setInWatchlist(added, meta: item)
@@ -111,6 +122,12 @@ struct ProfileRoot: View {
 
 struct RootView: View {
     @EnvironmentObject var settings: SettingsStore
+    @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var streams: StreamStore
+    @EnvironmentObject var servers: MediaServerStore
+    @EnvironmentObject var party: PartyRepository
+    /// What a watch party is playing, opened full screen after joining.
+    @State private var partyRequest: PlayRequest?
 
     var body: some View {
         TabView {
@@ -128,5 +145,16 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .background(settings.theme.background.ignoresSafeArea())
+        .onChange(of: party.launch) { _, launch in
+            guard let media = launch?.media, partyRequest == nil else { return }
+            Task {
+                let req = await PartyLauncher.request(for: media, shared: party.sharedStream, settings: settings, streams: streams,
+                                                      library: library, servers: servers)
+                if let req { partyRequest = req } else { party.showToast("This device could not find \(media.displayTitle).") }
+            }
+        }
+        .fullScreenCover(item: $partyRequest) { req in
+            PlayerScreen(request: req, settings: settings)
+        }
     }
 }

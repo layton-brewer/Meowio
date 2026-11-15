@@ -471,17 +471,31 @@ final class PlaybackController: ObservableObject {
             status = nil
             advancing = false
             guard let next else { return }
-            request = next
-            triedMPV.removeAll()
-            resolved.removeAll()
-            switches = 0
-            lastSeconds = 0
-            lastDuration = 0
-            upNextDismissed = false
-            skipTarget = nil
-            loadSubtitles()
-            load(at: 0, keepPosition: false)
+            replaceRequest(next)
         }
+    }
+
+    /// Moves on to another title or episode (the next episode, or what a watch party switched to).
+    func replaceRequest(_ next: PlayRequest) {
+        finishRecordingIfNeeded()
+        request = next
+        triedMPV.removeAll()
+        resolved.removeAll()
+        switches = 0
+        lastSeconds = 0
+        lastDuration = 0
+        upNextDismissed = false
+        skipTarget = nil
+        loadSubtitles()
+        load(at: 0, keepPosition: false)
+    }
+
+    /// A switch made from outside (watch party) still saves how far the previous title got.
+    private func finishRecordingIfNeeded() {
+        guard started else { return }
+        finishRecording(completed: false)
+        onScrobble?(request, "stop", percent)
+        started = false
     }
 }
 
@@ -489,6 +503,7 @@ struct PlayerViewControllerRepresentable: UIViewControllerRepresentable {
     let player: AVPlayer
     @ObservedObject var controller: PlaybackController
     @ObservedObject var sleep: SleepTimer
+    @ObservedObject var party: PartyRepository
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let vc = AVPlayerViewController()
@@ -537,6 +552,7 @@ struct PlayerViewControllerRepresentable: UIViewControllerRepresentable {
                 Task { @MainActor in SleepTimer.shared.endOfEpisode() }
             })
             menus.append(UIMenu(title: sleep.label, image: UIImage(systemName: "moon.zzz"), children: items))
+            if let partyMenu = PartyMenu.make(party: party, controller: controller) { menus.append(partyMenu) }
         }
         vc.transportBarCustomMenuItems = menus
         // Netflix style buttons in the corner: Skip Intro and Next Episode.
@@ -561,9 +577,14 @@ struct PlayerScreen: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var streams: StreamStore
     @EnvironmentObject var trakt: TraktStore
+    @EnvironmentObject var party: PartyRepository
+    @EnvironmentObject var servers: MediaServerStore
     @Environment(\.dismiss) private var dismiss
+    private let settings: SettingsStore
+    @State private var bridge: PartyPlayerBridge?
 
     init(request: PlayRequest, settings: SettingsStore) {
+        self.settings = settings
         _controller = StateObject(wrappedValue: PlaybackController(request: request, settings: settings))
     }
 
@@ -571,10 +592,16 @@ struct PlayerScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if controller.usingMPV {
-                MPVPlayerLayer(controller: controller, sleep: sleep)
+                MPVPlayerLayer(controller: controller, sleep: sleep, party: party)
             } else {
-                PlayerViewControllerRepresentable(player: controller.player, controller: controller, sleep: sleep)
+                PlayerViewControllerRepresentable(player: controller.player, controller: controller, sleep: sleep, party: party)
                     .ignoresSafeArea()
+            }
+            if party.party != nil {
+                VStack {
+                    HStack { Spacer(); PartyBadge(party: party) }
+                    Spacer()
+                }
             }
             if let status = controller.status {
                 VStack {
@@ -619,8 +646,16 @@ struct PlayerScreen: View {
                 trakt.scrobble(action, meta: request.meta, videoId: request.videoId, progress: percent)
             }
             controller.start()
+            let b = PartyPlayerBridge(controller: controller, party: party, settings: settings, streams: streams,
+                                      library: library, servers: servers)
+            b.start()
+            bridge = b
         }
-        .onDisappear { controller.stop() }
+        .onDisappear {
+            bridge?.stop()
+            bridge = nil
+            controller.stop()
+        }
     }
 }
 
@@ -629,6 +664,7 @@ struct PlayerScreen: View {
 struct MPVPlayerLayer: View {
     @ObservedObject var controller: PlaybackController
     @ObservedObject var sleep: SleepTimer
+    @ObservedObject var party: PartyRepository
     @State private var showMenu = false
     @State private var showBar = true
     @State private var tracks: [MPVEngine.Track] = []
@@ -781,6 +817,7 @@ struct MPVPlayerLayer: View {
                     }
                     Button("End of episode") { SleepTimer.shared.endOfEpisode() }
                 } label: { Label(sleep.label, systemImage: "moon.zzz") }
+                PartyMenuButton(party: party, controller: controller)
                 Button { controller.mpv.seek(by: -30) } label: { Label("30s", systemImage: "gobackward.30") }
                 Button { controller.mpv.seek(by: 30) } label: { Label("30s", systemImage: "goforward.30") }
             }
