@@ -54,4 +54,33 @@ object LiveTvDefaults {
         val pattern = Regex("""_${tag}\d\.xml(\.gz)?$""")
         return guideUrls.filter { pattern.containsMatchIn(it.substringBefore('?')) }
     }
+
+    /** Countries that the free streaming services' guides (i.mjh.nz) cover, by guide tag. */
+    private val serviceCountries = mapOf(
+        "US" to "us", "UK" to "gb", "CA" to "ca", "DE" to "de", "FR" to "fr", "ES" to "es", "IT" to "it",
+        "BR" to "br", "MX" to "mx", "AR" to "ar", "CL" to "cl", "DK" to "dk", "NO" to "no", "SE" to "se",
+        "AT" to "at", "CH" to "ch", "AU" to "au", "IE" to "ie", "KR" to "kr", "IN" to "in",
+    )
+
+    /**
+     * Other guide files to try after [guideUrlsForGroup] for [group], so one host being slow,
+     * blocked or short of a channel does not leave the guide empty. They are small files from
+     * the free streaming services, matched to channels by name like the main ones.
+     */
+    fun fallbackGuideUrls(group: String): List<String> {
+        val tag = guideTagByGroup[group] ?: return emptyList()
+        val code = serviceCountries[tag] ?: return emptyList()
+        val urls = mutableListOf(
+            "https://i.mjh.nz/PlutoTV/$code.xml.gz",
+            "https://i.mjh.nz/SamsungTVPlus/$code.xml.gz",
+        )
+        if (tag == "US") {
+            urls += listOf(
+                "https://i.mjh.nz/Plex/us.xml.gz",
+                "https://i.mjh.nz/Roku/all.xml.gz",
+                "https://i.mjh.nz/Stirr/all.xml.gz",
+            )
+        }
+        return urls
+    }
 }

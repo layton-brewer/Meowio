@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,6 +83,7 @@ class LiveTvController(
     private var channelsRequested = false
     private val guideRequested = HashSet<String>()
     private val groupGuideRequested = HashSet<String>()
+    private val groupGuideTries = HashMap<String, Int>()
     private val groupCheckRequested = HashSet<String>()
     private var playlist: LivePlaylist? = null
 
@@ -119,6 +121,7 @@ class LiveTvController(
         channelsRequested = false
         guideRequested.clear()
         groupGuideRequested.clear()
+        groupGuideTries.clear()
         groupCheckRequested.clear()
         playlist = null
         _state.value = LiveTvState()
@@ -245,6 +248,18 @@ class LiveTvController(
                 runCatching { loader.loadGroupGuide(source, loaded, group) }.getOrDefault(emptyMap())
             }
             if (guide.isNotEmpty() && playlist === loaded) _state.update { it.copy(guide = it.guide + guide) }
+            if (guide.isEmpty() && playlist === loaded) {
+                // A guide host can be slow or down for a moment: ask again a little later, a few times.
+                val tries = (groupGuideTries[group] ?: 0) + 1
+                groupGuideTries[group] = tries
+                if (tries < MAX_GUIDE_TRIES) {
+                    delay(GUIDE_RETRY_MS)
+                    if (playlist === loaded) {
+                        groupGuideRequested.remove(group)
+                        requestGroupGuide(group)
+                    }
+                }
+            }
         }
     }
 
@@ -329,6 +344,7 @@ class LiveTvController(
         loadJob?.cancel()
         guideRequested.clear()
         groupGuideRequested.clear()
+        groupGuideTries.clear()
         groupCheckRequested.clear()
         playlist = null
         _state.update { it.copy(loading = true, error = null, failedSources = emptyMap()) }
@@ -412,6 +428,8 @@ class LiveTvController(
 
     companion object {
         const val MAX_RECENT = 12
+        private const val MAX_GUIDE_TRIES = 3
+        private const val GUIDE_RETRY_MS = 45_000L
         private const val MAX_CHECKED_PER_GROUP = 200
         private const val CHECK_PARALLELISM = 6
         private const val KEY_SOURCE = "source"

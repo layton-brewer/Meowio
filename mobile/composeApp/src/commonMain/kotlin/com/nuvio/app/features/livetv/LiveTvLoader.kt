@@ -97,9 +97,9 @@ class LiveTvLoader(
     /** The guide for the channels of one [group] of a worldwide playlist. */
     suspend fun loadGroupGuide(source: LiveSource, playlist: LivePlaylist, group: String): Map<String, LiveNowNext> {
         if (!hasGuidePerGroup(source, playlist)) return emptyMap()
-        val urls = LiveTvDefaults.guideUrlsForGroup(group, playlist.guideUrls)
+        val urls = (LiveTvDefaults.guideUrlsForGroup(group, playlist.guideUrls) + LiveTvDefaults.fallbackGuideUrls(group)).distinct()
         if (urls.isEmpty()) return emptyMap()
-        return readGuides(urls.take(MAX_GUIDE_FILES), playlist.channels.filter { it.group == group })
+        return readGuides(urls.take(MAX_GROUP_GUIDE_FILES), playlist.channels.filter { it.group == group })
     }
 
     private suspend fun readGuides(urls: List<String>, channels: List<LiveChannel>): Map<String, LiveNowNext> {
@@ -109,11 +109,17 @@ class LiveTvLoader(
         val matcher = GuideMatcher(channels)
         val byGuideId = HashMap<String, LiveNowNext>()
         for (url in urls) {
+            // One file that cannot be read must not stop the others from being tried.
             val reader = XmltvParser.Reader(nowMs(), matcher = matcher)
-            if (!streamText(url, reader::feed)) reader.feed(fetchText(url) ?: continue)
+            val read = runCatching {
+                streamText(url, reader::feed) || fetchText(url)?.also(reader::feed) != null
+            }.getOrDefault(false)
+            if (!read) continue
             reader.result().forEach { (guideId, entry) ->
                 if (guideId !in byGuideId) byGuideId[guideId] = entry
             }
+            // Stop once nearly every channel has its guide; later files are only for the gaps.
+            if (matcher.assign(byGuideId.keys).size * 10 >= channels.size * 9) break
         }
         if (byGuideId.isEmpty()) return emptyMap()
         val result = HashMap<String, LiveNowNext>()
@@ -133,6 +139,7 @@ class LiveTvLoader(
 
     private companion object {
         const val MAX_GUIDE_FILES = 2
+        const val MAX_GROUP_GUIDE_FILES = 8
         const val MAX_ANNOUNCED_GUIDE_FILES = 6
     }
 }

@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.20 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.21 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.20 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.21 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,13 +256,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.20"
+          tag="v0.2.21"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.20
+          ## What's new in 0.2.21
 
-          - **Apple TV catches up with the other apps:** Simkl and MDBList sign-in and sync, skip buttons for intros, recaps and credits (IntroDB and AniSkip), a collection editor, playback reporting to Jellyfin and Emby, trailers behind the Home header, and chat in watch parties.
-          - Simkl needs a Simkl app client ID in the build (or one pasted in Settings). MDBList uses your own API key.
-          - Still not on Apple TV: raw torrents (debrid only), CloudStream (Android only) and downloads (TV rule).
+          - **Live TV guide fixed:** on iPhone and iPad the guide stayed on "No guide information" because the whole guide was handed to the reader in one piece, which made it take minutes and never finish. Guides now download and unpack as a stream with room to finish, are read in small slices on every app, and retry if a host is slow.
+          - More guide sources: if the main guide has no entry for a channel, the free streaming services' guides (Pluto, Samsung TV Plus, Plex, Roku, Stirr) are tried by channel name.
 
           ## Download
 

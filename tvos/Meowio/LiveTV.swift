@@ -228,11 +228,32 @@ enum LiveTvDefaults {
 
     /// The guide file for a group among the many a worldwide playlist announces (named by country).
     static func guideUrl(forGroup group: String, in urls: [String]) -> String? {
-        guard let tag = guideTagByGroup[group] else { return nil }
-        return urls.first { url in
+        guideUrls(forGroup: group, in: urls).first
+    }
+
+    static func guideUrls(forGroup group: String, in urls: [String]) -> [String] {
+        guard let tag = guideTagByGroup[group] else { return [] }
+        return urls.filter { url in
             let clean = url.components(separatedBy: "?").first ?? url
             return clean.range(of: "_\(tag)\\d\\.xml(\\.gz)?$", options: .regularExpression) != nil
         }
+    }
+
+    private static let serviceCountries: [String: String] = [
+        "US": "us", "UK": "gb", "CA": "ca", "DE": "de", "FR": "fr", "ES": "es", "IT": "it",
+        "BR": "br", "MX": "mx", "AR": "ar", "CL": "cl", "DK": "dk", "NO": "no", "SE": "se",
+        "AT": "at", "CH": "ch", "AU": "au", "IE": "ie", "KR": "kr", "IN": "in",
+    ]
+
+    /// Other guide files to try after the main ones, so one host being slow or short of a channel
+    /// does not leave the guide empty. Small files from the free streaming services.
+    static func fallbackGuideUrls(forGroup group: String) -> [String] {
+        guard let tag = guideTagByGroup[group], let code = serviceCountries[tag] else { return [] }
+        var urls = ["https://i.mjh.nz/PlutoTV/\(code).xml.gz", "https://i.mjh.nz/SamsungTVPlus/\(code).xml.gz"]
+        if tag == "US" {
+            urls += ["https://i.mjh.nz/Plex/us.xml.gz", "https://i.mjh.nz/Roku/all.xml.gz", "https://i.mjh.nz/Stirr/all.xml.gz"]
+        }
+        return urls
     }
 }
 
@@ -624,7 +645,7 @@ enum LiveNetwork {
     static func guideText(_ urlString: String) async -> String? {
         // A browser agent, as NuvioPlusIPTV sends: some guide hosts refuse others.
         let agent = ["User-Agent": "Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"]
-        guard var data = await data(urlString, timeout: 60, headers: agent), data.count < 80_000_000 else { return nil }
+        guard var data = await data(urlString, timeout: 180, headers: agent), data.count < 300_000_000 else { return nil }
         if data.count > 2, data[data.startIndex] == 0x1f, data[data.startIndex + 1] == 0x8b {
             guard let inflated = gunzip(data) else { return nil }
             data = inflated
@@ -709,6 +730,7 @@ final class LiveTVStore: ObservableObject {
     private var sources: [String: LiveSource] = [:]
     private var loadTask: Task<Void, Never>?
     private var groupGuideRequested = Set<String>()
+    private var groupGuideTries: [String: Int] = [:]
     private var groupCheckRequested = Set<String>()
     private var channelGuideRequested = Set<String>()
     private var loadedKey = ""
@@ -734,6 +756,7 @@ final class LiveTVStore: ObservableObject {
         let effective = isDefault ? [LiveSource(type: .m3u, url: LiveTvDefaults.playlistURL)] : active
         sources = Dictionary(effective.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
         groupGuideRequested.removeAll()
+        groupGuideTries.removeAll()
         groupCheckRequested.removeAll()
         channelGuideRequested.removeAll()
         playlist = nil
@@ -853,6 +876,8 @@ final class LiveTVStore: ObservableObject {
                 return out
             }.value
             for (k, v) in found where result[k] == nil { result[k] = v }
+            // Stop once nearly every channel has its guide; later files are only for the gaps.
+            if result.count * 10 >= channels.count * 9 { break }
         }
         return result
     }
@@ -868,11 +893,20 @@ final class LiveTVStore: ObservableObject {
     func requestGroupGuide(_ group: String) {
         guard let list = playlist else { return }
         guard let effective = sources.values.first, Self.hasGuidePerGroup(effective, list), groupGuideRequested.insert(group).inserted,
-              let url = LiveTvDefaults.guideUrl(forGroup: group, in: list.guideUrls) else { return }
+              LiveTvDefaults.guideUrl(forGroup: group, in: list.guideUrls) != nil else { return }
+        let urls = Array((LiveTvDefaults.guideUrls(forGroup: group, in: list.guideUrls) + LiveTvDefaults.fallbackGuideUrls(forGroup: group)).prefix(8))
         let members = list.channels.filter { $0.group == group }
         Task {
-            let found = await Self.readGuides([url], channels: members)
-            if !found.isEmpty { guide.merge(found) { a, _ in a } }
+            let found = await Self.readGuides(urls, channels: members)
+            if !found.isEmpty {
+                guide.merge(found) { a, _ in a }
+            } else if (groupGuideTries[group] ?? 0) < 2 {
+                // A guide host can be slow or down for a moment: ask again a little later.
+                groupGuideTries[group, default: 0] += 1
+                try? await Task.sleep(nanoseconds: 45_000_000_000)
+                groupGuideRequested.remove(group)
+                requestGroupGuide(group)
+            }
         }
     }
 
