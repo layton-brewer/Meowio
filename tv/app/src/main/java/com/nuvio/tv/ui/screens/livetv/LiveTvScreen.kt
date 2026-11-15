@@ -727,6 +727,7 @@ private fun ChannelBrowser(
                                     stringResource(R.string.live_tv_not_responding)
                                 } else {
                                     LiveTvController.nowTitle(state, channel)
+                                        ?: if (state.guideLoads > 0) stringResource(R.string.live_tv_guide_loading) else null
                                 },
                                 nextTitle = LiveTvController.nextTitle(state, channel),
                                 sourceLabel = LiveTvController.sourceLabel(state, channel),
@@ -769,7 +770,7 @@ private fun GuideGrid(
     val to = from + GUIDE_HOURS * 60 * 60 * 1000L
     val horizontal = rememberScrollState()
     val timeFormat = remember { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT) }
-    val noInfo = stringResource(R.string.live_tv_guide_no_info)
+    val noInfo = stringResource(if (state.guideLoads > 0) R.string.live_tv_guide_loading else R.string.live_tv_guide_no_info)
     Column(modifier = Modifier.fillMaxSize()) {
         Row {
             Spacer(modifier = Modifier.width(GUIDE_CHANNEL_WIDTH))

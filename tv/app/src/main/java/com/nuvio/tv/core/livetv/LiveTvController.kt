@@ -27,7 +27,7 @@ data class LiveTvState(
     val ready: Boolean = false,
     /** Whether the Live TV tab is shown in the app's navigation. */
     val tabVisible: Boolean = true,
-    /** The first playlist being shown: the user's own, or the built-in one. Null when there is nothing to show. */
+    /** The first playlist being shown: the user's own, or the first built-in one. Null when there is nothing to show. */
     val source: LiveSource? = null,
     /** Every playlist the user added, in the order they were added, including switched-off ones. */
     val sources: List<LiveSource> = emptyList(),
@@ -35,6 +35,13 @@ data class LiveTvState(
     val usingDefault: Boolean = false,
     val loading: Boolean = false,
     val error: LiveTvError? = null,
+    /**
+     * Channels left out of All because an earlier channel in the list is the same channel from
+     * another source (Court TV on Pluto TV, Samsung TV Plus and Plex). Their groups still list them.
+     */
+    val copiesInAll: Set<String> = emptySet(),
+    /** Guide loads still running. The lists show "Loading guide" while this is above zero. */
+    val guideLoads: Int = 0,
     /** Playlists that could not be loaded while others could, by [LiveSource.key]. */
     val failedSources: Map<String, LiveTvError> = emptyMap(),
     /** Account details from Xtream providers, by [LiveSource.key]. */
@@ -70,8 +77,11 @@ class LiveTvController(
     private val storage: LiveTvStorage,
     private val loader: LiveTvLoader,
     private val scope: CoroutineScope,
-    /** Channels shown until the user adds a source of their own. */
-    private val defaultSource: LiveSource? = LiveTvDefaults.source,
+    /**
+     * Channels shown until the user adds a source of their own: the free streaming services,
+     * Free-TV and iptv-org for the device's country, merged into one list.
+     */
+    private val defaultSources: List<LiveSource> = LiveTvDefaults.builtInSources(null),
     /** Whether a channel's stream answers: true, false, or null when that cannot be told. */
     private val probe: (suspend (LiveChannel) -> Boolean?)? = null,
 ) {
@@ -86,6 +96,12 @@ class LiveTvController(
     private val groupGuideTries = HashMap<String, Int>()
     private val groupCheckRequested = HashSet<String>()
     private var playlist: LivePlaylist? = null
+    /** Each loaded playlist with its source, for guides that load one group at a time. */
+    private var loadedPlaylists: List<Pair<LiveSource, LivePlaylist>> = emptyList()
+    /** Every channel, including copies merged away from the list. Backups come from here. */
+    private var allChannels: List<LiveChannel> = emptyList()
+    /** [LiveTvVariants.key] of each channel in [allChannels], by channel id. */
+    private var channelKeys: Map<String, String> = emptyMap()
 
     /** Reads the saved settings. Safe to call more than once. */
     fun start() {
@@ -124,6 +140,9 @@ class LiveTvController(
         groupGuideTries.clear()
         groupCheckRequested.clear()
         playlist = null
+        loadedPlaylists = emptyList()
+        allChannels = emptyList()
+        channelKeys = emptyMap()
         _state.value = LiveTvState()
     }
 
@@ -216,7 +235,7 @@ class LiveTvController(
     /** Other copies of [channel] to fall back on when it does not play, best first. */
     fun alternatesFor(channel: LiveChannel): List<LiveChannel> {
         val state = _state.value
-        return LiveTvVariants.alternatesFor(channel, state.channels, state.offline)
+        return LiveTvVariants.alternatesFor(channel, allChannels.ifEmpty { state.channels }, state.offline)
     }
 
     /**
@@ -240,27 +259,69 @@ class LiveTvController(
      * first time that group is opened. Other playlists get their whole guide with the channels.
      */
     fun requestGroupGuide(group: String) {
-        val source = _state.value.source ?: return
-        val loaded = playlist ?: return
-        if (!loader.hasGuidePerGroup(source, loaded) || !groupGuideRequested.add(group)) return
+        val merged = playlist ?: return
+        val targets = loadedPlaylists.filter { (source, list) ->
+            loader.hasGuidePerGroup(source, list) && list.channels.any { it.group == group }
+        }
+        if (targets.isEmpty() || !groupGuideRequested.add(group)) return
         scope.launch {
-            val guide = withContext(Dispatchers.Default) {
-                runCatching { loader.loadGroupGuide(source, loaded, group) }.getOrDefault(emptyMap())
+            var found = false
+            for ((source, list) in targets) {
+                val guide = loadGuideTracked {
+                    loader.loadGroupGuide(source, list, group) { partial -> publishGuide(merged, partial) }
+                }
+                if (guide.isNotEmpty()) found = true
+                publishGuide(merged, guide)
             }
-            if (guide.isNotEmpty() && playlist === loaded) _state.update { it.copy(guide = it.guide + guide) }
-            if (guide.isEmpty() && playlist === loaded) {
+            if (!found && playlist === merged) {
                 // A guide host can be slow or down for a moment: ask again a little later, a few times.
                 val tries = (groupGuideTries[group] ?: 0) + 1
                 groupGuideTries[group] = tries
                 if (tries < MAX_GUIDE_TRIES) {
                     delay(GUIDE_RETRY_MS)
-                    if (playlist === loaded) {
+                    if (playlist === merged) {
                         groupGuideRequested.remove(group)
                         requestGroupGuide(group)
                     }
                 }
             }
         }
+    }
+
+    /** Runs one guide load off the main thread, counted in [LiveTvState.guideLoads]. */
+    private suspend fun loadGuideTracked(load: suspend () -> Map<String, LiveNowNext>): Map<String, LiveNowNext> {
+        _state.update { it.copy(guideLoads = it.guideLoads + 1) }
+        return try {
+            withContext(Dispatchers.Default) { runCatching { load() }.getOrDefault(emptyMap()) }
+        } finally {
+            _state.update { it.copy(guideLoads = maxOf(0, it.guideLoads - 1)) }
+        }
+    }
+
+    /**
+     * Adds [guide] entries to the shown guide, while [merged] is still the playlist on screen.
+     * Channels the guide does not know get the programmes of another copy of the same channel,
+     * so a channel carried by both Free-TV and Pluto TV shows Pluto TV's guide.
+     */
+    private fun publishGuide(merged: LivePlaylist, guide: Map<String, LiveNowNext>) {
+        if (guide.isEmpty() || playlist !== merged) return
+        _state.update { current ->
+            val combined = HashMap(current.guide)
+            guide.forEach { (id, entry) -> combined.putIfAbsent(id, entry) }
+            current.copy(guide = withSharedGuides(combined))
+        }
+    }
+
+    private fun withSharedGuides(guide: Map<String, LiveNowNext>): Map<String, LiveNowNext> {
+        if (channelKeys.isEmpty()) return guide
+        val byKey = HashMap<String, LiveNowNext>()
+        guide.forEach { (id, entry) -> channelKeys[id]?.takeIf(String::isNotEmpty)?.let { byKey.putIfAbsent(it, entry) } }
+        if (byKey.isEmpty()) return guide
+        val result = HashMap(guide)
+        channelKeys.forEach { (id, key) ->
+            if (id !in result) byKey[key]?.let { result[id] = it }
+        }
+        return result
     }
 
     /**
@@ -308,7 +369,7 @@ class LiveTvController(
 
     private fun withSources(state: LiveTvState, sources: List<LiveSource>): LiveTvState {
         val shown = sources.firstOrNull(LiveSource::enabled)
-        val source = shown ?: defaultSource.takeIf { sources.isEmpty() }
+        val source = shown ?: defaultSources.firstOrNull().takeIf { sources.isEmpty() }
         return state.copy(sources = sources, source = source, usingDefault = sources.isEmpty() && source != null)
     }
 
@@ -322,6 +383,7 @@ class LiveTvController(
                 failedSources = emptyMap(),
                 accounts = emptyMap(),
                 channels = emptyList(),
+                copiesInAll = emptySet(),
                 groups = emptyList(),
                 guide = emptyMap(),
                 offline = emptySet(),
@@ -336,7 +398,7 @@ class LiveTvController(
 
     /** The playlists to load: the user's switched-on ones, or the built-in one. */
     private fun sourcesToLoad(state: LiveTvState): List<LiveSource> =
-        if (state.usingDefault) listOfNotNull(state.source) else state.sources.filter(LiveSource::enabled)
+        if (state.usingDefault) defaultSources else state.sources.filter(LiveSource::enabled)
 
     private fun loadChannels() {
         val sources = sourcesToLoad(_state.value)
@@ -347,7 +409,8 @@ class LiveTvController(
         groupGuideTries.clear()
         groupCheckRequested.clear()
         playlist = null
-        _state.update { it.copy(loading = true, error = null, failedSources = emptyMap()) }
+        loadedPlaylists = emptyList()
+        _state.update { it.copy(loading = true, error = null, failedSources = emptyMap(), guideLoads = 0) }
         loadJob = scope.launch {
             try {
                 val results = withContext(Dispatchers.Default) {
@@ -387,30 +450,44 @@ class LiveTvController(
                     fail(failed.values.firstOrNull() ?: LiveTvError.NETWORK)
                     return@launch
                 }
+                val everyChannel = loaded.flatMap { it.second.channels }
                 val merged = LivePlaylist(
-                    channels = loaded.flatMap { it.second.channels },
+                    channels = everyChannel,
                     guideUrls = loaded.flatMap { it.second.guideUrls }.distinct(),
                 )
                 this@LiveTvController.playlist = merged
-                val groups = LiveTvFilters.groups(merged.channels)
+                loadedPlaylists = loaded
+                allChannels = everyChannel
+                channelKeys = withContext(Dispatchers.Default) { everyChannel.associate { it.id to LiveTvVariants.key(it.name) } }
+                // The built-in sources carry many of the same channels: list each once per group and
+                // keep the other copies as backups for when it does not play.
+                val shown = if (_state.value.usingDefault) mergedCopies(everyChannel, channelKeys) else everyChannel
+                val groups = LiveTvFilters.groups(shown)
+                val copies = if (_state.value.usingDefault) laterCopies(shown, channelKeys) else emptySet()
                 val accounts = loaded.mapNotNull { (source, list) -> list.account?.let { source.key to it } }.toMap()
                 _state.update {
                     it.copy(
                         loading = false,
                         error = null,
-                        failedSources = failed,
+                        // A built-in source that is down is simply left out, without a warning.
+                        failedSources = if (it.usingDefault) emptyMap() else failed,
                         accounts = accounts,
-                        channels = merged.channels,
+                        channels = shown,
+                        copiesInAll = copies,
                         groups = groups,
                         guide = emptyMap(),
                         offline = emptySet(),
                     )
                 }
+                // Every playlist's guide loads at once, and each shows its channels' programmes as
+                // soon as its first guide file is read, so a big file never holds up the small ones.
                 loaded.forEach { (source, list) ->
-                    val guide = withContext(Dispatchers.Default) {
-                        runCatching { loader.loadGuide(source, list) }.getOrDefault(emptyMap())
+                    launch {
+                        val guide = loadGuideTracked {
+                            loader.loadGuide(source, list) { partial -> publishGuide(merged, partial) }
+                        }
+                        publishGuide(merged, guide)
                     }
-                    if (guide.isNotEmpty() && playlist === merged) _state.update { it.copy(guide = guide + it.guide) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -422,8 +499,26 @@ class LiveTvController(
         }
     }
 
+    /** [channels] with later copies of a channel in the same group left out. */
+    private fun mergedCopies(channels: List<LiveChannel>, keys: Map<String, String>): List<LiveChannel> {
+        val seen = HashSet<String>()
+        return channels.filter { channel ->
+            val key = keys[channel.id].orEmpty()
+            key.isEmpty() || seen.add((channel.group ?: "") + "\u0000" + key)
+        }
+    }
+
+    /** Ids of channels in [channels] that repeat an earlier channel, whatever their group. */
+    private fun laterCopies(channels: List<LiveChannel>, keys: Map<String, String>): Set<String> {
+        val seen = HashSet<String>()
+        return channels.filter { channel ->
+            val key = keys[channel.id].orEmpty()
+            key.isNotEmpty() && !seen.add(key)
+        }.mapTo(HashSet(), LiveChannel::id)
+    }
+
     private fun fail(error: LiveTvError) {
-        _state.update { it.copy(loading = false, error = error, channels = emptyList(), groups = emptyList(), guide = emptyMap()) }
+        _state.update { it.copy(loading = false, error = error, channels = emptyList(), copiesInAll = emptySet(), groups = emptyList(), guide = emptyMap()) }
     }
 
     companion object {
@@ -460,6 +555,8 @@ class LiveTvController(
                 val byId = state.channels.associateBy(LiveChannel::id)
                 LiveTvFilters.filter(state.recent.mapNotNull(byId::get), query)
             }
+            LiveTvSelection.ALL -> LiveTvFilters.filter(state.channels, query, group = selection)
+                .let { list -> if (state.copiesInAll.isEmpty()) list else list.filter { it.id !in state.copiesInAll } }
             else -> LiveTvFilters.filter(state.channels, query, group = selection)
         }
 
@@ -471,9 +568,14 @@ class LiveTvController(
         fun sourceLabel(state: LiveTvState, channel: LiveChannel): String? =
             if (state.sources.size < 2) null else state.sources.firstOrNull { it.key == channel.sourceId }?.label
 
-        /** The group to open first on the built-in channels: the one for the device's country. */
+        /**
+         * The group to open first on the built-in channels: the one for the device's country, when
+         * Free-TV is all there is. With the free streaming services loaded, the list opens on All,
+         * which starts with their channels.
+         */
         fun preferredGroup(state: LiveTvState, countryCode: String?): String? {
             if (!state.usingDefault) return null
+            if (state.channels.any { it.sourceId.startsWith(LiveTvDefaults.BUILT_IN_PREFIX) && it.sourceId != LiveTvDefaults.source.id && it.sourceId != "${LiveTvDefaults.BUILT_IN_PREFIX}iptvorg" }) return null
             val group = LiveTvDefaults.groupForCountry(countryCode) ?: return null
             return group.takeIf { it in state.groups }
         }
