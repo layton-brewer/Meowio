@@ -51,6 +51,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1084,6 +1085,15 @@ open class MainActivity : ComponentActivity() {
 
                     val liveTvState by liveTvRepository.controller.state.collectAsState()
                     val liveTvTabVisible = liveTvState.tabVisible
+                    val appsTabVisible by com.nuvio.tv.ui.screens.apps.AppsStore.tabVisible.collectAsState()
+                    LaunchedEffect(appsTabVisible, currentRoute) {
+                        if (!appsTabVisible && currentRoute == Screen.Apps.route) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    }
                     LaunchedEffect(liveTvTabVisible, currentRoute) {
                         if (!liveTvTabVisible && currentRoute == Screen.LiveTv.route) {
                             navController.navigate(Screen.Home.route) {
@@ -1093,12 +1103,13 @@ open class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val rootRoutes = remember(discoverLocation, liveTvTabVisible) {
+                    val rootRoutes = remember(discoverLocation, liveTvTabVisible, appsTabVisible) {
                         buildSet {
                             add(Screen.Home.route)
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             if (liveTvTabVisible) add(Screen.LiveTv.route)
+                            if (appsTabVisible) add(Screen.Apps.route)
                             add(Screen.Settings.route)
                             if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(Screen.Discover.route)
@@ -1112,8 +1123,11 @@ open class MainActivity : ComponentActivity() {
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavSettings = stringResource(R.string.nav_settings)
                     val strNavLiveTv = stringResource(R.string.nav_live_tv)
+                    val strNavApps = stringResource(R.string.nav_apps)
                     val drawerItems = remember(
                         strNavLiveTv,
+                        strNavApps,
+                        appsTabVisible,
                         liveTvTabVisible,
                         strNavHome,
                         strNavDiscover,
@@ -1159,6 +1173,15 @@ open class MainActivity : ComponentActivity() {
                                         route = Screen.LiveTv.route,
                                         label = strNavLiveTv,
                                         icon = Icons.Default.LiveTv
+                                    )
+                                )
+                            }
+                            if (appsTabVisible) {
+                                add(
+                                    DrawerItem(
+                                        route = Screen.Apps.route,
+                                        label = strNavApps,
+                                        icon = Icons.Default.Apps
                                     )
                                 )
                             }

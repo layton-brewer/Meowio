@@ -244,6 +244,19 @@ internal fun LayoutSidebarSection(
         onLocationSelected = { location -> onEvent(LayoutSettingsEvent.SetDiscoverLocation(location)) }
     )
     LiveTvTabToggleRow()
+    AppsTabToggleRow()
+}
+
+@Composable
+private fun AppsTabToggleRow() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val visible by com.nuvio.tv.ui.screens.apps.AppsStore.tabVisible.collectAsState()
+    SettingsToggleRow(
+        title = stringResource(R.string.apps_show_tab),
+        subtitle = stringResource(R.string.apps_show_tab_sub),
+        checked = visible,
+        onToggle = { com.nuvio.tv.ui.screens.apps.AppsStore.setTabVisible(context, !visible) }
+    )
 }
 
 @Composable
