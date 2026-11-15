@@ -156,6 +156,10 @@ struct SettingsView: View {
                     Text("Collections made in the other Meowio apps appear on Home. Folders built from TMDB lists and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
                 }
 
+                Section {
+                    NavigationLink("Edit collections") { CollectionEditorView() }
+                }
+
                 Section("Appearance") {
                     Picker("Theme", selection: $settings.theme) {
                         ForEach(MeowioTheme.allCases) { Text($0.title).tag($0) }
