@@ -261,6 +261,7 @@ jobs:
           ## What's new in 0.2.26
 
           - **Zap no longer needs a TMDB key:** it now pulls random movies and series from the catalogs of the add-ons you have installed, the same sources Home and Search use. Type, year, genre and rating filters apply to those catalogs, and actor filters use your add-ons' search (type a name and add it). It works the same on phone, Mac/Windows, Android TV and Apple TV.
+          - **Live TV lists your country's channels (USA) first, then the other countries.**
 
           ## Download
 
