@@ -62,6 +62,13 @@ import kotlin.time.ExperimentalTime
 import kotlinx.coroutines.delay
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.live_tv_not_responding
+import nuvio.composeapp.generated.resources.live_tv_problem_blocked
+import nuvio.composeapp.generated.resources.live_tv_problem_not_found
+import nuvio.composeapp.generated.resources.live_tv_problem_server
+import nuvio.composeapp.generated.resources.live_tv_problem_unreachable
+import nuvio.composeapp.generated.resources.live_tv_problem_not_stream
+import nuvio.composeapp.generated.resources.live_tv_problem_youtube
+import nuvio.composeapp.generated.resources.live_tv_problem_vpn
 import nuvio.composeapp.generated.resources.app_brand_name
 import nuvio.composeapp.generated.resources.live_tv_all
 import nuvio.composeapp.generated.resources.live_tv_cancel
@@ -306,7 +313,9 @@ fun LiveTvScreen(
                         ChannelRow(
                             channel = channel,
                             favorite = channel.id in state.favorites,
-                            nowTitle = if (LiveTvController.isOffline(state, channel)) {
+                            nowTitle = LiveTvController.playbackProblem(state, channel)?.let { problem ->
+                                stringResource(playbackProblemText(problem))
+                            } ?: if (LiveTvController.isOffline(state, channel)) {
                                 stringResource(Res.string.live_tv_not_responding)
                             } else {
                                 LiveTvController.nowTitle(state, channel)
@@ -331,6 +340,17 @@ private val GUIDE_CHANNEL_WIDTH = 120.dp
 private val GUIDE_ROW_HEIGHT = 56.dp
 
 @OptIn(ExperimentalTime::class)
+/** The words shown on a channel that could not be played the last time it was tried. */
+private fun playbackProblemText(problem: LivePlaybackProblem): StringResource = when (problem) {
+    LivePlaybackProblem.BLOCKED -> Res.string.live_tv_problem_blocked
+    LivePlaybackProblem.NOT_FOUND -> Res.string.live_tv_problem_not_found
+    LivePlaybackProblem.SERVER_ERROR -> Res.string.live_tv_problem_server
+    LivePlaybackProblem.UNREACHABLE -> Res.string.live_tv_problem_unreachable
+    LivePlaybackProblem.NOT_A_STREAM -> Res.string.live_tv_problem_not_stream
+    LivePlaybackProblem.YOUTUBE_NOT_LIVE -> Res.string.live_tv_problem_youtube
+    LivePlaybackProblem.VPN -> Res.string.live_tv_problem_vpn
+}
+
 private fun nowMs(): Long = Clock.System.now().toEpochMilliseconds()
 
 /**
