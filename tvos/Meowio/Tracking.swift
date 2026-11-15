@@ -223,7 +223,7 @@ final class SimklStore: ObservableObject {
         }
         watchlist = list
         guard let library else { return }
-        library.mergeSaved(list)
+        library.mergeSaved(list, source: "simkl")
 
         if let obj = await request("/sync/all-items/movies/completed").json as? [String: Any],
            let items = obj["movies"] as? [[String: Any]] {
@@ -408,7 +408,7 @@ final class MDBListStore: ObservableObject {
         let list = Self.metas(await get("/watchlist/items?limit=200").json)
         watchlist = list
         guard let library else { return }
-        library.mergeSaved(list)
+        library.mergeSaved(list, source: "mdblist")
         if let obj = await get("/sync/watched").json as? [String: Any] {
             for it in obj["movies"] as? [[String: Any]] ?? [] {
                 let m = it["movie"] as? [String: Any] ?? it

@@ -7,6 +7,14 @@ final class LibraryStore: ObservableObject {
     @Published var continueWatching: [ContinueItem] = []
     @Published var saved: [MetaItem] = []
     @Published var records: [WatchRecord] = []
+    /// Which tracking services each saved title came from ("trakt", "simkl", "mdblist"). Titles with no entry are
+    /// the user's own Meowio list.
+    @Published var savedSources: [String: [String]] = [:]
+    /// The tracking service marked primary in the Library menu ("meowio", "trakt", "simkl" or "mdblist").
+    /// Watching is still reported to every connected service.
+    @Published var primaryService: String = "meowio" {
+        didSet { store.set(primaryService, forKey: "primaryService") }
+    }
     /// This profile's storage, fixed when the store is made so a profile switch never writes into another profile.
     private let store = ProfileScope.defaults
     /// Called when a title is added to (true) or removed from (false) My List. Account sync and Trakt listen.
@@ -27,6 +35,11 @@ final class LibraryStore: ObservableObject {
         if let data = d.data(forKey: "records"), let items = try? JSONDecoder().decode([WatchRecord].self, from: data) {
             records = items
         }
+        if let data = d.data(forKey: "savedSources"),
+           let map = try? JSONDecoder().decode([String: [String]].self, from: data) {
+            savedSources = map
+        }
+        primaryService = d.string(forKey: "primaryService") ?? "meowio"
     }
 
     private func persist() {
@@ -34,6 +47,7 @@ final class LibraryStore: ObservableObject {
         if let data = try? JSONEncoder().encode(continueWatching) { d.set(data, forKey: "continue") }
         if let data = try? JSONEncoder().encode(saved) { d.set(data, forKey: "saved") }
         if let data = try? JSONEncoder().encode(records) { d.set(data, forKey: "records") }
+        if let data = try? JSONEncoder().encode(savedSources) { d.set(data, forKey: "savedSources") }
     }
 
     func record(meta: MetaItem, videoId: String?) {
@@ -125,11 +139,17 @@ final class LibraryStore: ObservableObject {
     }
 
     /// Adds titles from the account or Trakt to My List without sending them back.
-    func mergeSaved(_ items: [MetaItem]) {
+    func mergeSaved(_ items: [MetaItem], source: String? = nil) {
         var changed = false
-        for item in items where !saved.contains(where: { $0.id == item.id }) {
-            saved.append(item)
-            changed = true
+        for item in items {
+            if !saved.contains(where: { $0.id == item.id }) {
+                saved.append(item)
+                changed = true
+            }
+            if let source, !(savedSources[item.id] ?? []).contains(source) {
+                savedSources[item.id, default: []].append(source)
+                changed = true
+            }
         }
         if changed { persist() }
     }
