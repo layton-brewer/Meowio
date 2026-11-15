@@ -101,14 +101,14 @@ internal actual fun liveTvPlaybackTarget(
     val proxy = if (vpn.ready && LiveVpnGuard.mayRoute(channel.url)) {
         when (vpn.type) {
             LiveVpnType.PROXY -> LiveVpnGuard.parseProxy(vpn.proxyUrl)?.asUrl()
-            LiveVpnType.WIREGUARD -> synchronized(LiveTvIosWireGuard) {
+            LiveVpnType.WIREGUARD -> (
                 LiveTvIosWireGuard.proxyFor(vpn.wireGuardConfig, vpn.protectHttps)?.asUrl()
                     // The VPN is on but cannot start: send the channel to a dead proxy rather than around it.
                     ?: "http://127.0.0.1:1".also { LiveTvRepository.controller.reportPlayback(channel.id, LivePlaybackProblem.VPN) }
-            }
+            )
         }
     } else {
-        if (!vpn.ready) synchronized(LiveTvIosWireGuard) { LiveTvIosWireGuard.stop() }
+        if (!vpn.ready) LiveTvIosWireGuard.stop()
         null
     }
     LiveTvIosProxy.remember(channel.url, proxy)
