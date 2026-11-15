@@ -149,6 +149,8 @@ struct RootView: View {
                 .tabItem { Label("Search", systemImage: "magnifyingglass") }
             LibraryView()
                 .tabItem { Label("Library", systemImage: "bookmark.fill") }
+            ZapView()
+                .tabItem { Label("Zap", systemImage: "bolt.fill") }
             if settings.liveTabVisible {
                 LiveTVView()
                     .tabItem { Label("Live TV", systemImage: "antenna.radiowaves.left.and.right") }

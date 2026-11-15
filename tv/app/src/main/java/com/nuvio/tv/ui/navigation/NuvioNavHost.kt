@@ -1269,6 +1269,20 @@ private fun PlaybackNavHost(
             )
         }
 
+        rootComposable(Screen.Zap.route) {
+            com.nuvio.tv.ui.screens.zap.ZapScreen(
+                onPlay = { title ->
+                    navController.navigate(
+                        Screen.Detail.createRoute(
+                            itemId = title.imdbId,
+                            itemType = title.type,
+                            playOnLoad = true
+                        )
+                    )
+                }
+            )
+        }
+
         rootComposable(Screen.LiveTv.route) {
             com.nuvio.tv.ui.screens.livetv.LiveTvScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
