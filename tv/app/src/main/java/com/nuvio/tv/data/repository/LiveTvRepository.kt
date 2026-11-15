@@ -38,7 +38,10 @@ class LiveTvRepository @Inject constructor(
     // Providers are whatever address the user enters, often with broken certificates.
     @param:Named("addonPermissive") okHttpClient: OkHttpClient
 ) {
+    // The shared client's interceptors replace every request's User-Agent with the app's own,
+    // which some guide and playlist hosts refuse. Live TV sets its own agent, so they are dropped.
     private val client = okHttpClient.newBuilder()
+        .apply { interceptors().clear() }
         .cache(null)
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
@@ -49,6 +52,7 @@ class LiveTvRepository @Inject constructor(
         storage = sealedVpn(storage),
         loader = LiveTvLoader(fetchText = ::fetchText, nowMs = System::currentTimeMillis, streamText = ::streamText),
         scope = scope,
+        defaultSources = LiveTvDefaults.builtInSources(java.util.Locale.getDefault().country),
         probe = ::answers
     )
 

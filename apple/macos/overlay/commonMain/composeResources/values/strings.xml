@@ -532,6 +532,7 @@
     <string name="live_tv_connections">Connections: %1$d of %2$d</string>
     <string name="live_tv_some_failed">Some playlists could not be loaded. Open Playlists &amp; VPN to check them.</string>
     <string name="live_tv_guide_no_info">No guide information</string>
+    <string name="live_tv_guide_loading">Loading guide…</string>
     <string name="live_tv_vpn_title">VPN for Live TV</string>
     <string name="live_tv_vpn_body">Only Live TV goes through this VPN. It turns on by itself when you play a channel and off shortly after you stop. Debrid, add-ons, accounts and everything else always use your normal connection.</string>
     <string name="live_tv_vpn_switch">Use a VPN for Live TV</string>

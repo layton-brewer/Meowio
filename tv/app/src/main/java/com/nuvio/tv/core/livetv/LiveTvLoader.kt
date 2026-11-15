@@ -41,7 +41,7 @@ class LiveTvLoader(
             LiveSourceType.XTREAM -> loadXtream(source)
         }
         val key = source.key
-        return playlist.copy(channels = playlist.channels.map { it.copy(sourceId = key) })
+        return playlist.copy(channels = playlist.channels.map { it.copy(sourceId = key, group = LiveTvDefaults.cleanGroup(source, it.group)) })
     }
 
     private suspend fun loadM3u(source: LiveSource): LivePlaylist {
@@ -85,46 +85,72 @@ class LiveTvLoader(
     /**
      * What is on now and next for every channel that the guide knows, keyed by [LiveChannel.id].
      * Uses the guide address the user entered, otherwise the ones the playlist announced.
-     * Returns an empty map when there is no guide or it cannot be read.
+     * [onProgress] gets what is known so far after each guide file, so the first channels show
+     * their programmes while bigger files are still loading. Returns an empty map when there is
+     * no guide or it cannot be read.
      */
-    suspend fun loadGuide(source: LiveSource, playlist: LivePlaylist): Map<String, LiveNowNext> {
+    suspend fun loadGuide(
+        source: LiveSource,
+        playlist: LivePlaylist,
+        onProgress: (Map<String, LiveNowNext>) -> Unit = {},
+    ): Map<String, LiveNowNext> {
         // A playlist that lists dozens of guide files is a worldwide list; those load per group.
         if (hasGuidePerGroup(source, playlist)) return emptyMap()
-        val guideUrls = source.guideUrl.trim().takeIf(M3uParser::isHttpUrl)?.let(::listOf) ?: playlist.guideUrls
-        return readGuides(guideUrls.take(MAX_GUIDE_FILES), playlist.channels)
+        val named = source.guideUrl.trim().takeIf(M3uParser::isHttpUrl)?.let(::listOf) ?: playlist.guideUrls.take(MAX_GUIDE_FILES)
+        val guideUrls = (named + LiveTvDefaults.extraGuideUrls(source)).distinct()
+        return readGuides(guideUrls, playlist.channels, onProgress)
     }
 
     /** The guide for the channels of one [group] of a worldwide playlist. */
-    suspend fun loadGroupGuide(source: LiveSource, playlist: LivePlaylist, group: String): Map<String, LiveNowNext> {
+    suspend fun loadGroupGuide(
+        source: LiveSource,
+        playlist: LivePlaylist,
+        group: String,
+        onProgress: (Map<String, LiveNowNext>) -> Unit = {},
+    ): Map<String, LiveNowNext> {
         if (!hasGuidePerGroup(source, playlist)) return emptyMap()
-        val urls = (LiveTvDefaults.guideUrlsForGroup(group, playlist.guideUrls) + LiveTvDefaults.fallbackGuideUrls(group)).distinct()
+        // The free services' small guides come first, so most channels show programmes within
+        // seconds; the country's big guide files follow for the rest.
+        val urls = (LiveTvDefaults.fallbackGuideUrls(group) + LiveTvDefaults.guideUrlsForGroup(group, playlist.guideUrls)).distinct()
         if (urls.isEmpty()) return emptyMap()
-        return readGuides(urls.take(MAX_GROUP_GUIDE_FILES), playlist.channels.filter { it.group == group })
+        return readGuides(urls.take(MAX_GROUP_GUIDE_FILES), playlist.channels.filter { it.group == group }, onProgress)
     }
 
-    private suspend fun readGuides(urls: List<String>, channels: List<LiveChannel>): Map<String, LiveNowNext> {
+    private suspend fun readGuides(
+        urls: List<String>,
+        channels: List<LiveChannel>,
+        onProgress: (Map<String, LiveNowNext>) -> Unit,
+    ): Map<String, LiveNowNext> {
         if (urls.isEmpty() || channels.isEmpty()) return emptyMap()
         // Channels are matched by tvg-id and by name, as NuvioPlusIPTV does, so a playlist whose
         // ids differ a little from the guide's still gets its programmes.
         val matcher = GuideMatcher(channels)
         val byGuideId = HashMap<String, LiveNowNext>()
+        var result: Map<String, LiveNowNext> = emptyMap()
+        var lastAssigned: Map<String, String> = emptyMap()
         for (url in urls) {
-            // One file that cannot be read must not stop the others from being tried.
-            val reader = XmltvParser.Reader(nowMs(), matcher = matcher)
-            val read = runCatching {
-                streamText(url, reader::feed) || fetchText(url)?.also(reader::feed) != null
-            }.getOrDefault(false)
-            if (!read) continue
-            reader.result().forEach { (guideId, entry) ->
-                if (guideId !in byGuideId) byGuideId[guideId] = entry
+            // One file that cannot be read must not stop the others from being tried, and a file
+            // whose host is blocked is tried again from its mirror.
+            for (address in LiveTvDefaults.guideMirrors(url)) {
+                val reader = XmltvParser.Reader(nowMs(), matcher = matcher)
+                val read = runCatching {
+                    streamText(address, reader::feed) || fetchText(address)?.also(reader::feed) != null
+                }.getOrDefault(false)
+                val entries = reader.result()
+                if (!read && entries.isEmpty()) continue
+                entries.forEach { (guideId, entry) ->
+                    if (guideId !in byGuideId) byGuideId[guideId] = entry
+                }
+                break
+            }
+            val assigned = matcher.assign(byGuideId.keys)
+            if (assigned != lastAssigned) {
+                lastAssigned = assigned
+                result = assigned.mapNotNull { (channelId, guideId) -> byGuideId[guideId]?.let { channelId to it } }.toMap()
+                onProgress(result)
             }
             // Stop once nearly every channel has its guide; later files are only for the gaps.
-            if (matcher.assign(byGuideId.keys).size * 10 >= channels.size * 9) break
-        }
-        if (byGuideId.isEmpty()) return emptyMap()
-        val result = HashMap<String, LiveNowNext>()
-        matcher.assign(byGuideId.keys).forEach { (channelId, guideId) ->
-            byGuideId[guideId]?.let { result[channelId] = it }
+            if (assigned.size * 10 >= channels.size * 9) break
         }
         return result
     }
@@ -138,7 +164,7 @@ class LiveTvLoader(
     }
 
     private companion object {
-        const val MAX_GUIDE_FILES = 2
+        const val MAX_GUIDE_FILES = 3
         const val MAX_GROUP_GUIDE_FILES = 8
         const val MAX_ANNOUNCED_GUIDE_FILES = 6
     }
