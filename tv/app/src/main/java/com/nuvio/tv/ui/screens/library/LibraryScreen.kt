@@ -97,6 +97,8 @@ import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.data.local.PlayerPreference
 import com.nuvio.tv.ui.components.EmptyScreenState
 import com.nuvio.tv.ui.components.GridContentCard
+import com.nuvio.tv.ui.components.PosterCardStyle
+import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.screens.detail.requestFocusAfterFrames
 import com.nuvio.tv.ui.screens.home.HeroBackdropState
 import com.nuvio.tv.ui.screens.stream.PlayerChoiceDialog
@@ -120,6 +122,7 @@ private const val KEY_REPEAT_THROTTLE_MS = 80L
 private enum class LibraryViewMode {
     Saved,
     Cloud,
+    Lists,
     Servers
 }
 
@@ -141,6 +144,8 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
+    val trackingPickerState by viewModel.trackingPickerState.collectAsState()
+    val discoverState by viewModel.discover.collectAsState()
     val watchedSeriesIds by viewModel.watchedSeriesIds.collectAsState()
     val activityContext = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -210,6 +215,7 @@ fun LibraryScreen(
 
     LaunchedEffect(viewMode, servers.revision) {
         if (viewMode == LibraryViewMode.Servers) serversViewModel.load()
+        if (viewMode == LibraryViewMode.Lists) viewModel.onOpenDiscover()
     }
 
     LaunchedEffect(uiState.isLoading) {
@@ -350,6 +356,7 @@ fun LibraryScreen(
                     text = when {
                         viewMode == LibraryViewMode.Cloud -> stringResource(R.string.library_source_cloud).uppercase()
                         viewMode == LibraryViewMode.Servers -> stringResource(R.string.library_source_servers).uppercase()
+                        viewMode == LibraryViewMode.Lists -> "LISTS"
                         uiState.sourceMode == LibrarySourceMode.TRAKT -> "TRAKT"
                         uiState.sourceMode == LibrarySourceMode.SIMKL -> "SIMKL"
                         uiState.sourceMode == LibrarySourceMode.MDBLIST -> "MDBLIST"
@@ -443,6 +450,15 @@ fun LibraryScreen(
                     onSelectWatchedFilter = { filter ->
                         viewModel.onSelectWatchedFilter(filter)
                         expandedPicker = null
+                    },
+                    trackingPickerState = trackingPickerState,
+                    onSelectLibraryService = { mode ->
+                        viewModel.onSelectLibraryService(mode)
+                        expandedPicker = null
+                    },
+                    onSelectPrimaryService = { source ->
+                        viewModel.onSelectPrimaryService(source)
+                        expandedPicker = null
                     }
                 )
             }
@@ -512,6 +528,30 @@ fun LibraryScreen(
                     }
                 )
             }
+        } else if (viewMode == LibraryViewMode.Lists) {
+            libraryDiscoverListsContent(
+                state = discoverState,
+                posterCardStyle = posterCardStyle,
+                expandedPicker = expandedPicker,
+                onExpandedChange = { picker, shouldExpand ->
+                    expandedPicker = if (shouldExpand) picker else null
+                },
+                onSelectKind = { kind ->
+                    viewModel.onSelectDiscoverKind(kind)
+                    expandedPicker = null
+                },
+                onSelectList = { id ->
+                    viewModel.onSelectDiscoverList(id)
+                    expandedPicker = null
+                },
+                onLoadMore = viewModel::onDiscoverLoadMore,
+                isWatched = { item ->
+                    val isSeries = item.apiType.equals("series", ignoreCase = true) || item.apiType.equals("tv", ignoreCase = true)
+                    if (isSeries) item.id in watchedSeriesIds else item.id in watchedMovieIds
+                },
+                onItemClick = { item -> onNavigateToDetail(item.id, item.apiType, null) },
+                onItemLongPress = { item -> viewModel.posterOptions.show(item, null) }
+            )
         } else if (viewMode == LibraryViewMode.Servers) {
             libraryServerContent(
                 shelves = serverShelves,
@@ -762,6 +802,7 @@ private fun LibraryViewModeRow(
                         text = when (mode) {
                             LibraryViewMode.Saved -> stringResource(R.string.library_source_saved)
                             LibraryViewMode.Cloud -> stringResource(R.string.library_source_cloud)
+                            LibraryViewMode.Lists -> "Lists"
                             LibraryViewMode.Servers -> stringResource(R.string.library_source_servers)
                         }
                     )
@@ -1176,7 +1217,10 @@ private fun LibrarySelectorsRow(
     onSelectSort: (LibrarySortOption) -> Unit,
     onSelectGenre: (String?) -> Unit,
     onSelectYear: (String?) -> Unit,
-    onSelectWatchedFilter: (LibraryWatchedFilter) -> Unit
+    onSelectWatchedFilter: (LibraryWatchedFilter) -> Unit,
+    trackingPickerState: LibraryTrackingPickerState,
+    onSelectLibraryService: (LibrarySourceMode) -> Unit,
+    onSelectPrimaryService: (com.nuvio.tv.data.local.WatchProgressSource) -> Unit
 ) {
     val selectedListLabel = listTabs.firstOrNull { it.key == selectedListKey }?.localizedTitle()
         ?: stringResource(R.string.action_select)
@@ -1312,6 +1356,62 @@ private fun LibrarySelectorsRow(
                         ?.let(onSelectWatchedFilter)
                 }
             )
+        }
+
+        val notSetUp = " \u00B7 Not set up yet"
+        val connectedIds = trackingPickerState.connected
+        fun serviceName(id: com.nuvio.tv.core.tracking.TrackingProviderId) = when (id) {
+            com.nuvio.tv.core.tracking.TrackingProviderId.TRAKT -> "Trakt"
+            com.nuvio.tv.core.tracking.TrackingProviderId.SIMKL -> "Simkl"
+            com.nuvio.tv.core.tracking.TrackingProviderId.MDBLIST -> "MDBList"
+        }
+        val libraryOptions = buildList {
+            add(LibraryOption("Meowio library", LibrarySourceMode.LOCAL.name))
+            com.nuvio.tv.core.tracking.TrackingProviderId.entries.forEach { id ->
+                val label = serviceName(id) + if (id in connectedIds) "" else notSetUp
+                add(LibraryOption(label, id.name))
+            }
+        }
+        val primaryOptions = buildList {
+            add(LibraryOption("Meowio sync", com.nuvio.tv.data.local.WatchProgressSource.NUVIO_SYNC.name))
+            com.nuvio.tv.core.tracking.TrackingProviderId.entries.forEach { id ->
+                val label = serviceName(id) + if (id in connectedIds) "" else notSetUp
+                add(LibraryOption(label, id.name))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        ) {
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Show library from",
+                value = libraryOptions.first { it.value == trackingPickerState.librarySource.name }.label
+                    .substringBefore(" \u00B7"),
+                selectedValue = trackingPickerState.librarySource.name,
+                expanded = expandedPicker == "service",
+                options = libraryOptions,
+                onExpandedChange = { onExpandedChange("service", it) },
+                onSelect = { option ->
+                    LibrarySourceMode.entries.firstOrNull { it.name == option.value }
+                        ?.let(onSelectLibraryService)
+                }
+            )
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Primary service (watching syncs to all connected)",
+                value = primaryOptions.first { it.value == trackingPickerState.primarySource.name }.label
+                    .substringBefore(" \u00B7"),
+                selectedValue = trackingPickerState.primarySource.name,
+                expanded = expandedPicker == "primary",
+                options = primaryOptions,
+                onExpandedChange = { onExpandedChange("primary", it) },
+                onSelect = { option ->
+                    com.nuvio.tv.data.local.WatchProgressSource.entries.firstOrNull { it.name == option.value }
+                        ?.let(onSelectPrimaryService)
+                }
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
@@ -1570,6 +1670,106 @@ private fun ConfirmDeleteDialog(
             )
         ) {
             Text(stringResource(R.string.library_list_delete))
+        }
+    }
+}
+
+@OptIn(ExperimentalTvMaterial3Api::class)
+private fun androidx.compose.foundation.lazy.grid.LazyGridScope.libraryDiscoverListsContent(
+    state: LibraryDiscoverState,
+    posterCardStyle: PosterCardStyle,
+    expandedPicker: String?,
+    onExpandedChange: (String, Boolean) -> Unit,
+    onSelectKind: (LibraryDiscoverKind) -> Unit,
+    onSelectList: (Long) -> Unit,
+    onLoadMore: () -> Unit,
+    isWatched: (MetaPreview) -> Boolean,
+    onItemClick: (MetaPreview) -> Unit,
+    onItemLongPress: (MetaPreview) -> Unit
+) {
+    item(span = { GridItemSpan(maxLineSpan) }) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        ) {
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Service",
+                value = "Trakt",
+                selectedValue = "trakt",
+                expanded = expandedPicker == "discoverService",
+                options = listOf(
+                    LibraryOption(if (state.configured) "Trakt" else "Trakt \u00B7 Not set up yet", "trakt"),
+                    LibraryOption("Simkl \u00B7 No public lists", "simkl"),
+                    LibraryOption("MDBList \u00B7 Not set up yet", "mdblist")
+                ),
+                onExpandedChange = { onExpandedChange("discoverService", it) },
+                onSelect = { onExpandedChange("discoverService", false) }
+            )
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(1f),
+                title = "Kind of list",
+                value = state.kind.label,
+                selectedValue = state.kind.name,
+                expanded = expandedPicker == "discoverKind",
+                options = LibraryDiscoverKind.entries.map { LibraryOption(it.label, it.name) },
+                onExpandedChange = { onExpandedChange("discoverKind", it) },
+                onSelect = { option ->
+                    LibraryDiscoverKind.entries.firstOrNull { it.name == option.value }?.let(onSelectKind)
+                }
+            )
+            LibraryDropdownPicker(
+                modifier = Modifier.weight(2f),
+                title = "${state.kind.label} (${state.lists.size})",
+                value = state.selected?.title ?: "Choose a list",
+                selectedValue = state.selected?.traktListId?.toString(),
+                expanded = expandedPicker == "discoverList",
+                options = state.lists.map { list ->
+                    LibraryOption(
+                        if (list.subtitle.isBlank()) list.title else "${list.title} \u00B7 ${list.subtitle}",
+                        list.traktListId.toString()
+                    )
+                },
+                onExpandedChange = { if (state.configured && state.lists.isNotEmpty()) onExpandedChange("discoverList", it) },
+                onSelect = { option -> option.value.toLongOrNull()?.let(onSelectList) }
+            )
+        }
+    }
+
+    val message = when {
+        !state.configured -> "Not set up yet" to "Popular lists need this build's Trakt keys, which have not been added yet."
+        state.listsLoading && state.lists.isEmpty() -> "Loading lists" to "One moment."
+        state.listsError != null && state.lists.isEmpty() -> "Could not load lists" to state.listsError
+        state.selected == null -> "Pick a list" to "Choose one above to see its titles here."
+        state.items.isEmpty() && state.itemsLoading -> "Loading list" to "One moment."
+        state.items.isEmpty() -> (state.itemsError?.let { "Could not load this list" } ?: "This list is empty") to
+            (state.itemsError ?: "Nothing to show from ${state.selected.title}.")
+        else -> null
+    }
+    if (message != null) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            EmptyScreenState(
+                title = message.first,
+                subtitle = message.second.orEmpty(),
+                icon = Icons.Default.BookmarkBorder
+            )
+        }
+    }
+
+    items(state.items, key = { "discover:${it.apiType}:${it.id}" }) { item ->
+        GridContentCard(
+            item = item,
+            posterCardStyle = posterCardStyle,
+            isWatched = isWatched(item),
+            showLabel = true,
+            onClick = { onItemClick(item) },
+            onLongPress = { onItemLongPress(item) }
+        )
+    }
+
+    if (state.nextPage != null) {
+        item(span = { GridItemSpan(maxLineSpan) }, key = "discover-more") {
+            androidx.compose.runtime.LaunchedEffect(state.nextPage, state.selected?.traktListId) { onLoadMore() }
         }
     }
 }
