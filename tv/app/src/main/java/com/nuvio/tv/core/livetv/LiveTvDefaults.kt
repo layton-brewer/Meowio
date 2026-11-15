@@ -9,6 +9,13 @@ object LiveTvDefaults {
 
     val source = LiveSource(type = LiveSourceType.M3U, url = PLAYLIST_URL)
 
+    /**
+     * Sent when downloading playlists and guides, as NuvioPlusIPTV does. Some guide hosts refuse
+     * the plain Java or OkHttp agent.
+     */
+    const val DOWNLOAD_USER_AGENT =
+        "Mozilla/5.0 (Linux; Android 12; Android TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+
     /** Group name in the built-in list to the country tag its guide files are named with. */
     private val guideTagByGroup = mapOf(
         "USA" to "US", "UK" to "UK", "Canada" to "CA", "Australia" to "AU", "Ireland" to "IE",
@@ -38,9 +45,13 @@ object LiveTvDefaults {
      * The guide file for [group] among the many a worldwide playlist announces. They are named
      * by country, for example `epg_ripper_US1.xml.gz`.
      */
-    fun guideUrlForGroup(group: String, guideUrls: List<String>): String? {
-        val tag = guideTagByGroup[group] ?: return null
+    fun guideUrlForGroup(group: String, guideUrls: List<String>): String? =
+        guideUrlsForGroup(group, guideUrls).firstOrNull()
+
+    /** Every guide file for [group], such as `epg_ripper_US1.xml.gz` and `epg_ripper_US2.xml.gz`. */
+    fun guideUrlsForGroup(group: String, guideUrls: List<String>): List<String> {
+        val tag = guideTagByGroup[group] ?: return emptyList()
         val pattern = Regex("""_${tag}\d\.xml(\.gz)?$""")
-        return guideUrls.firstOrNull { pattern.containsMatchIn(it.substringBefore('?')) }
+        return guideUrls.filter { pattern.containsMatchIn(it.substringBefore('?')) }
     }
 }

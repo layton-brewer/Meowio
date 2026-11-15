@@ -97,16 +97,19 @@ class LiveTvLoader(
     /** The guide for the channels of one [group] of a worldwide playlist. */
     suspend fun loadGroupGuide(source: LiveSource, playlist: LivePlaylist, group: String): Map<String, LiveNowNext> {
         if (!hasGuidePerGroup(source, playlist)) return emptyMap()
-        val url = LiveTvDefaults.guideUrlForGroup(group, playlist.guideUrls) ?: return emptyMap()
-        return readGuides(listOf(url), playlist.channels.filter { it.group == group })
+        val urls = LiveTvDefaults.guideUrlsForGroup(group, playlist.guideUrls)
+        if (urls.isEmpty()) return emptyMap()
+        return readGuides(urls.take(MAX_GUIDE_FILES), playlist.channels.filter { it.group == group })
     }
 
     private suspend fun readGuides(urls: List<String>, channels: List<LiveChannel>): Map<String, LiveNowNext> {
-        val wanted = channels.mapNotNull { it.guideId?.lowercase() }.toSet()
-        if (urls.isEmpty() || wanted.isEmpty()) return emptyMap()
+        if (urls.isEmpty() || channels.isEmpty()) return emptyMap()
+        // Channels are matched by tvg-id and by name, as NuvioPlusIPTV does, so a playlist whose
+        // ids differ a little from the guide's still gets its programmes.
+        val matcher = GuideMatcher(channels)
         val byGuideId = HashMap<String, LiveNowNext>()
         for (url in urls) {
-            val reader = XmltvParser.Reader(nowMs(), wanted)
+            val reader = XmltvParser.Reader(nowMs(), matcher = matcher)
             if (!streamText(url, reader::feed)) reader.feed(fetchText(url) ?: continue)
             reader.result().forEach { (guideId, entry) ->
                 if (guideId !in byGuideId) byGuideId[guideId] = entry
@@ -114,9 +117,8 @@ class LiveTvLoader(
         }
         if (byGuideId.isEmpty()) return emptyMap()
         val result = HashMap<String, LiveNowNext>()
-        channels.forEach { channel ->
-            val entry = channel.guideId?.lowercase()?.let(byGuideId::get) ?: return@forEach
-            result[channel.id] = entry
+        matcher.assign(byGuideId.keys).forEach { (channelId, guideId) ->
+            byGuideId[guideId]?.let { result[channelId] = it }
         }
         return result
     }
