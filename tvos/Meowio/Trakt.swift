@@ -238,7 +238,7 @@ final class TraktStore: ObservableObject {
     private static func poster(_ imdb: String) -> String { "https://images.metahub.space/poster/medium/\(imdb)/img" }
     private static func background(_ imdb: String) -> String { "https://images.metahub.space/background/medium/\(imdb)/img" }
 
-    private static func meta(from obj: [String: Any], type: String) -> MetaItem? {
+    static func meta(from obj: [String: Any], type: String) -> MetaItem? {
         guard let ids = obj["ids"] as? [String: Any], let imdb = ids["imdb"] as? String, imdb.hasPrefix("tt") else { return nil }
         var m = MetaItem(id: imdb, type: type, name: obj["title"] as? String ?? imdb)
         m.poster = poster(imdb)
@@ -271,7 +271,7 @@ final class TraktStore: ObservableObject {
         }
         watchlist = list
         guard let library else { return }
-        library.mergeSaved(list)
+        library.mergeSaved(list, source: "trakt")
 
         if let movies = await get("/sync/watched/movies").json as? [[String: Any]] {
             for it in movies {
