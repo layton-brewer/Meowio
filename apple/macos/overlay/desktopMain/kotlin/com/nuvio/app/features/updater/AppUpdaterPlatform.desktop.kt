@@ -165,7 +165,7 @@ actual object AppUpdaterPlatform {
     private fun launchInstaller(updateFile: File) {
         val command = when (currentOs) {
             DesktopUpdaterOs.WINDOWS -> windowsInstallerCommand(updateFile)
-            DesktopUpdaterOs.MACOS -> listOf("open", updateFile.absolutePath)
+            DesktopUpdaterOs.MACOS -> macInstallerCommand(updateFile, updatesDir())
             DesktopUpdaterOs.LINUX -> linuxInstallerCommand(
                 method = linuxInstallMethod,
                 updateFile = updateFile,
@@ -234,6 +234,58 @@ private fun desktopArchitectureFragments(): List<String> {
         arch.contains("64") -> listOf("x64", "x86_64", "amd64")
         else -> emptyList()
     }
+}
+
+/**
+ * A Mac app can replace itself: once this process has exited, a small script mounts the downloaded DMG, copies the
+ * new Meowio over the running app's own location (Applications by default), clears the download quarantine flag so
+ * macOS opens it without the first-run prompt, and starts it. If anything fails, such as an Applications folder this
+ * user cannot write to, the DMG is opened for the usual drag-to-Applications instead.
+ */
+internal fun macInstallerCommand(
+    dmg: File,
+    workDir: File,
+    appBundle: String? = macAppBundlePath(),
+    currentPid: Long = ProcessHandle.current().pid(),
+): List<String> {
+    val script = File(workDir, "install-update.sh")
+    script.writeText(macInstallScript())
+    val target = appBundle ?: "/Applications/Meowio.app"
+    val launch = "nohup sh ${singleQuote(script.absolutePath)} ${singleQuote(dmg.absolutePath)} " +
+        "${singleQuote(target)} $currentPid >/dev/null 2>&1 &"
+    return listOf("sh", "-c", launch)
+}
+
+internal fun macInstallScript(): String = listOf(
+    "dmg=\"\$1\"; target=\"\$2\"; pid=\"\$3\"",
+    "i=0",
+    "while [ \$i -lt 100 ] && kill -0 \"\$pid\" 2>/dev/null; do sleep 0.1; i=\$((i+1)); done",
+    "mnt=\"\$(mktemp -d /tmp/meowio-update.XXXXXX)\"",
+    "if hdiutil attach -nobrowse -readonly -noverify -mountpoint \"\$mnt\" \"\$dmg\" >/dev/null 2>&1; then",
+    "  src=\"\$(ls -d \"\$mnt\"/*.app 2>/dev/null | head -n 1)\"",
+    "  if [ -n \"\$src\" ] && rm -rf \"\$target.new\" && cp -R \"\$src\" \"\$target.new\" && rm -rf \"\$target\" && mv \"\$target.new\" \"\$target\"; then",
+    "    xattr -cr \"\$target\" 2>/dev/null",
+    "    hdiutil detach \"\$mnt\" >/dev/null 2>&1",
+    "    rm -f \"\$dmg\"",
+    "    open \"\$target\"",
+    "    exit 0",
+    "  fi",
+    "  hdiutil detach \"\$mnt\" >/dev/null 2>&1",
+    "fi",
+    "open \"\$dmg\"",
+).joinToString("\n") + "\n"
+
+/** The .app folder this process runs from, or null when it is not running from an app bundle. */
+internal fun macAppBundlePath(): String? {
+    val candidates = listOfNotNull(
+        System.getProperty("jpackage.app-path"),
+        ProcessHandle.current().info().command().orElse(null),
+    )
+    for (path in candidates) {
+        val end = path.indexOf(".app/")
+        if (end > 0) return path.substring(0, end + 4)
+    }
+    return null
 }
 
 internal fun windowsInstallerCommand(updateFile: File): List<String> {

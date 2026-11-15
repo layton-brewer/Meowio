@@ -6,6 +6,8 @@ struct SettingsView: View {
     @EnvironmentObject var profiles: ProfileStore
     @EnvironmentObject var account: AccountStore
     @EnvironmentObject var trakt: TraktStore
+    @EnvironmentObject var servers: MediaServerStore
+    @EnvironmentObject var party: PartyRepository
     @State private var newAddon = ""
     @State private var addonNames: [String: String] = [:]
     @StateObject private var updates = UpdateChecker()
@@ -40,6 +42,23 @@ struct SettingsView: View {
                                 Spacer()
                                 Text(trakt.connected ? (trakt.username ?? "Connected") : "Not connected").foregroundStyle(.secondary)
                             }
+                        }
+                    }
+                }
+
+                Section("Media servers and watch party") {
+                    NavigationLink { MediaServersSettingsView() } label: {
+                        HStack {
+                            Text("Jellyfin and Emby")
+                            Spacer()
+                            Text(servers.hasEnabled ? "\(servers.enabled.count) connected" : "None").foregroundStyle(.secondary)
+                        }
+                    }
+                    NavigationLink { PartySettingsView() } label: {
+                        HStack {
+                            Text("Watch party")
+                            Spacer()
+                            Text(party.party.map { "In party \($0.formattedCode)" } ?? "Join or host").foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -115,6 +134,14 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    SecureField("TMDB API key (optional)", text: $settings.tmdbKey)
+                } header: {
+                    Text("Collections and trailers")
+                } footer: {
+                    Text("Collections made in the other Meowio apps appear on Home. Folders built from TMDB lists and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
+                }
+
                 Section("Appearance") {
                     Picker("Theme", selection: $settings.theme) {
                         ForEach(MeowioTheme.allCases) { Text($0.title).tag($0) }
@@ -166,7 +193,7 @@ struct SettingsView: View {
                     case .upToDate:
                         Text("You have the latest version.").foregroundStyle(.secondary)
                     case .available(let tag):
-                        Text("Meowio \(tag) is available. Download Meowio-tvos.ipa from github.com/layton-brewer/Meowio/releases and sideload it over this version.")
+                        UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
                     case .failed:
                         Text("Could not check for updates.").foregroundStyle(.secondary)
                     }
