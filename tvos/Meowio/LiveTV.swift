@@ -161,6 +161,44 @@ enum LiveTvError: String {
     case noChannels = "The playlist loaded but holds no channels."
 }
 
+/// Why a Live TV channel did not play, shown on the channel so the user knows what happened.
+enum LivePlaybackProblem: String {
+    case blocked = "Blocked by the server, often by country or a missing login."
+    case notFound = "The channel is gone from the server."
+    case serverError = "The channel's server is failing."
+    case unreachable = "The server could not be reached."
+    case notAStream = "The address is a web page, not a stream."
+    case youtubeNotLive = "This YouTube channel is not live right now."
+
+    static func forStatus(_ code: Int) -> LivePlaybackProblem {
+        switch code {
+        case 401, 403, 451: return .blocked
+        case 404, 410: return .notFound
+        case 500...599: return .serverError
+        default: return .unreachable
+        }
+    }
+
+    /// Asks the stream's server what is wrong after every copy of a channel failed to play.
+    static func diagnose(_ url: String, headers: [String: String]) async -> LivePlaybackProblem {
+        if LiveYouTube.isYouTube(url) { return .youtubeNotLive }
+        guard M3uParser.isHttp(url), let u = URL(string: url) else { return .unreachable }
+        var request = URLRequest(url: u, timeoutInterval: 8)
+        for (k, v) in headers { request.setValue(v, forHTTPHeaderField: k) }
+        do {
+            let (bytes, response) = try await URLSession.shared.bytes(for: request)
+            _ = bytes
+            guard let http = response as? HTTPURLResponse else { return .unreachable }
+            if !(200...399).contains(http.statusCode) { return forStatus(http.statusCode) }
+            let type = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+            if type.contains("text/html"), !url.lowercased().contains(".m3u") { return .notAStream }
+            return .unreachable
+        } catch {
+            return .unreachable
+        }
+    }
+}
+
 // MARK: - Built-in channels
 
 enum LiveTvDefaults {
@@ -594,6 +632,13 @@ final class LiveTVStore: ObservableObject {
     @Published var recent: [String]
     @Published var guide: [String: LiveNowNext] = [:]
     @Published var offline: Set<String> = []
+    /// Why a channel failed the last time it was played, by channel id. Cleared when it plays.
+    @Published var playbackProblems: [String: LivePlaybackProblem] = [:]
+
+    func reportPlayback(_ id: String, _ problem: LivePlaybackProblem?) {
+        if playbackProblems[id] == problem { return }
+        if let problem { playbackProblems[id] = problem } else { playbackProblems[id] = nil }
+    }
 
     /// Playlists that failed to load while others worked, by playlist key.
     @Published var failedSources: [String: LiveTvError] = [:]
@@ -897,7 +942,7 @@ struct LiveTVView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 14) {
                             ForEach(shown) { ch in
-                                Button { play(ch) } label: { GuideRow(channel: ch, info: live.guide[ch.id]) }
+                                Button { play(ch) } label: { GuideRow(channel: ch, info: live.guide[ch.id], problem: live.playbackProblems[ch.id]) }
                                     .buttonStyle(.card)
                                     .onAppear { live.requestChannelGuide(ch) }
                             }
@@ -908,7 +953,7 @@ struct LiveTVView: View {
                 ScrollView {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 4), spacing: 30) {
                         ForEach(shown) { ch in
-                            Button { play(ch) } label: { ChannelCard(channel: ch, info: live.guide[ch.id], offline: live.offline.contains(ch.id), favorite: live.favorites.contains(ch.id)) }
+                            Button { play(ch) } label: { ChannelCard(channel: ch, info: live.guide[ch.id], offline: live.offline.contains(ch.id), problem: live.playbackProblems[ch.id], favorite: live.favorites.contains(ch.id)) }
                                 .buttonStyle(.card)
                                 .contextMenu {
                                     Button(live.favorites.contains(ch.id) ? "Remove from favorites" : "Add to favorites") { live.toggleFavorite(ch) }
@@ -958,6 +1003,7 @@ struct LiveTVView: View {
                 }
                 resolved.append(c)
             }
+            if resolved.isEmpty { live.reportPlayback(ch.id, .youtubeNotLive) }
             start(ch, resolved.isEmpty ? copies : resolved)
         }
     }
@@ -972,6 +1018,9 @@ struct LiveTVView: View {
                                   candidates: items, headers: [:], isLive: true)
         // The Live TV VPN is only handed to this Live TV request; other playback never gets it.
         request.liveProxy = settings.liveProxyForPlayback
+        let first = copies.first ?? ch
+        request.onLiveResult = { [weak live] problem in live?.reportPlayback(ch.id, problem) }
+        request.liveProbe = (first.url, first.headers)
         playing = request
     }
 }
@@ -980,6 +1029,7 @@ struct ChannelCard: View {
     let channel: LiveChannel
     let info: LiveNowNext?
     let offline: Bool
+    var problem: LivePlaybackProblem? = nil
     let favorite: Bool
 
     var body: some View {
@@ -994,7 +1044,9 @@ struct ChannelCard: View {
                 if favorite { Image(systemName: "star.fill").foregroundStyle(.yellow) }
             }
             Text(channel.displayName).lineLimit(1).font(.headline)
-            if let now = info?.now?.title {
+            if let problem {
+                Text(problem.rawValue).font(.caption).lineLimit(2).foregroundStyle(.orange)
+            } else if let now = info?.now?.title {
                 Text(now).font(.caption).lineLimit(1).foregroundStyle(.secondary)
                 if let next = info?.next?.title {
                     Text("Next: \(next)").font(.caption2).lineLimit(1).foregroundStyle(.secondary)
@@ -1013,6 +1065,7 @@ struct ChannelCard: View {
 struct GuideRow: View {
     let channel: LiveChannel
     let info: LiveNowNext?
+    var problem: LivePlaybackProblem? = nil
 
     private static let time: DateFormatter = {
         let f = DateFormatter()
@@ -1024,7 +1077,9 @@ struct GuideRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
             Text(channel.displayName).font(.headline).lineLimit(2).frame(width: 300, alignment: .leading)
-            if let list = info?.upcoming, !list.isEmpty {
+            if let problem {
+                Text(problem.rawValue).font(.callout).foregroundStyle(.orange)
+            } else if let list = info?.upcoming, !list.isEmpty {
                 HStack(spacing: 12) {
                     ForEach(Array(list.prefix(4).enumerated()), id: \.offset) { i, p in
                         VStack(alignment: .leading, spacing: 4) {

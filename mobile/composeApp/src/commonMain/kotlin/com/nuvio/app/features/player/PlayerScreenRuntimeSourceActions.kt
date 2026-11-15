@@ -391,6 +391,7 @@ internal fun PlayerScreenRuntime.switchToSource(
  */
 internal fun PlayerScreenRuntime.tryFailoverToNextSource(message: String): Boolean {
     if (isNetworkOffline()) return false
+    if (parentMetaType == com.nuvio.app.features.livetv.LiveTvContentType) return tryFailoverToLiveBackup(message)
     val key = PlaybackFailover.contentKey(activeVideoId, activeSeasonNumber, activeEpisodeNumber)
     if (!PlaybackFailover.hasNext(key)) return false
     val failedPlaybackKey = activePlaybackKey
@@ -727,4 +728,32 @@ internal fun PlayerScreenRuntime.saveDirectStreamForReuse(
         addonLogo = stream.addonLogo,
         streamDescription = stream.streamSubtitle,
     )
+}
+
+/**
+ * Live TV on iPhone and iPad: a channel that fails to play is replaced, in the background, by the
+ * next copy of it (HD or SD, a backup feed, another playlist). The error shows only when all failed.
+ */
+private fun PlayerScreenRuntime.tryFailoverToLiveBackup(message: String): Boolean {
+    val failedUrl = activeSourceUrl
+    val failedPlaybackKey = activePlaybackKey
+    scope.launch {
+        while (activePlaybackKey == failedPlaybackKey && activeSourceUrl == failedUrl) {
+            val backup = com.nuvio.app.features.livetv.LiveTvBackups.next() ?: break
+            val target = com.nuvio.app.features.livetv.LiveTvRepository.playbackTarget(backup, startBackups = false)
+            if (target.url == failedUrl) continue
+            if (activePlaybackKey != failedPlaybackKey) return@launch
+            activeSourceUrl = target.url
+            activeSourceAudioUrl = null
+            activeSourceHeaders = sanitizePlaybackHeaders(target.headers)
+            activeSourceResponseHeaders = emptyMap()
+            errorMessage = null
+            return@launch
+        }
+        if (activePlaybackKey != failedPlaybackKey || activeSourceUrl != failedUrl) return@launch
+        errorMessage = message
+        scrubbingPositionMs = null
+        controlsVisible = !playerControlsLocked
+    }
+    return true
 }
