@@ -1274,7 +1274,7 @@ private fun PlaybackNavHost(
                 onPlay = { title ->
                     navController.navigate(
                         Screen.Detail.createRoute(
-                            itemId = title.imdbId,
+                            itemId = title.id,
                             itemType = title.type,
                             playOnLoad = true
                         )

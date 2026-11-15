@@ -76,6 +76,7 @@ enum AddonClient {
             struct Extra: Decodable {
                 var name: String
                 var isRequired: Bool?
+                var options: [String]?
             }
 
             /// Can be opened without a search term or genre.
@@ -143,6 +144,25 @@ enum AddonClient {
             var m = item
             m.type = catalog.type
             if !m.id.hasPrefix("tt") { m.addonBase = catalog.base }
+            return m
+        }
+    }
+
+    /// One page of a catalog with optional extras (genre, search) and a skip offset. Empty when the request fails.
+    static func page(base: String, type: String, catalogId: String, extra: [String: String], skip: Int) async -> [MetaItem] {
+        let id = catalogId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? catalogId
+        var parts: [String] = []
+        for key in extra.keys.sorted() {
+            let value = extra[key]!.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? extra[key]!
+            parts.append("\(key)=\(value)")
+        }
+        if skip > 0 { parts.append("skip=\(skip)") }
+        let tail = parts.isEmpty ? "" : "/" + parts.joined(separator: "&")
+        let list = await fetch(CatalogResponse.self, from: "\(base)/catalog/\(type)/\(id)\(tail).json")?.metas ?? []
+        return list.map { item in
+            var m = item
+            m.type = type
+            if !m.id.hasPrefix("tt") { m.addonBase = base }
             return m
         }
     }
