@@ -36,7 +36,21 @@ object XmltvParser {
         private val pending = StringBuilder()
         private val found = HashMap<String, MutableList<LiveProgramme>>()
 
+        /**
+         * Adds more of the guide. Big pieces are taken in slices: searching one huge piece for the
+         * next element over and over made a whole guide handed over at once (as iOS does) take
+         * minutes, so it never finished and every channel showed no guide.
+         */
         fun feed(chunk: String) {
+            var from = 0
+            while (from < chunk.length) {
+                val to = minOf(chunk.length, from + SLICE)
+                feedSlice(chunk.substring(from, to))
+                from = to
+            }
+        }
+
+        private fun feedSlice(chunk: String) {
             pending.append(chunk)
             var position = 0
             while (true) {
@@ -137,6 +151,7 @@ object XmltvParser {
     private const val OPEN = "<programme"
     private const val CLOSE = "</programme>"
     private const val MAX_PENDING = 1_000_000
+    private const val SLICE = 64 * 1024
 
     /** XMLTV time: `YYYYMMDDhhmmss +hhmm`. Seconds and the offset are optional. */
     internal fun parseTime(value: String?): Long? {
