@@ -60,7 +60,7 @@ extension PartyRepository {
         guard notify else { return }
         let others = result.added.filter { !$0.mine }
         guard let last = others.last else { return }
-        if !chatOpen { addUnread(others.count) }
+        if !chatOpen { chatUnread += others.count }
         showToast("\(last.name.isEmpty ? "Someone" : last.name): \(last.body)")
     }
 
