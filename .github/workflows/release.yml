@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.24 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.22 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.24 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.22 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,12 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.24"
+          tag="v0.2.22"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.24
+          ## What's new in 0.2.22
 
-          - **Live TV opens on every channel:** it now always opens on All, which shows how many channels there are. It no longer opens on your country's small Free-TV group, which made it look as if most channels were missing.
-          - **Live TV search looks through every channel**, whichever category is open.
+          - **Live TV now has thousands of free channels:** Pluto TV, Samsung TV Plus, Plex and Roku channels (with full guides) are added to the Free-TV and iptv-org channels for your country. The same channel from several services is listed once, and the other copies are used as backups if it stops playing.
+          - **Guide fixed on Android TV:** the TV app sent its own app name instead of a browser agent when downloading guides, and the guide only appeared after every guide file (including very large ones) had finished. Guides now show channel by channel as soon as the first small file is read, start with the small service guides, fall back to a GitHub copy when a guide host is blocked, and channels without a guide borrow it from another copy of the same channel.
+          - "Loading guide…" shows while guides are still coming in.
 
           ## Download
 
