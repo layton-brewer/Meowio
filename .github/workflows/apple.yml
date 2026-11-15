@@ -114,6 +114,13 @@ jobs:
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: native/livetv-vpn/go.sum
+      - name: Build Live TV VPN library
+        run: bash "$GITHUB_WORKSPACE/native/livetv-vpn/build-ios.sh" "$GITHUB_WORKSPACE/mobile/build/livetv-vpn"
+
       - name: Prepare iOS dependencies
         run: ./scripts/prepare-ios-dependencies.sh
 
