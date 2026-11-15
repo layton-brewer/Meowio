@@ -134,3 +134,5 @@ func nuvioAttachOpenVPN(id C.longlong, encoded *C.char) C.int {
 	}
 	return -1
 }
+
+func main() {}

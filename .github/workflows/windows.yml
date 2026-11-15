@@ -70,6 +70,14 @@ jobs:
         shell: bash
         run: ./apple/macos/apply-overlay.sh desktop
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.3"
+          cache-dependency-path: native/livetv-vpn/go.sum
+      - name: Build Live TV VPN helper
+        shell: bash
+        run: bash native/livetv-vpn/build-desktop.sh windows x86_64 desktop
+
       - name: Install WebView2 SDK
         shell: pwsh
         run: |
