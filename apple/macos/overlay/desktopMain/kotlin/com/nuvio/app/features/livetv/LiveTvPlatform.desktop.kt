@@ -44,6 +44,7 @@ internal actual suspend fun liveTvStreamText(url: String, onChunk: (String) -> U
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         runCatching {
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.setRequestProperty("User-Agent", LiveTvDefaults.DOWNLOAD_USER_AGENT)
             connection.connectTimeout = 30_000
             connection.readTimeout = 120_000
             connection.instanceFollowRedirects = true
@@ -82,6 +83,7 @@ internal actual suspend fun liveTvStreamAnswers(url: String, headers: Map<String
         if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) return@withContext null
         try {
             val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.setRequestProperty("User-Agent", LiveTvDefaults.DOWNLOAD_USER_AGENT)
             connection.connectTimeout = 6_000
             connection.readTimeout = 6_000
             connection.instanceFollowRedirects = true
