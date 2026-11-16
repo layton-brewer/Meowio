@@ -46,8 +46,7 @@ class ZapPool(
     private val filters: ZapFilters,
     private val addons: suspend () -> List<Addon>,
     private val catalogs: CatalogRepository,
-    private val isWatched: suspend (String) -> Boolean,
-    private val listItems: suspend () -> List<MetaPreview> = { emptyList() }
+    private val isWatched: suspend (String) -> Boolean
 ) {
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
@@ -57,7 +56,6 @@ class ZapPool(
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
-    private var listsAdded = false
 
     suspend fun next(): ZapResult {
         val all = sources ?: loadSources().also { sources = it }
@@ -123,12 +121,6 @@ class ZapPool(
             }
         } else {
             for (source in all) added += discoverPage(source)
-            if (!listsAdded) {
-                listsAdded = true
-                // The user's own lists: saved items plus Trakt, Simkl and MDBList lists.
-                added += runCatching { listItems() }.getOrDefault(emptyList())
-                    .filter { it.apiType.lowercase() in wantedTypes() }
-            }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.rawType}:${it.id}" !in seen }.forEach(queue::addLast)
@@ -207,7 +199,7 @@ private fun sameGenre(a: String, b: String): Boolean {
 }
 
 private fun looksLikeHistory(text: String): Boolean =
-    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl", RegexOption.IGNORE_CASE).containsMatchIn(text)
+    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl|watchlist|library|favou?rite|my.?list", RegexOption.IGNORE_CASE).containsMatchIn(text)
 
 private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
     id = id,
