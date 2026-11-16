@@ -677,7 +677,17 @@ fun MetaDetailsScreen(
                 val saveShuffle = rememberShuffleSave(meta.id, shuffleProfileId, shuffleSettings)
                 val onShuffleClick: (() -> Unit)? = if (showShuffleButton) {
                     {
-                        if (shuffleSettings.enabled) saveShuffle(shuffleSettings.copy(enabled = false)) else showShuffle = true
+                        if (shuffleSettings.enabled) {
+                            saveShuffle(shuffleSettings.copy(enabled = false))
+                        } else {
+                            // Random Episode: any real episode, no seen/unseen question.
+                            meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }.randomOrNull()?.let { ep ->
+                                onPlay?.invoke(
+                                    meta.type, ep.id, meta.id, meta.type, meta.name, meta.logo, meta.poster, meta.background,
+                                    ep.season, ep.episode, ep.title, ep.thumbnail, null, null,
+                                )
+                            }
+                        }
                     }
                 } else {
                     null
