@@ -59,7 +59,29 @@ class ZapViewModel @Inject constructor(
             withTimeoutOrNull(8_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } } ?: emptyList()
         },
         catalogs = catalogRepository,
-        isWatched = { id -> watchProgressRepository.isWatched(id).first() }
+        isWatched = { id ->
+            watchProgressRepository.isWatched(id).first() ||
+                watchProgressRepository.allProgress.first().any { it.contentId == id }
+        },
+        listItems = {
+            libraryRepository.libraryItems.first().map { e ->
+                val kind = com.nuvio.tv.domain.model.ContentType.fromString(e.type)
+                com.nuvio.tv.domain.model.MetaPreview(
+                    id = e.id,
+                    type = kind,
+                    name = e.name,
+                    poster = e.poster,
+                    posterShape = e.posterShape,
+                    background = e.background,
+                    logo = e.logo,
+                    description = e.description,
+                    releaseInfo = e.releaseInfo,
+                    imdbRating = e.imdbRating,
+                    genres = e.genres,
+                    landscapePoster = e.landscapePoster,
+                )
+            }
+        }
     )
 
     fun zap() {

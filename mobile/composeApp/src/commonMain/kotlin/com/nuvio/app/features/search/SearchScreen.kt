@@ -35,6 +35,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -281,11 +282,25 @@ fun SearchScreen(
                     NuvioScreenHeader(
                         title = headerTitle,
                         actions = {
-                            IconButton(onClick = { zapOpen = true }) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(end = 4.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .clickable { zapOpen = true }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Shuffle,
                                     contentDescription = "Surprise me with a random title",
-                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                )
+                                Text(
+                                    text = "Surprise Me",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(start = 6.dp),
                                 )
                             }
                         },

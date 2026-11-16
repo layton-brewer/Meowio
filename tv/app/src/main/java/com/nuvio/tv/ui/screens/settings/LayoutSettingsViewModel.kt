@@ -70,7 +70,7 @@ data class LayoutSettingsUiState(
     val posterCardCornerRadiusDp: Int = 12,
     val cardDepthStyle: CardDepthStyle = CardDepthStyle(),
     val blurUnwatchedEpisodes: Boolean = false,
-    val randomEpisodeEnabled: Boolean = false,
+    val randomEpisodeEnabled: Boolean = true,
     val episodeOptionsOverlayStyle: EpisodeOptionsOverlayStyle = EpisodeOptionsOverlayStyle.BLUR,
     val homeImdbRatingsVisibility: HomeImdbRatingsVisibility = HomeImdbRatingsVisibility.SHOW_ALL,
     val detailImdbRatingsVisibility: DetailImdbRatingsVisibility = DetailImdbRatingsVisibility.SHOW_ALL,
