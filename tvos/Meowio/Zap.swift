@@ -110,6 +110,7 @@ final class ZapPool {
     private let filters: ZapFilters
     private let addons: [String]
     private let isWatched: (String) -> Bool
+    private let isSaved: (String) -> Bool
     private var queue: [MetaItem] = []
     private var seen = Set<String>()
     private var sources: [ZapSource]?
@@ -119,7 +120,8 @@ final class ZapPool {
     private var searched = Set<String>()
     private let maxPage = 9
 
-    init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool) {
+    init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool, isSaved: @escaping (String) -> Bool = { _ in false }) {
+        self.isSaved = isSaved
         self.filters = filters
         self.addons = addons
         self.isWatched = isWatched
@@ -130,10 +132,12 @@ final class ZapPool {
         if sources == nil { sources = await loadSources() }
         guard let all = sources, !all.isEmpty else { return (nil, .noSources) }
         var refills = 0
-        while refills <= 14 {
+        while refills <= 30 {
             while !queue.isEmpty {
                 let item = queue.removeFirst()
                 if !seen.insert("\(item.type):\(item.id)").inserted { continue }
+                // Surprise Me finds new things: titles already in the library never come up.
+                if isSaved(item.id) { continue }
                 if filters.hideWatched, isWatched(item.id) { continue }
                 return (title(from: item), nil)
             }
@@ -188,7 +192,8 @@ final class ZapPool {
                 }
             }
         } else {
-            for source in all { added += await discoverPage(source) }
+            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
+            for source in all.shuffled().prefix(5) { added += await discoverPage(source) }
         }
         added.shuffle()
         for item in added where matches(item) && !seen.contains("\(item.type):\(item.id)") { queue.append(item) }
@@ -366,7 +371,7 @@ struct ZapView: View {
         pool = ZapPool(filters: filters, addons: settings.addons, isWatched: { id in
             library.isWatched(id) || library.records.contains { $0.contentId == id } ||
                 library.continueWatching.contains { $0.meta.id == id }
-        })
+        }, isSaved: { id in library.saved.contains { $0.id == id } })
     }
 
     private func zap() async {
