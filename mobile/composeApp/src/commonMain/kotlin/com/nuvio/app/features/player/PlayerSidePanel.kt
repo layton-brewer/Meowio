@@ -64,6 +64,7 @@ import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.ui.nuvioGlass
 import com.nuvio.app.core.ui.NuvioGlassStyle
 import com.nuvio.app.core.ui.NuvioGlass
+import com.nuvio.app.core.ui.nuvioTap
 
 @Composable
 internal fun PlayerSidePanel(
@@ -173,6 +174,7 @@ internal fun PlayerDialogButton(
             .alpha(if (enabled) 1f else tokens.opacity.disabled)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White.copy(alpha = 0.08f))
+            .then(if (enabled) Modifier.nuvioTap(onClick) else Modifier)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,

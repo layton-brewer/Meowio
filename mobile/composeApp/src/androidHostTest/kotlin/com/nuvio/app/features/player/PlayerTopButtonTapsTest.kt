@@ -1,16 +1,11 @@
 package com.nuvio.app.features.player
 
 import android.app.Application
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -24,8 +19,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertSame
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class, qualifiers = "w640dp-h360dp-land")
@@ -37,13 +30,25 @@ class PlayerTopButtonTapsTest {
     private var videoClicks = 0
 
     @Test
-    fun everyToolbarActionReceivesItsOwnTap() {
+    fun everyToolbarActionReceivesItsOwnTap() = verifyToolbar(consumeDown = false)
+
+    @Test
+    fun toolbarActionsReceiveTapAfterConsumedDown() = verifyToolbar(consumeDown = true)
+
+    private fun verifyToolbar(consumeDown: Boolean) {
         var lock = 0
         var engine = 0
         var party = 0
         compose.setContent {
             NuvioTheme {
-                Box(Modifier.size(640.dp, 360.dp)) {
+                Box(Modifier.size(640.dp, 360.dp).pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                            event.changes.filter { consumeDown && it.pressed && !it.previousPressed }.forEach { it.consume() }
+                        }
+                    }
+                }) {
                     androidx.compose.ui.viewinterop.AndroidView(
                         factory = { context -> android.view.View(context).apply { setOnTouchListener { _, _ -> videoClicks++; true } } },
                         modifier = Modifier.fillMaxSize(),
@@ -66,11 +71,23 @@ class PlayerTopButtonTapsTest {
         }
     }
     @Test
-    fun partyPanelCloseReceivesTapAboveNativeVideo() {
+    fun partyPanelCloseReceivesTapAboveNativeVideo() = verifyPartyClose(consumeDown = false)
+
+    @Test
+    fun partyPanelClosesAfterConsumedDown() = verifyPartyClose(consumeDown = true)
+
+    private fun verifyPartyClose(consumeDown: Boolean) {
         val visible = androidx.compose.runtime.mutableStateOf(true)
         compose.setContent {
             NuvioTheme {
-                Box(Modifier.size(640.dp, 360.dp)) {
+                Box(Modifier.size(640.dp, 360.dp).pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                            event.changes.filter { consumeDown && it.pressed && !it.previousPressed }.forEach { it.consume() }
+                        }
+                    }
+                }) {
                     androidx.compose.ui.viewinterop.AndroidView(
                         factory = { context -> android.view.View(context).apply { setOnTouchListener { _, _ -> videoClicks++; true } } },
                         modifier = Modifier.fillMaxSize(),

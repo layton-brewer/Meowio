@@ -28,6 +28,7 @@ sealed interface ZapResult {
 
 /** One browsable catalog of one of the user's add-ons. */
 internal data class ZapSource(
+    val sourceName: String,
     val manifestUrl: String,
     val type: String,
     val catalogId: String,
@@ -39,6 +40,8 @@ internal data class ZapSource(
     val key: String get() = "$manifestUrl|$type|$catalogId"
 }
 
+private data class ZapCandidate(val item: MetaPreview, val sourceName: String)
+
 private const val MAX_PAGES = 10
 
 /**
@@ -48,7 +51,7 @@ private const val MAX_PAGES = 10
  */
 class ZapPool(private val filters: ZapFilters) {
     private val log = Logger.withTag("ZapPool")
-    private val queue = ArrayDeque<MetaPreview>()
+    private val queue = ArrayDeque<ZapCandidate>()
     private val seen = HashSet<String>()
     private val nextSkip = HashMap<String, Int>()
     private val pagesFetched = HashMap<String, Int>()
@@ -65,11 +68,11 @@ class ZapPool(private val filters: ZapFilters) {
         var refills = 0
         while (refills <= 30) {
             while (queue.isNotEmpty()) {
-                val item = queue.removeFirst()
+                val (item, sourceName) = queue.removeFirst()
                 if (!seen.add("${item.type}:${item.id}")) continue
                 if (isSaved(item)) continue
                 if (filters.hideWatched && isWatched(item)) continue
-                return ZapResult.Found(item.toZapTitle())
+                return ZapResult.Found(item.toZapTitle(sourceName))
             }
             refills++
             refill(all)
@@ -108,6 +111,7 @@ class ZapPool(private val filters: ZapFilters) {
             AddonRepository.uiState.value.addons.filter { it.isActive },
         ).map { catalog ->
             ZapSource(
+                sourceName = "${catalog.addonName} · ${catalog.catalogName}",
                 manifestUrl = catalog.manifestUrl,
                 type = catalog.type,
                 catalogId = catalog.catalogId,
@@ -129,12 +133,12 @@ class ZapPool(private val filters: ZapFilters) {
     }
 
     private suspend fun refill(all: List<ZapSource>) {
-        val added = ArrayList<MetaPreview>()
+        val added = ArrayList<ZapCandidate>()
         if (filters.people.isNotEmpty()) {
             for (person in filters.people) {
                 for (source in all.filter { it.supportsSearch }) {
                     if (!searched.add("${source.key}|${person.name}")) continue
-                    added += fetch(source, search = person.name, skip = null)
+                    added += fetch(source, search = person.name, skip = null).map { ZapCandidate(it, source.sourceName) }
                 }
             }
         } else {
@@ -148,13 +152,13 @@ class ZapPool(private val filters: ZapFilters) {
                     val item = candidates.removeFirst()
                     if (!matches(item) || "${item.type}:${item.id}" in seen || isSaved(item) ||
                         (filters.hideWatched && isWatched(item))) continue
-                    added += item
+                    added += ZapCandidate(item, source.sourceName)
                     break
                 }
             }
         }
         added.shuffle()
-        added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
+        added.filter { matches(it.item) && "${it.item.type}:${it.item.id}" !in seen }.forEach(queue::addLast)
     }
 
     private suspend fun discoverPage(source: ZapSource): List<MetaPreview> {
@@ -228,7 +232,8 @@ private fun sameGenre(a: String, b: String): Boolean {
     return x == y || (x.length > 3 && y.length > 3 && (x.contains(y) || y.contains(x)))
 }
 
-private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
+private fun MetaPreview.toZapTitle(sourceName: String): ZapTitle = ZapTitle(
+    sourceName = sourceName,
     id = id,
     isSeries = type == "series",
     name = name,

@@ -6,6 +6,7 @@ commonMain/kotlin/com/nuvio/app/core/ui/BottomSheet.kt
 commonMain/kotlin/com/nuvio/app/core/ui/CardDepthStyleRepository.kt
 commonMain/kotlin/com/nuvio/app/core/ui/Glass.kt
 commonMain/kotlin/com/nuvio/app/core/ui/Menu.kt
+commonMain/kotlin/com/nuvio/app/core/ui/NuvioTap.kt
 commonMain/kotlin/com/nuvio/app/features/ai/AiAssistant.kt
 commonMain/kotlin/com/nuvio/app/features/ai/AiAssistantDialog.kt
 commonMain/kotlin/com/nuvio/app/features/details/components/EpisodeAvailabilityBadge.kt

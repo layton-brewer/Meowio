@@ -33,6 +33,7 @@ data class ZapFilters(
 
 /** One title ready to show, taken from an add-on catalog. [id] is the add-on's id, which the title page opens by. */
 data class ZapTitle(
+    val sourceName: String,
     val id: String,
     val isSeries: Boolean,
     val name: String,

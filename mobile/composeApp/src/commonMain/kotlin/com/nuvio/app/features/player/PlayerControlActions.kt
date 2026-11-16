@@ -214,7 +214,8 @@ private fun PlayerAction(
     tint: Color = Color.White,
     size: Dp = 48.dp,
 ) {
-    val tapModifier = Modifier.clickable(role = Role.Button, onClick = onClick)
+    // Keep keyboard activation while accepting taps whose down event was consumed.
+    val tapModifier = Modifier.nuvioTap(onClick).clickable(role = Role.Button, onClick = onClick)
     Box(
         modifier = Modifier.size(size).then(tapModifier),
         contentAlignment = Alignment.Center,
