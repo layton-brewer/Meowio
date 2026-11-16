@@ -62,7 +62,8 @@ class ZapViewModel @Inject constructor(
         isWatched = { id ->
             watchProgressRepository.isWatched(id).first() ||
                 watchProgressRepository.allProgress.first().any { it.contentId == id }
-        }
+        },
+        isSaved = { id -> libraryRepository.libraryItems.first().any { it.id == id } }
     )
 
     fun zap() {
