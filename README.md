@@ -1,240 +1,222 @@
 <div align="center">
 
-<img src="docs/assets/meowio-logo.webp" alt="Meowio cat logo" width="220" />
+<img src="docs/assets/meowio-logo.webp" alt="Meowio cat logo" width="200" />
 
-# Meowio
+# 🐱 Meowio
 
-**Pick something to watch. Let Meowio pick the stream.**
+### Pick something to watch. Meowio picks the stream. 🍿
 
-A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for Android phones and TV, iPhone/iPad, Apple TV, Mac and Windows, with Smart auto-play, built-in free Live TV, and a frosted-glass interface.
+[![Latest release](https://img.shields.io/github/v/release/layton-brewer/Meowio?style=for-the-badge&color=6C5CE7&label=Latest)](https://github.com/layton-brewer/Meowio/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/layton-brewer/Meowio/total?style=for-the-badge&color=00B894&label=Downloads)](https://github.com/layton-brewer/Meowio/releases)
+[![License](https://img.shields.io/badge/License-GPL%20v3-E17055?style=for-the-badge)](LICENSE)
+![Platforms](https://img.shields.io/badge/Android%20%7C%20Android%20TV%20%7C%20iOS%20%7C%20Apple%20TV%20%7C%20Mac%20%7C%20Windows-0984E3?style=for-the-badge)
 
-[Download](#download) · [What's different](#whats-different-from-nuvio) · [Get started](#get-started) · [Screenshots](#screenshots) · [FAQ](#faq) · [Legal](#legal-notes) · [Report an issue](https://github.com/layton-brewer/Meowio/issues)
+A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) with **one-tap Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
+
+[⬇️ Download](#-download-and-install) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
 
 </div>
 
-## Download
+---
 
-Every platform is attached to the [latest release](https://github.com/layton-brewer/Meowio/releases/latest) as one set of files. Choose yours below.
+## 🤔 What is Meowio?
 
-### Android
+Normally, streaming apps make you scroll through a long list of sources and guess which one works.
 
-Both Android apps require **Android 7.0 or newer**.
+**Meowio does that for you.** Tap Play and it picks a good stream. If that stream breaks, it quietly switches to another one. No menus, no fuss. 🎬
 
-| Device | Download |
-| --- | --- |
-| Android phone or tablet | [Meowio-mobile.apk](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-mobile.apk) |
-| Android TV, Google TV, or Android-based Fire TV | [Meowio-tv.apk](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk) |
+---
 
-See [all releases](https://github.com/layton-brewer/Meowio/releases) for earlier versions. The APKs in this repository are Meowio; the upstream Nuvio store listings are separate apps.
+## ⬇️ Download and install
 
-### Windows (64-bit)
+Every file lives on the **[latest release page](https://github.com/layton-brewer/Meowio/releases/latest)**. Find your device below and follow the steps.
 
-| Device | Download | How to install |
+### 📱 Android phone or tablet
+
+1. Tap **[Meowio-mobile.apk](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-mobile.apk)** to download it.
+2. Open the downloaded file.
+3. If Android asks, allow your browser to **install unknown apps**.
+4. Tap **Install**. Done! ✅
+
+Needs Android 7.0 or newer.
+
+### 📺 Android TV, Google TV, Fire TV (Android-based)
+
+1. Download **[Meowio-tv.apk](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk)** on your phone or computer.
+2. Get it onto your TV. The easy ways: a USB stick, the **Send Files to TV** app, or any "downloader" app on the TV.
+3. Open it with a file manager on the TV and tap **Install**.
+4. Find **Meowio** in your apps. ✅
+
+Needs Android 7.0 or newer.
+
+### 🍎 iPhone and iPad
+
+1. Download **`Meowio-ios.ipa`** from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest).
+2. Install it with [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io) using your own Apple ID.
+3. Free Apple IDs need a re-sign every 7 days. AltStore and SideStore can do this for you.
+
+💡 **Tip:** In AltStore or SideStore, go to **Sources → +** and add this link to get updates automatically:
+`https://github.com/layton-brewer/Meowio/releases/latest/download/altstore.json`
+
+### 📺 Apple TV
+
+1. Download **`Meowio-tvos.ipa`** from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest).
+2. Install it with [Sideloadly](https://sideloadly.io) or Xcode (**Window → Devices and Simulators**) using your own Apple ID.
+
+### 💻 Mac
+
+1. Download the right file from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest):
+   - **Apple Silicon (M1, M2, M3, M4):** `Meowio-macos-arm64.dmg`
+   - **Intel:** `Meowio-macos-x86_64.dmg`
+2. Open the DMG and drag **Meowio** into **Applications**.
+3. First time only: **right-click** the app → **Open** → **Open** again. (macOS warns because the app isn't notarized.)
+
+### 🪟 Windows 10 / 11
+
+1. Download **[Meowio-windows-x64.exe](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-windows-x64.exe)**.
+2. Run it. If Windows SmartScreen warns you, click **More info → Run anyway**.
+3. Done! ✅
+
+> 🔐 **Why the warnings?** The Windows and Apple builds aren't code-signed, because that needs paid developer accounts. The code is open and every file is built by the workflows in this repo.
+
+---
+
+## ✨ What can it do?
+
+| | Feature | In plain English |
 | --- | --- | --- |
-| Windows 10 / 11 | [Meowio-windows-x64.exe](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-windows-x64.exe) | Run the installer. The build is not code-signed, so Windows SmartScreen may warn: choose **More info**, then **Run anyway**. Installing a newer installer over an old one updates it in place, and the in-app updater does this for you. |
+| 🎯 | **Smart auto-play** | Press Play and Meowio picks a good stream for you. |
+| 🔁 | **Silent failover** | A stream died? Meowio switches to another one without bothering you. |
+| 📦 | **Season packs** | For shows, it prefers full-season releases and sticks with the same one for the next episode. |
+| 📐 | **Resolution matching** | It prefers streams that fit your screen. |
+| ⚡ | **Preloading** | It starts finding streams while you browse, so Play is fast. |
+| 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide. Or use your own M3U or Xtream playlist. |
+| 🎲 | **Surprise Me** | Can't decide? Let Meowio pick something for you. |
+| 📊 | **Tracking services** | Keep your watch history synced with Trakt and similar services. |
+| 🧊 | **Glass UI** | A frosted-glass, Netflix-style look with a cat theme. |
+| 🎨 | **Themes** | Pick the colors you like. |
+| 💾 | **Backup and restore** | Save your settings and move them to a new device. |
+| 📌 | **Pinned sources** | Tell Smart play which add-ons you trust most. |
+| 😴 | **Sleep timer** | Stops playback after a set time or at the end of the episode. |
+| 🎚️ | **Quality picker** | Don't like the auto choice? Pick the quality yourself. |
+| 📈 | **Watch stats** | See what you watch the most. |
+| 🤖 | **AI assistant** | Ask for suggestions. Uses your own API key. |
+| ⬇️ | **Downloads** | One-tap offline downloads on phone, iPhone/iPad, Mac and Windows. |
+| 🧩 | **CloudStream plugins** | Extra sources on Android phone and Android TV. |
 
-The Windows app is built from the Nuvio Desktop codebase with the same Meowio features as the Mac app (Smart auto-play, silent failover, season packs, preloading, one-tap downloads, Live TV, backup/restore, themes and the glass UI).
+Prefer to choose yourself? Set **Stream selection** to **Manual** in the playback settings. 👍
 
-### Apple devices (unsigned builds)
+### 🧭 Which feature is on which device?
 
-Meowio also builds for iPhone/iPad, Mac and Apple TV. These are **unsigned** builds, because there is no paid Apple developer account behind this project. Grab them from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest), where the Android and Apple files sit together.
+| Feature | 📱 Android | 📺 Android TV | 🍎 iPhone/iPad | 📺 Apple TV | 💻 Mac | 🪟 Windows |
+| --- | :-: | :-: | :-: | :-: | :-: | :-: |
+| Smart auto-play + failover | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Live TV | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Glass UI + themes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Backup and restore | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Downloads | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
+| CloudStream plugins | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-| Device | Download | How to install |
-| --- | --- | --- |
-| iPhone / iPad | `Meowio-ios.ipa` | Sideload with [AltStore](https://altstore.io), [Sideloadly](https://sideloadly.io) or SideStore using your own Apple ID. Free accounts must re-sign every 7 days. To get updates, add the Meowio source in AltStore or SideStore (Sources, +): `https://github.com/layton-brewer/Meowio/releases/latest/download/altstore.json` |
-| Mac (Apple Silicon) | `Meowio-macos-arm64.dmg` | Open the DMG and drag Meowio to Applications. First launch: right-click the app, choose **Open**, then **Open** again (or run `xattr -cr /Applications/Meowio.app`). |
-| Mac (Intel) | `Meowio-macos-x86_64.dmg` | Same as above. |
-| Apple TV | `Meowio-tvos.ipa` | Sideload with Sideloadly or Xcode (Window > Devices and Simulators) using your own Apple ID. The app shows when an update is out, with what's new and a QR code for the download. |
+---
 
-Notes:
+## 🚀 First steps
 
-- The iPhone/iPad app is the same Kotlin Multiplatform app as the Android phone app. The Mac app is built from the Nuvio Desktop codebase with the Meowio features merged in (Smart auto-play, silent failover, season packs, preloading, pinned sources, sleep timer, Live TV, backup/restore, quality picker, themes, insights, AI assistant, glass UI). Its updater follows the latest release.
-- The Apple TV app is a native SwiftUI app with the same features as Android TV: Smart auto-play with silent failover and preloading for every season, season-pack and same-release preference, resolution matching, pinned sources, resume where you left off (also across a source switch), Skip Intro (on intro and recap chapters) and a Next Episode button near the end, sleep timer, quality picker, playback speed, preferred audio and subtitle languages plus subtitles from subtitle add-ons, Live TV with now/next guide and dead-stream pruning, profiles with a "Who's watching?" screen and optional PINs, Meowio account sign-in that syncs profiles, add-ons, My List, progress and watched episodes (when the build has an account server), Trakt (sign in with a code at trakt.tv/activate; scrobbling, history, unfinished titles and watchlist), themes, insights and AI assistant (your own key). It has a Netflix-style Home with Continue Watching and rows from your add-ons' catalogs. MKV and other formats AVPlayer can't open play through a built-in mpv engine, with audio and subtitle track menus. Torrent results play through Real-Debrid, TorBox or Premiumize when you add a key under **Settings > Debrid**; Apple TV can't run torrents itself. For settings backup, open **Settings > Backup and restore** and visit the address it shows from a phone or computer on the same network. Your **Jellyfin and Emby** servers become sources Smart play can pick (and show recent additions on Home), **watch party** works with the other apps (join a code in **Settings > Watch party**, or press up in the player and choose **Watch party** to host), **collections** made in the other apps appear on Home, and titles have a **Trailer** button. Collections built from TMDB lists, and trailers for titles whose metadata has none, need a TMDB key under **Settings > Collections and trailers**. Add a stream add-on in **Settings** first. There are no downloads on Apple TV.
-- **Platform differences:** every app has the same features, with two exceptions. TV apps (Android TV and Apple TV) have no downloads; one-tap downloads are on phones, iPhone/iPad, Mac and Windows. CloudStream plugins load Android plugin code, so they run on the Android phone and Android TV apps only. Audio passthrough/decoder defaults are Android-only; Apple devices use the system decoders. iPhone/iPad back up to and restore from the Files app (**Settings > Advanced > Backup**).
-- **Updating Apple devices:** the Mac app updates itself (it downloads the new DMG, replaces itself in Applications and reopens). iPhone/iPad cannot install a build of themselves, because iOS does not allow it; the in-app updater hands the new version to SideStore or AltStore in one tap, and the Meowio source above keeps them updated in the background. Apple TV cannot install anything by itself either (tvOS has no browser and no place to open a file), so it shows what's new with a QR code for the download. Plex is not supported in any Meowio app yet; Jellyfin and Emby are.
-- Apple does not allow notarized or App Store distribution without a developer account, so these cannot be installed with a plain tap.
+1. **Install Meowio** using the steps above.
+2. **Add a source.** For movies and shows, add the add-ons or services you use in **Settings**. Meowio picks from what they offer. It doesn't come with any.
+3. **Open a title and press Play.** That's it. 🍿
+4. **Want TV right now?** Open the **Live TV** tab. Free channels are ready to go, no setup needed. 📡
 
-## What's different from Nuvio?
+---
 
-Meowio builds on Nuvio's media browsing and playback foundation. These are the additions and changed defaults in this fork, relative to the Nuvio versions it started from.
+## ❓ FAQ
 
-### Less time choosing streams
+**🙋 Does Meowio include movies and shows?**
+No. You bring your own add-ons or sources. The only thing built in is the free Live TV channel list.
 
-| Feature | What it does |
-| --- | --- |
-| **Smart auto-play** | Press Play to automatically choose a source instead of opening the source list. Direct links, cached debrid streams, and media-server sources are prioritized over sources that still need to download. |
-| **Pinned sources** | Give preferred add-ons or plugins priority in Smart ranking and bring their streams to the top of the source list. Availability and cam/screener ranking still take precedence in Smart mode. |
-| **Season-pack preference** | For series, favor full-season releases and try to keep subsequent episodes on the same release when available. |
-| **Resolution matching** | Favor streams that match the device's display resolution, then higher resolutions, then lower ones. This is a ranking preference, not a bandwidth cap. |
-| **Lower priority for poor copies** | Push cam, telesync, and screener releases down the ranking within the same availability tier. They are not completely blocked. |
-| **Automatic fallback** | If playback fails and backup sources are available, try another source without sending you back to the list, with a limit of six source switches per title. |
-| **Source preloading** | Start looking up sources when you open a title and preload next-episode sources to reduce waiting. |
-| **Auto-next enabled by default** | Continue to the next episode automatically, preferring the same release when possible. |
+**🙋 Can I pick the stream myself?**
+Yes. Set **Stream selection** to **Manual** in playback settings.
 
-Prefer to choose for yourself? Change **Stream selection** to **Manual** in the playback settings.
+**🙋 How do I update?**
+Use the in-app updater, or download the latest file from the [release page](https://github.com/layton-brewer/Meowio/releases/latest) and install it over the old one.
 
-### Live TV, ready to open
+**🙋 Do I lose my stuff when I update?**
+No. Android updates install right over the old version and keep your data.
 
-- **Free channels included:** Live TV starts with the [Free-TV project's channel list](https://github.com/Free-TV/IPTV), so you can browse without adding a playlist.
-- **Country-based starting group:** When a matching group exists, the built-in list opens on the country configured on your device.
-- **Your own sources:** Replace the built-in list with an M3U playlist URL or Xtream login. Removing your source restores the free channels.
-- **Channel browsing:** Search, filter by group, save favorites, and return to recently watched channels.
-- **Now and next:** See programme information when guide data is available.
-- **Separate from movie and series tracking:** Live channels stay out of watch history and scrobbling. Live TV source settings stay on the device and are not synced.
-- **Optional tab:** Hide Live TV in layout settings if you do not use it.
+**🙋 A Live TV channel doesn't work or has no guide.**
+Channels come from free public lists, so some come and go. Try refreshing the list, or add your own playlist.
 
-Channel availability depends on the source and your region. Built-in Live TV does not provide an on-demand movie or series library.
+**🙋 Is it safe?**
+The code is fully open in this repo. Android files are signed with the same key every release. Windows and Apple builds show a generic warning because they aren't code-signed.
 
-### More features
+**🙋 Does it work with Nuvio?**
+Meowio is a separate app made from Nuvio's code. It installs next to Nuvio and doesn't replace it.
 
-- **CloudStream extensions on the phone:** The phone app can run CloudStream extensions as an additional source of streams. This is new and has had less testing than the rest of the app.
-- **One-tap downloads (phone, iPhone/iPad, Mac, Windows):** Press **Download** on a title page. Movies download the best source automatically. For a series you choose **This episode** or **Entire season**; Meowio finds the best source for each episode (preferring the same release), and if a download fails it quietly switches to the next best source. Everything lands in **Library > Downloads** (the chip next to Saved and Cloud), which shows what is saved for offline viewing and how much space it uses, and lets you delete items. Downloads use debrid (direct link) sources only; anything else is skipped in favor of the next source.
-- **Quality picker:** Choose a stream quality yourself when you do not want the automatic pick.
-- **Watch stats:** See statistics about what you watch.
-- **AI assistant:** Ask for suggestions on what to watch. It uses your own API key.
-- **Settings backup and restore:** Export your settings on one device and restore them on another.
-- **More themes:** Three additional color themes on both apps.
-- **Kept up to date with Nuvio:** Meowio tracks upstream releases. The current build includes changes from NuvioTV 1.2.0-beta.1 and NuvioMobile 0.6.12-beta, with Meowio's silent failover still running before upstream's optional fallback.
+**🙋 Apple files show up late. Why?**
+Apple builds can appear up to an hour after the Android ones on the release page.
 
-### A different look and everyday controls
+**🙋 Something is broken!**
+[Open an issue](https://github.com/layton-brewer/Meowio/issues) and tell us your device, app version and what happened. Please leave out passwords and private links. 🙏
 
-- **Frosted-glass interface:** Translucent panels, subtle borders, and highlights across menus, dialogs, title details, episode cards, and player controls. Background blur is used where supported.
-- **Meowio branding:** Cat icons, themed app artwork, TV banners, and a matching splash screen.
-- **Sleep timer:** Pause playback after a chosen time or at the end of the episode.
-- **Playback speed remembered per show:** Available on both apps; Meowio adds this behavior to mobile.
-- **Meowio updates:** The in-app updater checks this repository's releases and selects the file for your device (on iPhone/iPad it hands the new version to SideStore or AltStore; on Mac it installs it for you).
-- **Optimized distributed builds:** Code optimization and startup profiles are enabled in the shipped APKs.
+---
 
-### Playback defaults
+## ⚠️ Things to know
 
-Fresh installs use these defaults. Existing saved preferences are preserved.
+Honest list of what doesn't work everywhere:
 
-| Setting | Phone / tablet | TV |
-| --- | --- | --- |
-| Stream selection | Smart | Smart |
-| Auto-play next episode | On | On |
-| Prefer / reuse the same release for series | On | On |
-| Preload next-episode sources | On | On |
-| Tunneled playback | On | On |
-| Audio downmix | Off | Off |
-| Force AC-3 transcoding for optical / SPDIF | Not available | On |
+- 🧩 **CloudStream is Android-only.** It runs Android plugin code, so it only works on the Android phone and Android TV apps.
+- 📺 **No downloads on TV apps.** Android TV and Apple TV don't have downloads. Phones, iPhone/iPad, Mac and Windows do.
+- 🍎 **Apple apps can't update themselves fully.** Mac updates itself. iPhone/iPad hands the update to AltStore or SideStore. Apple TV shows a QR code for the new version. Apple doesn't allow more than that.
+- 🍎 **Apple builds are unsigned.** You install them with your own Apple ID, and free IDs expire after 7 days.
+- 📺 **Apple TV is a separate native app,** so a few extras can differ from the other apps.
+- 🔊 **Audio passthrough settings are Android-only.** Apple devices use the system decoders.
+- 📡 **Live TV depends on free public lists.** Channels and guide data can change.
+- 🎞️ **Plex isn't supported yet.** Jellyfin and Emby are, on Apple TV.
 
-Playback and audio settings remain adjustable for your device and sound system.
+---
 
-## Get started
+## ⚖️ Legal
 
-1. **Download the matching APK** from the links above.
-2. **Install it on your device.** If prompted, allow the browser or file manager you are using to install unknown apps. On TV, transfer the TV APK to the device and open it with a file manager.
-3. **Choose what to watch:**
-   - **Live TV:** Open the Live TV tab to browse the included free channels, or configure your own source there.
-   - **Movies and series:** Configure your add-ons or media sources first. Smart auto-play chooses among the streams those sources return; it does not supply an on-demand catalogue of playable streams by itself.
-4. **Open a title and press Play.** Leave Stream selection on Smart for automatic selection, or choose Manual to see the source list.
-5. **Adjust playback to suit you.** Set your audio and subtitle preferences, choose whether episodes continue automatically, and use the player's sleep timer when needed.
+- **Meowio does not host, store, provide or link to any movies, shows or other copyrighted content.** It is a media player. On-demand playback only works through add-ons and services that *you* choose. You're responsible for using them legally where you live.
+- Built-in Live TV uses the community [Free-TV/IPTV](https://github.com/Free-TV/IPTV) list of free public channels. Meowio doesn't control those streams.
+- Meowio is an independent fork. It is **not** affiliated with or endorsed by the Nuvio team, Trakt, or any add-on or service.
+- Meowio collects no analytics. Services you turn on (your add-ons, Trakt, an AI provider with your own key, update checks on GitHub) get requests under their own terms.
+- Provided "as is", with no warranty, under the [GPL v3](LICENSE). See [CREDITS.md](CREDITS.md) for upstream projects.
 
-## Screenshots
+---
 
-Phone and TV screenshots are coming soon.
+## 🛠️ For developers: build from source
 
-<!--
-SCREENSHOT LAYOUT — enable this block once the actual image files are committed.
-Suggested files under docs/screenshots/:
-  mobile-home.png, mobile-player.png
-  tv-home.png, tv-live-tv.png
-
-Replace the coming-soon line with the following HTML, then remove this comment.
-Use real Meowio captures and keep credentials, account details, and private URLs out of view.
-
-### Phone
-<p>
-  <img src="docs/screenshots/mobile-home.png" alt="Meowio home screen on Android" width="240" />
-  <img src="docs/screenshots/mobile-player.png" alt="Meowio mobile player and playback controls" width="240" />
-</p>
-
-### TV
-<p>
-  <img src="docs/screenshots/tv-home.png" alt="Meowio TV home screen with the glass sidebar" width="480" />
-  <img src="docs/screenshots/tv-live-tv.png" alt="Meowio Live TV channel browser" width="480" />
-</p>
--->
-
-## FAQ
-
-**Can I still select a stream manually?**  
-Yes. Set Stream selection to Manual in the playback settings.
-
-**Does pinning a source guarantee that Smart mode uses it?**  
-No. Smart mode considers availability and whether a release is a cam/screener before pinned-source preference. It then considers season packs, resolution, source quality, and the original add-on order.
-
-**Does Meowio include movies and series?**  
-You bring your own add-ons or media sources for on-demand playback. The included free-channel playlist is for Live TV.
-
-**Why is a Live TV channel or programme guide missing?**  
-Channels and guide data come from the configured provider. Availability can change, and not every channel has guide data. You can refresh the list or configure a different source.
-
-**How do I update?**  
-Use the in-app updater or download the latest APK for the same device type from [Releases](https://github.com/layton-brewer/Meowio/releases/latest).
-
-**Does Meowio host or provide any movies or shows?**  
-No. See [Legal notes](#legal-notes).
-
-**Is it safe to install? Windows or macOS warns me.**  
-The Windows and Apple builds are not code-signed (that needs paid developer accounts), so the operating system shows a generic warning. The Android APKs are signed with the same key every release, so updates install over each other. The full source is in this repository, and the release files are built by the workflows in `.github/workflows`.
-
-**Are there iOS or desktop downloads?**  
-Yes. Every platform is on the [latest release](https://github.com/layton-brewer/Meowio/releases/latest): Android APKs, plus unsigned iPhone/iPad, Mac and Apple TV builds (see Apple devices above). Apple files can appear up to an hour after the Android ones.
-
-## Legal notes
-
-- **Meowio does not host, store, provide or link to any movies, series or other copyrighted content.** It is a media player and organizer. On-demand playback only works through add-ons, services and sources that *you* choose and configure, and you are responsible for making sure your use of them is lawful where you live and that you have the right to access the content.
-- The built-in Live TV list is the community [Free-TV/IPTV](https://github.com/Free-TV/IPTV) playlist of publicly available free channels. Meowio does not control those streams.
-- Downloads store streams that your own configured sources return, for personal offline viewing on your own device.
-- Meowio is an independent fork. It is **not** affiliated with, sponsored by or endorsed by the Nuvio team, Tapframe, Trakt, or any add-on or service provider. All product names belong to their owners.
-- Meowio collects no analytics of its own. Features that talk to a service (your add-ons, Trakt, update checks against this repository's GitHub releases, an AI provider with your own key) send requests to that service under its terms.
-- The software is provided "as is", without warranty of any kind, under the GPL v3 (see [LICENSE](LICENSE)).
-
-See [CREDITS.md](CREDITS.md) for upstream projects and licenses.
-
-## Bugs and feedback
-
-[Open an issue](https://github.com/layton-brewer/Meowio/issues) with:
-
-- Your device model, Android version, and Meowio version.
-- Whether you use the mobile or TV app.
-- What you expected, what happened, and the steps to reproduce it.
-- A screenshot or relevant log excerpt, if useful. Remove credentials and private stream URLs before posting.
-
-## Build from source
-
-The apps have separate Gradle projects. Use JDK 17 and an Android SDK; the [release workflow](.github/workflows/release.yml) shows the build configuration used for published APKs.
+Use JDK 17 and the Android SDK. The [release workflow](.github/workflows/release.yml) shows the exact build setup.
 
 ```bash
 git clone https://github.com/layton-brewer/Meowio.git
 cd Meowio
-```
 
-**Phone / tablet** — from the repository root:
-
-```bash
+# Android phone / tablet
 cd mobile
 ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore
-```
 
-**TV** — from the repository root:
-
-```bash
-cd tv
+# Android TV
+cd ../tv
 ./gradlew :app:assembleFullDebug
 ```
 
-| Folder | App | Upstream project |
+| Folder | App | Based on |
 | --- | --- | --- |
 | [mobile/](mobile/) | Android phone / tablet | [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile) |
 | [tv/](tv/) | Android TV | [NuvioTV](https://github.com/NuvioMedia/NuvioTV) |
 
-Some source files, configuration keys, and platform documentation retain upstream Nuvio names.
+Apple code lives in `apple/`. Some files still use the original Nuvio names.
 
-## Credits and license
+---
 
-Meowio is based on the work of the [Nuvio team](https://github.com/NuvioMedia). The default Live TV playlist comes from [Free-TV/IPTV](https://github.com/Free-TV/IPTV).
+<div align="center">
 
-Licensed under [GNU GPL v3.0](LICENSE), the same as Nuvio. Meowio is an independent fork and is not affiliated with or endorsed by the Nuvio team.
+### 💜 Thanks
+
+Meowio is built on the work of the [Nuvio team](https://github.com/NuvioMedia).
+Live TV list from [Free-TV/IPTV](https://github.com/Free-TV/IPTV).
+
+Licensed under [GNU GPL v3.0](LICENSE).
+
+</div>
