@@ -6,8 +6,6 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.home.MetaPreview
-import com.nuvio.app.features.library.LibraryRepository
-import com.nuvio.app.features.library.toMetaPreview
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watched.WatchedRepository
@@ -54,7 +52,6 @@ class ZapPool(private val filters: ZapFilters) {
     private val lastPage = HashMap<String, Int>()
     private val searched = HashSet<String>()
     private var failures = 0
-    private var libraryAdded = false
     private var sources: List<ZapSource>? = null
 
     suspend fun next(): ZapResult {
@@ -152,23 +149,10 @@ class ZapPool(private val filters: ZapFilters) {
             }
         } else {
             for (source in all) added += discoverPage(source)
-            if (!libraryAdded) {
-                libraryAdded = true
-                added += libraryItems()
-            }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
     }
-
-    /** Titles on the user's own lists: saved items plus Trakt, Simkl and MDBList lists. */
-    private fun libraryItems(): List<MetaPreview> = runCatching {
-        LibraryRepository.ensureLoaded()
-        LibraryRepository.uiState.value.items
-            .filter { it.type == "movie" || it.type == "series" }
-            .filter { filters.type == ZapMediaType.Both || (filters.type == ZapMediaType.Series) == (it.type == "series") }
-            .map { it.toMetaPreview() }
-    }.getOrDefault(emptyList())
 
     private suspend fun discoverPage(source: ZapSource): List<MetaPreview> {
         val tried = triedPages.getOrPut(source.key) { mutableSetOf() }
@@ -224,7 +208,7 @@ class ZapPool(private val filters: ZapFilters) {
 }
 
 private fun looksLikeHistory(text: String): Boolean =
-    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl", RegexOption.IGNORE_CASE).containsMatchIn(text)
+    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl|watchlist|library|favou?rite|my.?list", RegexOption.IGNORE_CASE).containsMatchIn(text)
 
 private fun itemYear(item: MetaPreview): Int? =
     (item.releaseInfo ?: item.rawReleaseDate)?.let { Regex("(19|20)\\d{2}").find(it)?.value?.toIntOrNull() }
