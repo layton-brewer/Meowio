@@ -2496,7 +2496,9 @@ private fun MetaDetailsContent(
                         showRandomEpisodeButton = showRandomEpisodeButton,
                         onRandomEpisodeClick = {
                             if (!episodeShuffle.enabled) {
-                                showRandomEpisodeOverlay = true
+                                // Random Episode: any real episode, no seen/unseen question.
+                                meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }
+                                    .randomOrNull()?.let { episodeClick(it) }
                             } else if (!stoppingShuffle) {
                                 stoppingShuffle = true
                                 coroutineScope.launch {
