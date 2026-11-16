@@ -6,6 +6,7 @@ import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.supportsExtra
 import com.nuvio.tv.domain.repository.CatalogRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -13,7 +14,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.net.URLEncoder
-import kotlin.random.Random
 
 enum class ZapEmpty { NO_SOURCES, NO_MATCHES, OFFLINE }
 
@@ -30,12 +30,13 @@ private data class ZapSource(
     val type: String,
     val genreOptions: List<String>,
     val supportsSkip: Boolean,
-    val supportsSearch: Boolean
+    val supportsSearch: Boolean,
+    val requiredExtras: Map<String, String>
 ) {
     val key: String get() = "${addon.baseUrl}|$type|$catalogId"
 }
 
-private const val MAX_PAGE_INDEX = 9
+private const val MAX_PAGES = 10
 
 /**
  * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
@@ -51,9 +52,10 @@ class ZapPool(
 ) {
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
-    private val pageSize = HashMap<String, Int>()
-    private val triedPages = HashMap<String, MutableSet<Int>>()
-    private val lastPage = HashMap<String, Int>()
+    private val nextSkip = HashMap<String, Int>()
+    private val pagesFetched = HashMap<String, Int>()
+    private val exhausted = HashSet<String>()
+    private val sourceTurns = ArrayDeque<ZapSource>()
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
@@ -89,16 +91,22 @@ class ZapPool(
             addon.catalogs.mapNotNull { catalog ->
                 val type = catalog.apiType.lowercase()
                 if (type !in wanted) return@mapNotNull null
-                if (looksLikeHistory("${catalog.id} ${catalog.name}")) return@mapNotNull null
-                if (catalog.isSearchOnlyCatalog()) return@mapNotNull null
-                val blocked = catalog.extra.any { e ->
-                    e.isRequired && when (e.name.lowercase()) {
-                        "genre" -> e.options.isNullOrEmpty()
-                        "skip", "search" -> false
-                        else -> true
+                val requiredNames = (catalog.extra.filter { it.isRequired }.map { it.name } + catalog.extraRequired).toSet()
+                val required = mutableMapOf<String, String>()
+                for (name in requiredNames) {
+                    val property = catalog.extra.firstOrNull { it.name == name }
+                    when (name) {
+                        "search" -> if (filters.people.isEmpty()) return@mapNotNull null
+                        "skip" -> required["skip"] = "0"
+                        else -> {
+                            val preferred = if (name == "genre") property?.options?.firstOrNull { option ->
+                                filters.genres.any { sameGenre(option, it) }
+                            } else null
+                            required[name] = preferred ?: property?.defaultValue ?: property?.options?.randomOrNull()
+                                ?: return@mapNotNull null
+                        }
                     }
                 }
-                if (blocked) return@mapNotNull null
                 ZapSource(
                     addon = addon,
                     catalogId = catalog.id,
@@ -106,8 +114,8 @@ class ZapPool(
                     type = type,
                     genreOptions = catalog.extra.firstOrNull { it.name.equals("genre", true) }?.options.orEmpty(),
                     supportsSkip = catalog.supportsExtra("skip"),
-                    supportsSearch = catalog.supportsExtra("search") &&
-                        catalog.extra.none { it.isRequired && !it.name.equals("search", true) }
+                    supportsSearch = catalog.supportsExtra("search"),
+                    requiredExtras = required
                 )
             }
         }.distinctBy { it.key }
@@ -123,34 +131,36 @@ class ZapPool(
                 }
             }
         } else {
-            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
-            for (source in all.shuffled().take(5)) added += discoverPage(source)
+            // Give every installed catalog a turn before revisiting one.
+            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted }.shuffled())
+            repeat(minOf(5, sourceTurns.size)) { added += discoverPage(sourceTurns.removeFirst()) }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.rawType}:${it.id}" !in seen }.forEach(queue::addLast)
     }
 
     private suspend fun discoverPage(source: ZapSource): List<MetaPreview> {
-        val tried = triedPages.getOrPut(source.key) { mutableSetOf() }
-        val limit = minOf(lastPage[source.key] ?: MAX_PAGE_INDEX, MAX_PAGE_INDEX)
-        val page = when {
-            tried.isEmpty() -> 0
-            !source.supportsSkip -> return emptyList()
-            else -> (0..limit).filter { it !in tried }.randomOrNull() ?: return emptyList()
-        }
-        tried += page
-        val size = pageSize[source.key]
-        val skip = if (page == 0) 0 else (size ?: return emptyList()) * page
+        if (source.key in exhausted) return emptyList()
+        val skip = nextSkip[source.key] ?: 0
         val genre = filters.genres.firstNotNullOfOrNull { wanted ->
             source.genreOptions.firstOrNull { sameGenre(it, wanted) }
         }
-        val items = fetch(source, if (genre != null) mapOf("genre" to genre) else emptyMap(), skip)
-        if (page == 0 && items.isNotEmpty()) pageSize[source.key] = items.size
-        if (items.isEmpty() && page > 0) lastPage[source.key] = page - 1
-        return items
+        val page = fetchPage(source, if (genre != null) mapOf("genre" to genre) else emptyMap(), skip)
+        val count = (pagesFetched[source.key] ?: 0) + 1
+        pagesFetched[source.key] = count
+        val followingSkip = page?.nextSkip
+        if (!source.supportsSkip || page?.hasMore != true || followingSkip == null || followingSkip <= skip || count >= MAX_PAGES) {
+            exhausted += source.key
+        } else {
+            nextSkip[source.key] = followingSkip
+        }
+        return page?.items.orEmpty()
     }
 
     private suspend fun fetch(source: ZapSource, extra: Map<String, String>, skip: Int): List<MetaPreview> =
+        fetchPage(source, extra, skip)?.items.orEmpty()
+
+    private suspend fun fetchPage(source: ZapSource, extra: Map<String, String>, skip: Int): com.nuvio.tv.domain.model.CatalogRow? =
         runCatching {
             val result = catalogs.getCatalog(
                 addonBaseUrl = source.addon.baseUrl,
@@ -160,17 +170,20 @@ class ZapPool(
                 catalogName = source.catalogName,
                 type = source.type,
                 skip = skip,
-                extraArgs = extra,
+                extraArgs = (source.requiredExtras + extra).let { args ->
+                    if ("skip" in args) args + ("skip" to skip.toString()) else args
+                },
                 supportsSkip = source.supportsSkip
             ).first { it !is NetworkResult.Loading }
             when (result) {
-                is NetworkResult.Success -> result.data.items
-                else -> { failures++; emptyList() }
+                is NetworkResult.Success -> result.data
+                else -> { failures++; null }
             }
         }.onFailure {
+            if (it is CancellationException) throw it
             failures++
-            Log.w("ZapPool", "Zap catalog fetch failed for ${source.key}: ${it.message}")
-        }.getOrDefault(emptyList())
+            Log.w("ZapPool", "Zap catalog fetch failed: ${it.message}")
+        }.getOrNull()
 
     private fun matches(item: MetaPreview): Boolean {
         if (item.poster.isNullOrBlank() && item.background.isNullOrBlank()) return false
@@ -201,9 +214,6 @@ private fun sameGenre(a: String, b: String): Boolean {
     val y = normalizeGenre(b)
     return x == y || (x.length > 3 && y.length > 3 && (x.contains(y) || y.contains(x)))
 }
-
-private fun looksLikeHistory(text: String): Boolean =
-    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl|watchlist|library|favou?rite|my.?list", RegexOption.IGNORE_CASE).containsMatchIn(text)
 
 private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
     id = id,

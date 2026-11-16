@@ -81,26 +81,23 @@ internal fun Modifier.playerTopButtonTapRoot(taps: PlayerTopButtonTaps): Modifie
                 val root = taps.rootCoordinates ?: return@awaitEachGesture
                 if (!root.isAttached) return@awaitEachGesture
                 val windowDown = root.localToWindow(down.position)
-                if (taps.hit(windowDown, extraPx) == null) return@awaitEachGesture
+                val target = taps.hit(windowDown, extraPx) ?: return@awaitEachGesture
                 // The touch belongs to a top button: nothing below may treat it as a tap,
                 // long press or drag.
                 down.consume()
                 val slop = viewConfiguration.touchSlop * 3f
+                var cancelled = false
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Initial)
                     val change = event.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
                     event.changes.forEach { it.consume() }
-                    if ((change.position - down.position).getDistance() > slop) {
-                        // Finger slid away: swallow the rest of the gesture without acting.
-                        while (true) {
-                            val rest = awaitPointerEvent(PointerEventPass.Initial)
-                            rest.changes.forEach { it.consume() }
-                            if (rest.changes.none { it.pressed }) return@awaitEachGesture
-                        }
-                    }
+                    cancelled = cancelled || event.changes.size > 1 ||
+                        (change.position - down.position).getDistance() > slop
                     if (change.changedToUpIgnoreConsumed()) {
                         val windowUp = root.localToWindow(change.position)
-                        (taps.hit(windowUp, extraPx) ?: taps.hit(windowDown, extraPx))?.invoke()
+                        // Never fire a different button or a target hidden while the finger
+                        // was down. Finish on this up even when it first crosses touch slop.
+                        if (!cancelled && taps.hit(windowUp, extraPx) === target) target()
                         return@awaitEachGesture
                     }
                 }

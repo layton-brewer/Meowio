@@ -1,9 +1,6 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.clickable
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
 import com.nuvio.app.core.ui.nuvioTap
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -223,15 +220,12 @@ private fun PlayerAction(
     size: Dp = 48.dp,
 ) {
     val rootTaps = LocalPlayerTopButtonTaps.current
-    val click = onClick
     val tapModifier = if (tapKey != null && rootTaps != null) {
-        // Taps are delivered by the player's root (see PlayerTopButtonTaps); only the
-        // accessibility click is kept here so a tap is never run twice.
+        // Keep a real pointer target above the native video surface. The activity/root
+        // interception consumes captured taps before clickable sees them, so the action
+        // still runs once; clickable also handles taps when interception is unavailable.
         Modifier
-            .semantics(mergeDescendants = true) {
-                role = Role.Button
-                onClick { click(); true }
-            }
+            .clickable(role = Role.Button, onClick = onClick)
             .playerTopButtonTarget(tapKey, onClick)
     } else {
         Modifier.nuvioTap(onClick)

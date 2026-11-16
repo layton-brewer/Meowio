@@ -1270,7 +1270,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        rootComposable(Screen.Zap.route) {
+        composable(Screen.Zap.route) {
             com.nuvio.tv.ui.screens.zap.ZapScreen(
                 onPlay = { title ->
                     navController.navigate(

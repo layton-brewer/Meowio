@@ -100,6 +100,7 @@ private struct ZapSource: Hashable {
     var genreOptions: [String]
     var supportsSkip: Bool
     var supportsSearch: Bool
+    var requiredExtras: [String: String]
     var key: String { "\(base)|\(type)|\(catalogId)" }
 }
 
@@ -114,11 +115,12 @@ final class ZapPool {
     private var queue: [MetaItem] = []
     private var seen = Set<String>()
     private var sources: [ZapSource]?
-    private var pageSize: [String: Int] = [:]
-    private var triedPages: [String: Set<Int>] = [:]
-    private var lastPage: [String: Int] = [:]
+    private var nextSkip: [String: Int] = [:]
+    private var pagesFetched: [String: Int] = [:]
+    private var exhausted = Set<String>()
+    private var sourceTurns: [ZapSource] = []
     private var searched = Set<String>()
-    private let maxPage = 9
+    private let maxPages = 10
 
     init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool, isSaved: @escaping (String) -> Bool = { _ in false }) {
         self.isSaved = isSaved
@@ -147,11 +149,6 @@ final class ZapPool {
         return (nil, .noMatches)
     }
 
-    private static func looksLikeHistory(_ text: String) -> Bool {
-        text.range(of: "watched|history|continue|resume|recently|in.?progress|watching|scrobbl|watchlist|library|favou?rite|my.?list",
-                   options: [.regularExpression, .caseInsensitive]) != nil
-    }
-
     private func loadSources() async -> [ZapSource] {
         let wanted: Set<String>
         switch filters.type {
@@ -162,19 +159,31 @@ final class ZapPool {
         var found: [ZapSource] = []
         for base in addons {
             guard let man = await AddonClient.manifest(for: base), man.has("catalog") else { continue }
-            for c in man.catalogs ?? [] where wanted.contains(c.type) && c.isBrowsable && !Self.looksLikeHistory("\(c.id) \(c.name ?? "")") {
+            for c in man.catalogs ?? [] where wanted.contains(c.type) {
                 let extras = c.extra ?? []
+                let requiredNames = Set(extras.filter { $0.isRequired == true }.map(\.name) + (c.extraRequired ?? []))
+                var required: [String: String] = [:]
+                var canRequest = true
+                for name in requiredNames {
+                    switch name {
+                    case "search": canRequest = canRequest && !filters.people.isEmpty
+                    case "skip": required["skip"] = "0"
+                    default:
+                        let options = extras.first { $0.name == name }?.options ?? []
+                        let preferred = name == "genre" ? options.first { option in
+                            filters.genres.contains { Self.sameGenre(option, $0) }
+                        } : nil
+                        if let value = preferred ?? options.randomElement() { required[name] = value }
+                        else { canRequest = false }
+                    }
+                }
+                guard canRequest else { continue }
                 found.append(ZapSource(
                     base: base, type: c.type, catalogId: c.id,
                     genreOptions: extras.first { $0.name == "genre" }?.options ?? [],
-                    supportsSkip: extras.contains { $0.name == "skip" },
-                    supportsSearch: c.isSearchable))
+                    supportsSkip: extras.contains { $0.name == "skip" } || (c.extraSupported ?? []).contains("skip") || requiredNames.contains("skip"),
+                    supportsSearch: c.isSearchable, requiredExtras: required))
             }
-        }
-        // Cinemeta is the app's default metadata provider; fall back to it for a type nothing else lists.
-        for type in wanted where !found.contains(where: { $0.type == type }) {
-            found.append(ZapSource(base: AddonClient.cinemeta, type: type, catalogId: "top", genreOptions: [],
-                                   supportsSkip: true, supportsSearch: true))
         }
         var unique: [ZapSource] = []
         for s in found where !unique.contains(where: { $0.key == s.key }) { unique.append(s) }
@@ -188,44 +197,32 @@ final class ZapPool {
                 for source in all where source.supportsSearch {
                     if !searched.insert("\(source.key)|\(person.name)").inserted { continue }
                     added += await AddonClient.page(base: source.base, type: source.type, catalogId: source.catalogId,
-                                                    extra: ["search": person.name], skip: 0)
+                                                    extra: source.requiredExtras.merging(["search": person.name]) { _, new in new }, skip: 0)
                 }
             }
         } else {
-            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
-            for source in all.shuffled().prefix(5) { added += await discoverPage(source) }
+            // Every installed catalog gets a turn before any is revisited.
+            if sourceTurns.isEmpty { sourceTurns = all.filter { !exhausted.contains($0.key) }.shuffled() }
+            for _ in 0..<min(5, sourceTurns.count) { added += await discoverPage(sourceTurns.removeFirst()) }
         }
         added.shuffle()
         for item in added where matches(item) && !seen.contains("\(item.type):\(item.id)") { queue.append(item) }
     }
 
     private func discoverPage(_ source: ZapSource) async -> [MetaItem] {
-        var tried = triedPages[source.key] ?? []
-        let limit = min(lastPage[source.key] ?? maxPage, maxPage)
-        let page: Int
-        if tried.isEmpty {
-            page = 0
-        } else if !source.supportsSkip {
-            return []
-        } else {
-            guard let pick = (0...limit).filter({ !tried.contains($0) }).randomElement() else { return [] }
-            page = pick
-        }
-        tried.insert(page)
-        triedPages[source.key] = tried
-        var skip = 0
-        if page > 0 {
-            guard let size = pageSize[source.key] else { return [] }
-            skip = size * page
-        }
-        var extra: [String: String] = [:]
+        guard !exhausted.contains(source.key) else { return [] }
+        let skip = nextSkip[source.key] ?? 0
+        var extra = source.requiredExtras
+        if extra["skip"] != nil { extra["skip"] = String(skip) }
         for wanted in filters.genres {
             if let option = source.genreOptions.first(where: { Self.sameGenre($0, wanted) }) { extra["genre"] = option; break }
         }
         let items = await AddonClient.page(base: source.base, type: source.type, catalogId: source.catalogId,
                                            extra: extra, skip: skip)
-        if page == 0, !items.isEmpty { pageSize[source.key] = items.count }
-        if items.isEmpty, page > 0 { lastPage[source.key] = page - 1 }
+        let count = (pagesFetched[source.key] ?? 0) + 1
+        pagesFetched[source.key] = count
+        if !source.supportsSkip || items.isEmpty || count >= maxPages { exhausted.insert(source.key) }
+        else { nextSkip[source.key] = skip + items.count }
         return items
     }
 

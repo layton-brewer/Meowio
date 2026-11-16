@@ -4,17 +4,21 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
-import com.nuvio.app.features.catalog.fetchCatalogPage
+import com.nuvio.app.features.addons.buildAddonResourceUrl
+import com.nuvio.app.features.addons.fetchAddonResponseText
+import com.nuvio.app.features.home.HomeCatalogParser
+import com.nuvio.app.features.catalog.CatalogPage
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watched.WatchedRepository
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlin.random.Random
 
 /** Why [ZapPool.next] returned nothing, so the screen can say something useful. */
 enum class ZapEmpty { NoSources, NoMatches, Offline }
@@ -25,23 +29,19 @@ sealed interface ZapResult {
 }
 
 /** One browsable catalog of one of the user's add-ons. */
-private data class ZapSource(
+internal data class ZapSource(
     val manifestUrl: String,
     val type: String,
     val catalogId: String,
     val genreOptions: List<String>,
     val supportsSkip: Boolean,
     val supportsSearch: Boolean,
+    val requiredExtras: Map<String, String>,
 ) {
     val key: String get() = "$manifestUrl|$type|$catalogId"
 }
 
-private const val CINEMETA_MANIFEST = "https://v3-cinemeta.strem.io/manifest.json"
-private const val MAX_PAGE_INDEX = 9
-private val CINEMETA_GENRES = listOf(
-    "Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family",
-    "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western",
-)
+private const val MAX_PAGES = 10
 
 /**
  * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
@@ -52,9 +52,10 @@ class ZapPool(private val filters: ZapFilters) {
     private val log = Logger.withTag("ZapPool")
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
-    private val pageSize = HashMap<String, Int>()
-    private val triedPages = HashMap<String, MutableSet<Int>>()
-    private val lastPage = HashMap<String, Int>()
+    private val nextSkip = HashMap<String, Int>()
+    private val pagesFetched = HashMap<String, Int>()
+    private val exhausted = HashSet<String>()
+    private val sourceTurns = ArrayDeque<ZapSource>()
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
@@ -99,54 +100,23 @@ class ZapPool(private val filters: ZapFilters) {
 
     private suspend fun loadSources(): List<ZapSource> {
         AddonRepository.initialize()
-        // Manifests load in the background; give them a moment on first use.
-        var waited = 0
-        while (waited < 12_000 && AddonRepository.uiState.value.addons.none { it.isActive }) {
-            delay(500)
-            waited += 500
+        // A stream-only or personal-list add-on can finish first. Wait for all enabled manifests
+        // before freezing the pool's sources, so slower catalog add-ons are included too.
+        withTimeoutOrNull(12_000) {
+            AddonRepository.uiState.first { state -> state.addons.none { it.enabled && it.isRefreshing } }
         }
         val found = AddonRepository.uiState.value.addons
             .filter { it.isActive }
             .flatMap { addon ->
                 val manifest = addon.manifest ?: return@flatMap emptyList()
-                manifest.catalogs.filter { it.type == "movie" || it.type == "series" }.mapNotNull { catalog ->
-                    catalog.toSource(manifest.transportUrl)
-                }
+                manifest.catalogs.mapNotNull { catalog -> catalog.toZapSource(manifest.transportUrl, filters) }
             }
-            .toMutableList()
-        // Cinemeta's popular lists are always part of the mix, so a pool made only of personal or niche
-        // add-on catalogs (watchlists, small lists) can never be all there is to draw from.
-        for (type in listOf("movie", "series")) {
-            found += ZapSource(CINEMETA_MANIFEST, type, "top", genreOptions = CINEMETA_GENRES, supportsSkip = true, supportsSearch = true)
-        }
         val wantedTypes = when (filters.type) {
             ZapMediaType.Both -> setOf("movie", "series")
             ZapMediaType.Movies -> setOf("movie")
             ZapMediaType.Series -> setOf("series")
         }
         return found.filter { it.type in wantedTypes }.distinctBy { it.key }
-    }
-
-    private fun AddonCatalog.toSource(manifestUrl: String): ZapSource? {
-        if (looksLikeHistory("$id $name")) return null
-        if (extra.any { it.name == "search" && it.isRequired }) return null
-        val blocked = extra.any { property ->
-            when (property.name) {
-                "genre" -> property.isRequired && property.options.isEmpty()
-                "skip", "search" -> false
-                else -> property.isRequired
-            }
-        }
-        if (blocked) return null
-        return ZapSource(
-            manifestUrl = manifestUrl,
-            type = type,
-            catalogId = id,
-            genreOptions = extra.firstOrNull { it.name == "genre" }?.options.orEmpty(),
-            supportsSkip = extra.any { it.name.equals("skip", ignoreCase = true) },
-            supportsSearch = extra.any { it.name == "search" } &&
-                extra.none { it.isRequired && it.name != "search" },
-        )
     }
 
     private suspend fun refill(all: List<ZapSource>) {
@@ -159,47 +129,57 @@ class ZapPool(private val filters: ZapFilters) {
                 }
             }
         } else {
-            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
-            for (source in all.shuffled().take(5)) added += discoverPage(source)
+            // Visit each installed catalog before revisiting any of them.
+            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted }.shuffled())
+            repeat(minOf(5, sourceTurns.size)) { added += discoverPage(sourceTurns.removeFirst()) }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
     }
 
     private suspend fun discoverPage(source: ZapSource): List<MetaPreview> {
-        val tried = triedPages.getOrPut(source.key) { mutableSetOf() }
-        val limit = minOf(lastPage[source.key] ?: MAX_PAGE_INDEX, MAX_PAGE_INDEX)
-        val page = when {
-            tried.isEmpty() -> 0
-            !source.supportsSkip -> return emptyList()
-            else -> (0..limit).filter { it !in tried }.randomOrNull() ?: return emptyList()
-        }
-        tried += page
-        val size = pageSize[source.key]
-        val skip = if (page == 0) null else (size ?: return emptyList()) * page
+        if (source.key in exhausted) return emptyList()
+        val skip = nextSkip[source.key] ?: 0
         val genre = filters.genres.firstNotNullOfOrNull { wanted ->
             source.genreOptions.firstOrNull { sameGenre(it, wanted) }
         }
-        val items = fetch(source, genre = genre, search = null, skip = skip)
-        if (page == 0 && items.isNotEmpty()) pageSize[source.key] = items.size
-        if (items.isEmpty() && page > 0) lastPage[source.key] = page - 1
-        return items
+        val page = fetchPage(source, genre = genre, search = null, skip = skip)
+        val count = (pagesFetched[source.key] ?: 0) + 1
+        pagesFetched[source.key] = count
+        val followingSkip = page?.nextSkip
+        if (!source.supportsSkip || followingSkip == null || followingSkip <= skip || count >= MAX_PAGES) {
+            exhausted += source.key
+        } else {
+            nextSkip[source.key] = followingSkip
+        }
+        return page?.items.orEmpty()
     }
 
-    private suspend fun fetch(source: ZapSource, genre: String? = null, search: String?, skip: Int?): List<MetaPreview> =
+    private suspend fun fetch(source: ZapSource, search: String?, skip: Int?): List<MetaPreview> =
+        fetchPage(source, search = search, skip = skip ?: 0)?.items.orEmpty()
+
+    private suspend fun fetchPage(source: ZapSource, genre: String? = null, search: String?, skip: Int): CatalogPage? =
         runCatching {
-            fetchCatalogPage(
+            val extras = source.requiredExtras.toMutableMap()
+            if (genre != null) extras["genre"] = genre
+            if (search != null) extras["search"] = search
+            if (source.supportsSkip && (skip > 0 || "skip" in extras)) extras["skip"] = skip.toString()
+            val url = buildAddonResourceUrl(
                 manifestUrl = source.manifestUrl,
+                resource = "catalog",
                 type = source.type,
-                catalogId = source.catalogId,
-                genre = genre,
-                search = search,
-                skip = skip,
-            ).items
+                id = source.catalogId,
+                extraPathSegment = extras.entries.joinToString("&") { (key, value) ->
+                    "${percentEncode(key)}=${percentEncode(value)}"
+                }.ifBlank { null },
+            )
+            val parsed = HomeCatalogParser.parseCatalogResponse(fetchAddonResponseText(url))
+            CatalogPage(parsed.items, parsed.rawItemCount, (skip + parsed.rawItemCount).takeIf { parsed.rawItemCount > 0 })
         }.onFailure {
+            if (it is CancellationException) throw it
             failures++
-            log.w { "Zap catalog fetch failed for ${source.key}: ${it.message}" }
-        }.getOrDefault(emptyList())
+            log.w { "Zap catalog fetch failed: ${it.message}" }
+        }.getOrNull()
 
     private fun matches(item: MetaPreview): Boolean {
         if (item.poster.isNullOrBlank() && item.banner.isNullOrBlank()) return false
@@ -219,8 +199,32 @@ class ZapPool(private val filters: ZapFilters) {
     }
 }
 
-private fun looksLikeHistory(text: String): Boolean =
-    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl|watchlist|library|favou?rite|my.?list", RegexOption.IGNORE_CASE).containsMatchIn(text)
+/** Required enumerated extras must be supplied even when the user has not set a filter. */
+internal fun AddonCatalog.toZapSource(manifestUrl: String, filters: ZapFilters): ZapSource? {
+    if (type !in setOf("movie", "series")) return null
+    val required = mutableMapOf<String, String>()
+    for (property in extra.filter { it.isRequired }) {
+        when (property.name) {
+            "search" -> if (filters.people.isEmpty()) return null
+            "skip" -> required["skip"] = "0"
+            else -> {
+                val preferred = if (property.name == "genre") property.options.firstOrNull { option ->
+                    filters.genres.any { sameGenre(option, it) }
+                } else null
+                required[property.name] = preferred ?: property.options.randomOrNull() ?: return null
+            }
+        }
+    }
+    return ZapSource(
+        manifestUrl = manifestUrl,
+        type = type,
+        catalogId = id,
+        genreOptions = extra.firstOrNull { it.name == "genre" }?.options.orEmpty(),
+        supportsSkip = extra.any { it.name.equals("skip", ignoreCase = true) },
+        supportsSearch = extra.any { it.name == "search" },
+        requiredExtras = required,
+    )
+}
 
 private fun itemYear(item: MetaPreview): Int? =
     (item.releaseInfo ?: item.rawReleaseDate)?.let { Regex("(19|20)\\d{2}").find(it)?.value?.toIntOrNull() }

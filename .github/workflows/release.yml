@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.30 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.31 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.30 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.31 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,12 +256,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.30"
+          tag="v0.2.31"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.30
+          ## What's new in 0.2.31
 
-          - **Surprise Me finds new titles:** it now always includes Cinemeta's popular lists alongside your add-on catalogs, samples a few random catalogs each round so small personal-list catalogs can't dominate, and never suggests anything already in your library or lists. Watched titles are still skipped.
-          - **White startup logo text:** the "Meowio" text on the startup logo is now white instead of blue, on every app.
+          - **Player controls:** restored reliable taps on the top button overlay.
+          - **Surprise Me catalogs:** picks come from your installed add-ons' catalogs, including catalogs that require a genre. Catalogs get a turn before sources repeat; saved and watched titles remain excluded.
+          - **Search only:** removed Surprise Me from the Android TV sidebar and Apple TV tabs. Open it from Search on every app.
+          - **Themed startup text:** restored the original wordmark colors for each app icon/theme.
 
           ## Download
 
