@@ -72,6 +72,7 @@ enum AddonClient {
             var name: String?
             var extra: [Extra]?
             var extraRequired: [String]?
+            var extraSupported: [String]?
 
             struct Extra: Decodable {
                 var name: String
@@ -84,7 +85,7 @@ enum AddonClient {
                 !(extra ?? []).contains { $0.isRequired == true } && (extraRequired ?? []).isEmpty
             }
             var isSearchable: Bool {
-                (extra ?? []).contains { $0.name == "search" } || (extraRequired ?? []).contains("search")
+                (extra ?? []).contains { $0.name == "search" } || (extraRequired ?? []).contains("search") || (extraSupported ?? []).contains("search")
             }
         }
 
@@ -151,12 +152,14 @@ enum AddonClient {
     /// One page of a catalog with optional extras (genre, search) and a skip offset. Empty when the request fails.
     static func page(base: String, type: String, catalogId: String, extra: [String: String], skip: Int) async -> [MetaItem] {
         let id = catalogId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? catalogId
-        var parts: [String] = []
-        for key in extra.keys.sorted() {
-            let value = extra[key]!.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? extra[key]!
-            parts.append("\(key)=\(value)")
+        var args = extra
+        if skip > 0 || args["skip"] != nil { args["skip"] = String(skip) }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        let parts = args.keys.sorted().map { key in
+            let value = args[key]!.addingPercentEncoding(withAllowedCharacters: allowed) ?? args[key]!
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key
+            return "\(encodedKey)=\(value)"
         }
-        if skip > 0 { parts.append("skip=\(skip)") }
         let tail = parts.isEmpty ? "" : "/" + parts.joined(separator: "&")
         let list = await fetch(CatalogResponse.self, from: "\(base)/catalog/\(type)/\(id)\(tail).json")?.metas ?? []
         return list.map { item in

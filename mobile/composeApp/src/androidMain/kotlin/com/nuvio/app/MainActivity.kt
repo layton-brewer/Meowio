@@ -173,6 +173,8 @@ open class MainActivity : AppCompatActivity() {
     private var topButtonTap: (() -> Unit)? = null
     private var topButtonDownX = 0f
     private var topButtonDownY = 0f
+    private var topButtonPointerId = 0
+    private var topButtonTapCancelled = false
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         val taps = PlayerTopButtonTaps.shared
@@ -185,16 +187,26 @@ open class MainActivity : AppCompatActivity() {
                     topButtonTap = target
                     topButtonDownX = ev.x
                     topButtonDownY = ev.y
+                    topButtonPointerId = ev.getPointerId(0)
+                    topButtonTapCancelled = false
                     return true
                 }
             }
         }
         val pending = topButtonTap ?: return super.dispatchTouchEvent(ev)
+        val pointerIndex = ev.findPointerIndex(topButtonPointerId)
+        val maxMove = ViewConfiguration.get(this).scaledTouchSlop * 3f
+        topButtonTapCancelled = topButtonTapCancelled || pointerIndex < 0 ||
+            ev.pointerCount > 1 ||
+            (pointerIndex >= 0 && hypot(
+                ev.getX(pointerIndex) - topButtonDownX,
+                ev.getY(pointerIndex) - topButtonDownY,
+            ) > maxMove)
         when (ev.actionMasked) {
             MotionEvent.ACTION_UP -> {
                 topButtonTap = null
-                val maxMove = ViewConfiguration.get(this).scaledTouchSlop * 3f
-                if (hypot(ev.x - topButtonDownX, ev.y - topButtonDownY) <= maxMove) pending()
+                val slop = 10f * resources.displayMetrics.density
+                if (!topButtonTapCancelled && taps.hit(Offset(ev.x, ev.y), slop) === pending) pending()
             }
             MotionEvent.ACTION_CANCEL -> topButtonTap = null
         }
