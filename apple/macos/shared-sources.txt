@@ -58,3 +58,5 @@ commonMain/kotlin/com/nuvio/app/core/i18n/LocalizedUiText.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapModels.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapRepository.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapScreen.kt
+
+commonMain/kotlin/com/nuvio/app/features/search/DiscoverCatalogSources.kt

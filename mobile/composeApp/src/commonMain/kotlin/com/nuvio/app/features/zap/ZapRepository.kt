@@ -1,12 +1,10 @@
 package com.nuvio.app.features.zap
 
 import co.touchlab.kermit.Logger
-import com.nuvio.app.features.addons.AddonCatalog
+import com.nuvio.app.features.search.buildDiscoverSources
+import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
-import com.nuvio.app.features.addons.buildAddonResourceUrl
-import com.nuvio.app.features.addons.fetchAddonResponseText
-import com.nuvio.app.features.home.HomeCatalogParser
 import com.nuvio.app.features.catalog.CatalogPage
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
@@ -56,6 +54,7 @@ class ZapPool(private val filters: ZapFilters) {
     private val pagesFetched = HashMap<String, Int>()
     private val exhausted = HashSet<String>()
     private val sourceTurns = ArrayDeque<ZapSource>()
+    private val catalogQueues = HashMap<String, ArrayDeque<MetaPreview>>()
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
@@ -105,12 +104,22 @@ class ZapPool(private val filters: ZapFilters) {
         withTimeoutOrNull(12_000) {
             AddonRepository.uiState.first { state -> state.addons.none { it.enabled && it.isRefreshing } }
         }
-        val found = AddonRepository.uiState.value.addons
-            .filter { it.isActive }
-            .flatMap { addon ->
-                val manifest = addon.manifest ?: return@flatMap emptyList()
-                manifest.catalogs.mapNotNull { catalog -> catalog.toZapSource(manifest.transportUrl, filters) }
-            }
+        val found = buildDiscoverSources(
+            AddonRepository.uiState.value.addons.filter { it.isActive },
+        ).map { catalog ->
+            ZapSource(
+                manifestUrl = catalog.manifestUrl,
+                type = catalog.type,
+                catalogId = catalog.catalogId,
+                genreOptions = catalog.genreOptions,
+                supportsSkip = catalog.supportsPagination,
+                supportsSearch = AddonRepository.uiState.value.addons
+                    .firstOrNull { it.manifestUrl == catalog.manifestUrl }?.manifest?.catalogs
+                    ?.firstOrNull { it.id == catalog.catalogId && it.type == catalog.type }
+                    ?.extra?.any { it.name == "search" } == true,
+                requiredExtras = if (catalog.genreRequired) mapOf("genre" to catalog.genreOptions.random()) else emptyMap(),
+            )
+        }
         val wantedTypes = when (filters.type) {
             ZapMediaType.Both -> setOf("movie", "series")
             ZapMediaType.Movies -> setOf("movie")
@@ -130,8 +139,19 @@ class ZapPool(private val filters: ZapFilters) {
             }
         } else {
             // Visit each installed catalog before revisiting any of them.
-            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted }.shuffled())
-            repeat(minOf(5, sourceTurns.size)) { added += discoverPage(sourceTurns.removeFirst()) }
+            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted || catalogQueues[it.key]?.isNotEmpty() == true }.shuffled())
+            repeat(minOf(5, sourceTurns.size)) {
+                val source = sourceTurns.removeFirst()
+                val candidates = catalogQueues.getOrPut(source.key) { ArrayDeque() }
+                if (candidates.isEmpty()) candidates.addAll(discoverPage(source).shuffled())
+                while (candidates.isNotEmpty()) {
+                    val item = candidates.removeFirst()
+                    if (!matches(item) || "${item.type}:${item.id}" in seen || isSaved(item) ||
+                        (filters.hideWatched && isWatched(item))) continue
+                    added += item
+                    break
+                }
+            }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
@@ -164,17 +184,14 @@ class ZapPool(private val filters: ZapFilters) {
             if (genre != null) extras["genre"] = genre
             if (search != null) extras["search"] = search
             if (source.supportsSkip && (skip > 0 || "skip" in extras)) extras["skip"] = skip.toString()
-            val url = buildAddonResourceUrl(
+            fetchCatalogPage(
                 manifestUrl = source.manifestUrl,
-                resource = "catalog",
                 type = source.type,
-                id = source.catalogId,
-                extraPathSegment = extras.entries.joinToString("&") { (key, value) ->
-                    "${percentEncode(key)}=${percentEncode(value)}"
-                }.ifBlank { null },
+                catalogId = source.catalogId,
+                genre = extras["genre"],
+                search = search,
+                skip = skip.takeIf { it > 0 },
             )
-            val parsed = HomeCatalogParser.parseCatalogResponse(fetchAddonResponseText(url))
-            CatalogPage(parsed.items, parsed.rawItemCount, (skip + parsed.rawItemCount).takeIf { parsed.rawItemCount > 0 })
         }.onFailure {
             if (it is CancellationException) throw it
             failures++
@@ -197,33 +214,6 @@ class ZapPool(private val filters: ZapFilters) {
         }
         return true
     }
-}
-
-/** Required enumerated extras must be supplied even when the user has not set a filter. */
-internal fun AddonCatalog.toZapSource(manifestUrl: String, filters: ZapFilters): ZapSource? {
-    if (type !in setOf("movie", "series")) return null
-    val required = mutableMapOf<String, String>()
-    for (property in extra.filter { it.isRequired }) {
-        when (property.name) {
-            "search" -> if (filters.people.isEmpty()) return null
-            "skip" -> required["skip"] = "0"
-            else -> {
-                val preferred = if (property.name == "genre") property.options.firstOrNull { option ->
-                    filters.genres.any { sameGenre(option, it) }
-                } else null
-                required[property.name] = preferred ?: property.options.randomOrNull() ?: return null
-            }
-        }
-    }
-    return ZapSource(
-        manifestUrl = manifestUrl,
-        type = type,
-        catalogId = id,
-        genreOptions = extra.firstOrNull { it.name == "genre" }?.options.orEmpty(),
-        supportsSkip = extra.any { it.name.equals("skip", ignoreCase = true) },
-        supportsSearch = extra.any { it.name == "search" },
-        requiredExtras = required,
-    )
 }
 
 private fun itemYear(item: MetaPreview): Int? =
