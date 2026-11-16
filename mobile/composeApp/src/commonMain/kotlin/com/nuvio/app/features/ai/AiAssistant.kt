@@ -37,7 +37,7 @@ data class AiViewerContext(
 )
 
 /**
- * Builds the request for, and reads the answer from, the Claude Messages API.
+ * Builds the request for, and reads the answer from, the recommendation provider’s Messages API.
  *
  * The app ships without a key. The viewer enters their own, it stays on the device, and it is
  * only ever sent to [ENDPOINT]. This file is shared by the TV and phone apps and only the

@@ -4,7 +4,7 @@ name: Windows build
 # then attaches it to the latest Meowio release so every download lives on one page.
 on:
   push:
-    branches: [main, claude/project-thread-gdrsat]
+    branches: [main]
     paths:
       - "windows/**"
       - "apple/macos/**"

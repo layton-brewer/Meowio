@@ -2,7 +2,7 @@ name: Apple builds
 
 on:
   push:
-    branches: [main, claude/apple-builds]
+    branches: [main]
     paths:
       - "mobile/iosApp/**"
       - "mobile/composeApp/src/iosMain/**"

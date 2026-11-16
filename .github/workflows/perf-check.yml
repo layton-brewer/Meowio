@@ -3,7 +3,7 @@ name: Android size check
 # Compile-only check for the ARM-only packaging change. Builds both apps without publishing.
 on:
   push:
-    branches: ["claude/perf-pass"]
+    branches: ["work/**"]
     paths:
       - "tv/app/build.gradle.kts"
       - "mobile/androidApp/build.gradle.kts"

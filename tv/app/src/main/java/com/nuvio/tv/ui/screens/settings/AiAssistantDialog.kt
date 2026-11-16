@@ -150,7 +150,7 @@ class AiAssistantViewModel @Inject constructor(
     }.getOrDefault(AiViewerContext())
 }
 
-/** Asks Claude for things to watch, using the viewer's own key. Opened from Profiles settings. */
+/** Requests viewing recommendations, using the viewer's own key. Opened from Profiles settings. */
 @Composable
 internal fun AiAssistantDialog(onDismiss: () -> Unit, viewModel: AiAssistantViewModel = hiltViewModel()) {
     val hasKey by viewModel.hasKey.collectAsStateWithLifecycle()
