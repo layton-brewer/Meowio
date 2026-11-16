@@ -46,7 +46,8 @@ class ZapPool(
     private val filters: ZapFilters,
     private val addons: suspend () -> List<Addon>,
     private val catalogs: CatalogRepository,
-    private val isWatched: suspend (String) -> Boolean
+    private val isWatched: suspend (String) -> Boolean,
+    private val isSaved: suspend (String) -> Boolean = { false }
 ) {
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
@@ -61,10 +62,12 @@ class ZapPool(
         val all = sources ?: loadSources().also { sources = it }
         if (all.isEmpty()) return ZapResult.Empty(ZapEmpty.NO_SOURCES)
         var refills = 0
-        while (refills <= 14) {
+        while (refills <= 30) {
             while (queue.isNotEmpty()) {
                 val item = queue.removeFirst()
                 if (!seen.add("${item.rawType}:${item.id}")) continue
+                // Surprise Me finds new things: titles already in the library or lists never come up.
+                if (runCatching { isSaved(item.id) }.getOrDefault(false)) continue
                 if (filters.hideWatched && runCatching { isWatched(item.id) }.getOrDefault(false)) continue
                 return ZapResult.Found(item.toZapTitle())
             }
@@ -120,7 +123,8 @@ class ZapPool(
                 }
             }
         } else {
-            for (source in all) added += discoverPage(source)
+            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
+            for (source in all.shuffled().take(5)) added += discoverPage(source)
         }
         added.shuffle()
         added.filter { matches(it) && "${it.rawType}:${it.id}" !in seen }.forEach(queue::addLast)

@@ -6,6 +6,7 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.watched.WatchedRepository
@@ -37,6 +38,10 @@ private data class ZapSource(
 
 private const val CINEMETA_MANIFEST = "https://v3-cinemeta.strem.io/manifest.json"
 private const val MAX_PAGE_INDEX = 9
+private val CINEMETA_GENRES = listOf(
+    "Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Documentary", "Drama", "Family",
+    "Fantasy", "History", "Horror", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western",
+)
 
 /**
  * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
@@ -58,10 +63,11 @@ class ZapPool(private val filters: ZapFilters) {
         val all = sources ?: loadSources().also { sources = it }
         if (all.isEmpty()) return ZapResult.Empty(ZapEmpty.NoSources)
         var refills = 0
-        while (refills <= 14) {
+        while (refills <= 30) {
             while (queue.isNotEmpty()) {
                 val item = queue.removeFirst()
                 if (!seen.add("${item.type}:${item.id}")) continue
+                if (isSaved(item)) continue
                 if (filters.hideWatched && isWatched(item)) continue
                 return ZapResult.Found(item.toZapTitle())
             }
@@ -70,6 +76,12 @@ class ZapPool(private val filters: ZapFilters) {
         }
         return ZapResult.Empty(if (failures > 0) ZapEmpty.Offline else ZapEmpty.NoMatches)
     }
+
+    /** Surprise Me finds new things: titles already in the user's library or lists never come up. */
+    private fun isSaved(item: MetaPreview): Boolean = runCatching {
+        LibraryRepository.ensureLoaded()
+        LibraryRepository.isSaved(item.id, item.type)
+    }.getOrDefault(false)
 
     private fun isWatched(item: MetaPreview): Boolean = runCatching {
         WatchedRepository.isWatched(id = item.id, type = item.type) ||
@@ -102,11 +114,10 @@ class ZapPool(private val filters: ZapFilters) {
                 }
             }
             .toMutableList()
-        // Cinemeta is the app's default metadata provider; fall back to it for a type nothing else lists.
+        // Cinemeta's popular lists are always part of the mix, so a pool made only of personal or niche
+        // add-on catalogs (watchlists, small lists) can never be all there is to draw from.
         for (type in listOf("movie", "series")) {
-            if (found.none { it.type == type }) {
-                found += ZapSource(CINEMETA_MANIFEST, type, "top", genreOptions = emptyList(), supportsSkip = true, supportsSearch = true)
-            }
+            found += ZapSource(CINEMETA_MANIFEST, type, "top", genreOptions = CINEMETA_GENRES, supportsSkip = true, supportsSearch = true)
         }
         val wantedTypes = when (filters.type) {
             ZapMediaType.Both -> setOf("movie", "series")
@@ -148,7 +159,8 @@ class ZapPool(private val filters: ZapFilters) {
                 }
             }
         } else {
-            for (source in all) added += discoverPage(source)
+            // A few random catalogs per round, so many small catalogs cannot drown out the big ones.
+            for (source in all.shuffled().take(5)) added += discoverPage(source)
         }
         added.shuffle()
         added.filter { matches(it) && "${it.type}:${it.id}" !in seen }.forEach(queue::addLast)
