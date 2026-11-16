@@ -20,7 +20,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -65,7 +65,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * "Zap": one random movie or series at a time. Zap for the next one, open the title to watch it
+ * "Surprise Me": one random movie or series at a time. Tap Another for the next one, open the title to watch it
  * (the normal title page then finds a source and auto-plays), save it, or narrow the pool by
  * type, year, genre, actor and rating. Titles already marked watched are skipped.
  *
@@ -215,9 +215,9 @@ fun ZapScreen(
                         Text("Play")
                     }
                     FilledTonalButton(onClick = { zap() }, enabled = !loading) {
-                        Icon(Icons.Rounded.Bolt, contentDescription = null)
+                        Icon(Icons.Rounded.Shuffle, contentDescription = null)
                         Spacer(Modifier.padding(horizontal = 2.dp))
-                        Text("Zap")
+                        Text("Another")
                     }
                     OutlinedButton(
                         onClick = {
@@ -258,7 +258,7 @@ fun ZapScreen(
             ) {
                 Text(
                     text = when (empty) {
-                        ZapEmpty.NoSources -> "Zap draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
+                        ZapEmpty.NoSources -> "Surprise Me draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
                         ZapEmpty.Offline -> "Couldn't load titles. Check your connection."
                         else -> "Nothing matches those filters. Try loosening them."
                     },
@@ -299,7 +299,7 @@ fun ZapScreen(
                 Icon(Icons.Rounded.Close, contentDescription = "Close")
             }
             Text(
-                text = "Zap",
+                text = "Surprise Me",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
@@ -369,7 +369,7 @@ private fun ZapFilterPanel(
                 .padding(top = statusTop + 12.dp, bottom = nuvioSafeBottomPadding(96.dp)),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Zap filters", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Surprise Me filters", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
             FilterLabel("Show")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

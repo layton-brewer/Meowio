@@ -51,7 +51,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1167,8 +1167,8 @@ open class MainActivity : ComponentActivity() {
                             add(
                                 DrawerItem(
                                     route = Screen.Zap.route,
-                                    label = "Zap",
-                                    icon = Icons.Default.Bolt
+                                    label = "Surprise Me",
+                                    icon = Icons.Default.Shuffle
                                 )
                             )
                             add(

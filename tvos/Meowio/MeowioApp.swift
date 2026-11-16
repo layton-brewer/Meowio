@@ -150,7 +150,7 @@ struct RootView: View {
             LibraryView()
                 .tabItem { Label("Library", systemImage: "bookmark.fill") }
             ZapView()
-                .tabItem { Label("Zap", systemImage: "bolt.fill") }
+                .tabItem { Label("Surprise Me", systemImage: "shuffle") }
             if settings.liveTabVisible {
                 LiveTVView()
                     .tabItem { Label("Live TV", systemImage: "antenna.radiowaves.left.and.right") }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Zap: one random movie or series at a time. Zap for the next one, Play to open it and start the best source,
+// Surprise Me: one random movie or series at a time. Another for the next one, Play to open it and start the best source,
 // Save to My List, and narrow the pool by type, year, genre, actor and rating. Same behaviour as the Android and
 // desktop apps. Titles already watched are skipped. Titles come from the catalogs of the user's own add-ons, so no
 // TMDB key is needed.
@@ -310,7 +310,7 @@ struct ZapView: View {
 
     private func details(_ t: ZapTitle) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("ZAP").font(.callout.bold()).foregroundStyle(settings.theme.accent)
+            Text("SURPRISE ME").font(.callout.bold()).foregroundStyle(settings.theme.accent)
             Text(t.name).font(.largeTitle.bold()).lineLimit(2)
             Text(t.metaLine).foregroundStyle(.secondary)
             if !t.genres.isEmpty { Text(t.genres.prefix(4).joined(separator: "  ·  ")).font(.callout).foregroundStyle(.secondary) }
@@ -318,7 +318,7 @@ struct ZapView: View {
             if !t.cast.isEmpty { Text("Starring " + t.cast.prefix(4).joined(separator: ", ")).font(.callout).foregroundStyle(.secondary).lineLimit(2) }
             HStack(spacing: 24) {
                 NavigationLink(value: AutoPlayRoute(item: t.meta)) { Label("Play", systemImage: "play.fill") }
-                Button { Task { await zap() } } label: { Label("Zap", systemImage: "bolt.fill") }.disabled(loading)
+                Button { Task { await zap() } } label: { Label("Another", systemImage: "shuffle") }.disabled(loading)
                 Button { library.toggleSaved(t.meta) } label: {
                     Label(library.isSaved(t.meta) ? "Saved" : "Save", systemImage: library.isSaved(t.meta) ? "checkmark" : "plus")
                 }
@@ -351,7 +351,7 @@ struct ZapView: View {
 
     private var emptyText: String {
         switch empty {
-        case .noSources: return "Zap draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
+        case .noSources: return "Surprise Me draws from your add-ons' catalogs. Install a catalog add-on in Settings and try again."
         case .offline: return "Couldn't load titles. Check your connection."
         default: return "Nothing matches those filters. Try loosening them."
         }
@@ -396,7 +396,7 @@ struct ZapFilterSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                Text("Zap filters").font(.largeTitle.bold())
+                Text("Surprise Me filters").font(.largeTitle.bold())
 
                 section("Show") {
                     ForEach(ZapMediaType.allCases, id: \.self) { t in
