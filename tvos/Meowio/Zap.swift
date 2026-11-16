@@ -110,6 +110,8 @@ final class ZapPool {
     private let filters: ZapFilters
     private let addons: [String]
     private let isWatched: (String) -> Bool
+    private let listItems: () -> [MetaItem]
+    private var listsAdded = false
     private var queue: [MetaItem] = []
     private var seen = Set<String>()
     private var sources: [ZapSource]?
@@ -119,7 +121,9 @@ final class ZapPool {
     private var searched = Set<String>()
     private let maxPage = 9
 
-    init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool) {
+    init(filters: ZapFilters, addons: [String], isWatched: @escaping (String) -> Bool,
+         listItems: @escaping () -> [MetaItem] = { [] }) {
+        self.listItems = listItems
         self.filters = filters
         self.addons = addons
         self.isWatched = isWatched
@@ -143,6 +147,11 @@ final class ZapPool {
         return (nil, .noMatches)
     }
 
+    private static func looksLikeHistory(_ text: String) -> Bool {
+        text.range(of: "watched|history|continue|resume|recently|in.?progress|watching|scrobbl",
+                   options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
     private func loadSources() async -> [ZapSource] {
         let wanted: Set<String>
         switch filters.type {
@@ -153,7 +162,7 @@ final class ZapPool {
         var found: [ZapSource] = []
         for base in addons {
             guard let man = await AddonClient.manifest(for: base), man.has("catalog") else { continue }
-            for c in man.catalogs ?? [] where wanted.contains(c.type) && c.isBrowsable {
+            for c in man.catalogs ?? [] where wanted.contains(c.type) && c.isBrowsable && !Self.looksLikeHistory("\(c.id) \(c.name ?? "")") {
                 let extras = c.extra ?? []
                 found.append(ZapSource(
                     base: base, type: c.type, catalogId: c.id,
@@ -184,6 +193,11 @@ final class ZapPool {
             }
         } else {
             for source in all { added += await discoverPage(source) }
+            if !listsAdded {
+                listsAdded = true
+                // The user's own lists (saved titles).
+                added += listItems().filter { filters.type == .both || $0.type == (filters.type == .movies ? "movie" : "series") }
+            }
         }
         added.shuffle()
         for item in added where matches(item) && !seen.contains("\(item.type):\(item.id)") { queue.append(item) }
@@ -358,7 +372,10 @@ struct ZapView: View {
     }
 
     private func makePool() {
-        pool = ZapPool(filters: filters, addons: settings.addons) { id in library.isWatched(id) }
+        pool = ZapPool(filters: filters, addons: settings.addons, isWatched: { id in
+            library.isWatched(id) || library.records.contains { $0.contentId == id } ||
+                library.continueWatching.contains { $0.meta.id == id }
+        }, listItems: { library.saved })
     }
 
     private func zap() async {

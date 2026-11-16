@@ -402,11 +402,16 @@ struct SearchView: View {
     @State private var query = ""
     @State private var results: [MetaItem] = []
     @State private var searching = false
+    @State private var showSurprise = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
+                    Button { showSurprise = true } label: {
+                        Label("Surprise Me", systemImage: "shuffle").padding(.horizontal, 20)
+                    }
+                    .padding(.horizontal, 60)
                     if searching { ProgressView().padding(60) }
                     Shelf(title: "Movies", items: results.filter { $0.type == "movie" })
                     Shelf(title: "Series", items: results.filter { $0.type == "series" })
@@ -419,6 +424,7 @@ struct SearchView: View {
             .meowioDestinations()
         }
         .searchable(text: $query)
+        .fullScreenCover(isPresented: $showSurprise) { ZapView() }
         .task(id: query) {
             let q = query.trimmingCharacters(in: .whitespaces)
             guard q.count >= 2 else { results = []; return }
@@ -609,7 +615,7 @@ struct DetailView: View {
                                     Task { await play(videoId: ep.id, title: ep.displayTitle) }
                                 }
                             } label: {
-                                Label("Shuffle", systemImage: "shuffle")
+                                Label("Random Episode", systemImage: "shuffle")
                             }
                             .disabled(resolving)
                         }
