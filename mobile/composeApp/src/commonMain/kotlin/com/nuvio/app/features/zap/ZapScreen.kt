@@ -176,6 +176,12 @@ fun ZapScreen(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
+                    text = "Catalog: ${title.sourceName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
                     text = zapMetaLine(title),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
