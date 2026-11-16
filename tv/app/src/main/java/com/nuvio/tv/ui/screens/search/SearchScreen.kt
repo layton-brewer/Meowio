@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -138,7 +139,8 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     onNavigateToDetail: (String, String, String) -> Unit,
     onNavigateToSeeAll: (catalogId: String, addonId: String, type: String) -> Unit = { _, _, _ -> },
-    onOpenDiscover: () -> Unit = {}
+    onOpenDiscover: () -> Unit = {},
+    onOpenSurpriseMe: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val watchedMovieIds by viewModel.watchedMovieIds.collectAsState()
@@ -668,6 +670,21 @@ fun SearchScreen(
                     clearHistoryFocusRequester = if (showRecentSearches) recentClearHistoryFocusRequester else null,
                     isScreenActive = isScreenActive
                 )
+            }
+
+            item(key = "surprise_me") {
+                Button(
+                    onClick = onOpenSurpriseMe,
+                    modifier = Modifier.padding(horizontal = 52.dp),
+                ) {
+                    androidx.tv.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Shuffle,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Surprise Me")
+                }
             }
 
             if (isDiscoverMode) {
