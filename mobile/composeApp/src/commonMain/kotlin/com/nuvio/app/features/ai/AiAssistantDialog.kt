@@ -98,7 +98,7 @@ private suspend fun askAssistant(key: String, prompt: String): AiResult = withCo
     }
 }
 
-/** Asks Claude for things to watch, using the viewer's own key. Opened from Settings. */
+/** Requests viewing recommendations, using the viewer's own key. Opened from Settings. */
 @Composable
 internal fun AiAssistantDialog(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
