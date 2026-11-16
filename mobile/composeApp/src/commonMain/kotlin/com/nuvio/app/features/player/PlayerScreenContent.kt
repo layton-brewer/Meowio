@@ -101,13 +101,10 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         }
     }
 
-    val topButtonTaps = PlayerTopButtonTaps.shared
-    CompositionLocalProvider(LocalPlayerTopButtonTaps provides topButtonTaps) {
     BoxWithConstraints(
         modifier = args.modifier
             .fillMaxSize()
-            .background(Color.Black)
-            .playerTopButtonTapRoot(topButtonTaps),
+            .background(Color.Black),
     ) {
         val density = LocalDensity.current
         val horizontalSafePadding = playerHorizontalSafePadding()
@@ -202,6 +199,5 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
             partyPanelInset = partyPanelInset,
             dockPartyPanel = dockPartyPanel,
         )
-    }
     }
 }

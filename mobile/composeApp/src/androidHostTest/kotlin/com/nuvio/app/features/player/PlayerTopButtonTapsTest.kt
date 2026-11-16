@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
@@ -32,99 +33,59 @@ class PlayerTopButtonTapsTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val taps = PlayerTopButtonTaps()
     private var backClicks = 0
     private var videoClicks = 0
 
-    private fun showToolbar(interceptAtRoot: Boolean) {
+    @Test
+    fun everyToolbarActionReceivesItsOwnTap() {
+        var lock = 0
+        var engine = 0
+        var party = 0
         compose.setContent {
             NuvioTheme {
-                CompositionLocalProvider(LocalPlayerTopButtonTaps provides taps) {
-                    Box(
-                        Modifier.size(640.dp, 360.dp)
-                            .then(if (interceptAtRoot) Modifier.playerTopButtonTapRoot(taps) else Modifier)
-                            .testTag("player"),
-                    ) {
-                        // A video layer beneath the toolbar must not win its hit test.
-                        Box(Modifier.fillMaxSize().pointerInput(Unit) {
-                            detectTapGestures { videoClicks += 1 }
-                        })
-                        PlayerToolbar(
-                            isLocked = false,
-                            onLockToggle = {},
-                            onBack = { backClicks += 1 },
-                        )
+                Box(Modifier.size(640.dp, 360.dp)) {
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { context -> android.view.View(context).apply { setOnTouchListener { _, _ -> videoClicks++; true } } },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    PlayerToolbar(false, { lock++ }, { backClicks++ },
+                        onPartyClick = { party++ }, onSwitchEngineClick = { engine++ })
+                }
+            }
+        }
+        compose.onNodeWithContentDescription("Close player").performTouchInput { click() }
+        compose.onNodeWithContentDescription("Lock player controls").performTouchInput { click() }
+        compose.onNodeWithContentDescription("Switch player engine").performTouchInput { click() }
+        compose.onNodeWithContentDescription("Watch party").performTouchInput { click() }
+        compose.runOnIdle {
+            assertEquals(1, backClicks)
+            assertEquals(1, lock)
+            assertEquals(1, engine)
+            assertEquals(1, party)
+            assertEquals(0, videoClicks)
+        }
+    }
+    @Test
+    fun partyPanelCloseReceivesTapAboveNativeVideo() {
+        val visible = androidx.compose.runtime.mutableStateOf(true)
+        compose.setContent {
+            NuvioTheme {
+                Box(Modifier.size(640.dp, 360.dp)) {
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { context -> android.view.View(context).apply { setOnTouchListener { _, _ -> videoClicks++; true } } },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    PlayerSidePanel(visible.value, { visible.value = false }, modal = false) {
+                        PlayerDialogButton("Close", { visible.value = false })
                     }
                 }
             }
         }
-    }
-
-    @Test
-    fun toolbarReceivesTheTapEvenWithoutRootInterception() {
-        showToolbar(interceptAtRoot = false)
-        compose.onNodeWithContentDescription("Close player").performTouchInput { click() }
+        compose.onNodeWithText("Close").performTouchInput { click() }
         compose.runOnIdle {
-            assertEquals(1, backClicks)
+            assertEquals(false, visible.value)
             assertEquals(0, videoClicks)
         }
     }
 
-    @Test
-    fun rootInterceptionAndClickableInvokeTheButtonOnlyOnce() {
-        showToolbar(interceptAtRoot = true)
-        compose.onNodeWithContentDescription("Close player").performTouchInput { click() }
-        compose.runOnIdle {
-            assertEquals(1, backClicks)
-            assertEquals(0, videoClicks)
-        }
-    }
-
-    @Test
-    fun draggingAwayAndBackCancelsOnlyThatGesture() {
-        showToolbar(interceptAtRoot = true)
-        val back = compose.onNodeWithContentDescription("Close player")
-        back.performTouchInput {
-            down(center)
-            moveBy(Offset(0f, 150f))
-            moveBy(Offset(0f, -150f))
-            up()
-        }
-        compose.runOnIdle {
-            assertEquals(0, backClicks)
-            assertEquals(0, videoClicks)
-        }
-        back.performTouchInput { click() }
-        compose.runOnIdle { assertEquals(1, backClicks) }
-    }
-
-    @Test
-    fun aButtonReplacedWhilePressedDoesNotReceiveTheOldTap() {
-        showToolbar(interceptAtRoot = true)
-        var replacementClicks = 0
-        val back = compose.onNodeWithContentDescription("Close player")
-        back.performTouchInput { down(center) }
-        compose.runOnIdle {
-            taps.register("back", Rect(0f, 0f, 10_000f, 10_000f)) { replacementClicks += 1 }
-        }
-        back.performTouchInput { up() }
-        compose.runOnIdle {
-            assertEquals(0, backClicks)
-            assertEquals(0, replacementClicks)
-            assertEquals(0, videoClicks)
-        }
-    }
-
-    @Test
-    fun disposingAnOldButtonCannotRemoveItsReplacement() {
-        val original: () -> Unit = { error("The original button was removed") }
-        val replacement: () -> Unit = { backClicks += 1 }
-        val bounds = Rect(0f, 0f, 48f, 48f)
-        taps.register("back", bounds, original)
-        taps.register("back", bounds, replacement)
-        taps.unregister("back", original)
-        assertSame(replacement, taps.hit(Offset(24f, 24f), 0f))
-        taps.unregister("back", replacement)
-        assertNull(taps.hit(Offset(24f, 24f), 0f))
-    }
 }

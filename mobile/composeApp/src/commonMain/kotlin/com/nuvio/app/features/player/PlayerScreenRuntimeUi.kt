@@ -142,14 +142,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
     val panelModifier = if (fold != null) Modifier.fillMaxSize().padding(top = fold.bottom) else Modifier.fillMaxSize()
     val playbackGesturesEnabled = initialLoadCompleted && errorMessage == null
 
-    BindAutoSyncRuntimeEffects() // AutoSync hook
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(end = partyPanelInset)
-            .clipToBounds()
-            .onSizeChanged { layoutSize = it }
+    val videoGestures = Modifier
             .playerSurfaceTapGestures(
                 layoutSize = layoutSize,
                 playbackGesturesEnabled = playbackGesturesEnabled,
@@ -178,7 +171,16 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                 clearLiveGestureFeedbackState = gestureCallbacks.clearLiveGestureFeedback,
                 revealLockedOverlayState = gestureCallbacks.revealLockedOverlay,
                 commitHorizontalSeekState = gestureCallbacks.commitHorizontalSeek,
-            ),
+            )
+
+    BindAutoSyncRuntimeEffects() // AutoSync hook
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(end = partyPanelInset)
+            .clipToBounds()
+            .onSizeChanged { layoutSize = it },
     ) {
         val playerSurfaceSourceUrl = if (isP2pPlaybackActive) p2pResolvedSourceUrl else activeSourceUrl
         val playbackKey = activePlaybackKey
@@ -214,7 +216,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                     sourceResponseHeaders = activeSourceResponseHeaders,
                     externalSubtitles = externalSubtitles,
                     streamType = activeStreamType,
-                    modifier = videoModifier,
+                    modifier = videoModifier.then(videoGestures),
                     playWhenReady = shouldPlay,
                     initialPositionMs = activeInitialPositionMs.takeIf { it > 0L },
                     initialPositionRequestKey = initialPositionRequestKey,

@@ -4,11 +4,6 @@ import android.content.Intent
 import android.content.res.Configuration
 import com.nuvio.app.features.autosync.AutoSyncPreferencesAndroid
 import android.os.Bundle
-import android.view.MotionEvent
-import android.view.ViewConfiguration
-import androidx.compose.ui.geometry.Offset
-import com.nuvio.app.features.player.PlayerTopButtonTaps
-import kotlin.math.hypot
 import androidx.activity.compose.setContent
 
 import androidx.activity.enableEdgeToEdge
@@ -165,52 +160,6 @@ open class MainActivity : AppCompatActivity() {
         setContent {
             App()
         }
-    }
-
-    // Player top-right buttons (switch engine, watch party, lock, back) are matched here,
-    // before any view sees the touch: over the picture the native video view could take the
-    // tap before Compose did. A touch that starts on one of them belongs to it entirely.
-    private var topButtonTap: (() -> Unit)? = null
-    private var topButtonDownX = 0f
-    private var topButtonDownY = 0f
-    private var topButtonPointerId = 0
-    private var topButtonTapCancelled = false
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        val taps = PlayerTopButtonTaps.shared
-        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
-            topButtonTap = null
-            if (taps.hasTargets) {
-                val slop = 10f * resources.displayMetrics.density
-                val target = taps.hit(Offset(ev.x, ev.y), slop)
-                if (target != null) {
-                    topButtonTap = target
-                    topButtonDownX = ev.x
-                    topButtonDownY = ev.y
-                    topButtonPointerId = ev.getPointerId(0)
-                    topButtonTapCancelled = false
-                    return true
-                }
-            }
-        }
-        val pending = topButtonTap ?: return super.dispatchTouchEvent(ev)
-        val pointerIndex = ev.findPointerIndex(topButtonPointerId)
-        val maxMove = ViewConfiguration.get(this).scaledTouchSlop * 3f
-        topButtonTapCancelled = topButtonTapCancelled || pointerIndex < 0 ||
-            ev.pointerCount > 1 ||
-            (pointerIndex >= 0 && hypot(
-                ev.getX(pointerIndex) - topButtonDownX,
-                ev.getY(pointerIndex) - topButtonDownY,
-            ) > maxMove)
-        when (ev.actionMasked) {
-            MotionEvent.ACTION_UP -> {
-                topButtonTap = null
-                val slop = 10f * resources.displayMetrics.density
-                if (!topButtonTapCancelled && taps.hit(Offset(ev.x, ev.y), slop) === pending) pending()
-            }
-            MotionEvent.ACTION_CANCEL -> topButtonTap = null
-        }
-        return true
     }
 
     override fun onNewIntent(intent: Intent) {

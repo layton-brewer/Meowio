@@ -74,7 +74,6 @@ internal fun PlayerToolbar(
                 description = stringResource(Res.string.cd_switch_player_engine),
                 icon = Icons.Rounded.SwapHoriz,
                 onClick = onSwitchEngineClick,
-                tapKey = "engine",
             )
         }
         if (onPartyClick != null) {
@@ -83,7 +82,6 @@ internal fun PlayerToolbar(
                 icon = Icons.Rounded.Groups,
                 onClick = onPartyClick,
                 tint = if (partyActive) MaterialTheme.colorScheme.primary else Color.White,
-                tapKey = "party",
             )
         }
         PlayerAction(
@@ -92,13 +90,11 @@ internal fun PlayerToolbar(
             ),
             icon = if (isLocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
             onClick = onLockToggle,
-            tapKey = "lock",
         )
         PlayerAction(
             description = stringResource(Res.string.compose_player_close),
             icon = Icons.AutoMirrored.Rounded.ArrowBack,
             onClick = onBack,
-            tapKey = "back",
             size = 56.dp,
         )
     }
@@ -216,20 +212,9 @@ private fun PlayerAction(
     painter: Painter? = null,
     iconSize: Dp = 24.dp,
     tint: Color = Color.White,
-    tapKey: String? = null,
     size: Dp = 48.dp,
 ) {
-    val rootTaps = LocalPlayerTopButtonTaps.current
-    val tapModifier = if (tapKey != null && rootTaps != null) {
-        // Keep a real pointer target above the native video surface. The activity/root
-        // interception consumes captured taps before clickable sees them, so the action
-        // still runs once; clickable also handles taps when interception is unavailable.
-        Modifier
-            .clickable(role = Role.Button, onClick = onClick)
-            .playerTopButtonTarget(tapKey, onClick)
-    } else {
-        Modifier.nuvioTap(onClick)
-    }
+    val tapModifier = Modifier.clickable(role = Role.Button, onClick = onClick)
     Box(
         modifier = Modifier.size(size).then(tapModifier),
         contentAlignment = Alignment.Center,
