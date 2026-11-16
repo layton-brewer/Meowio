@@ -46,7 +46,8 @@ class ZapPool(
     private val filters: ZapFilters,
     private val addons: suspend () -> List<Addon>,
     private val catalogs: CatalogRepository,
-    private val isWatched: suspend (String) -> Boolean
+    private val isWatched: suspend (String) -> Boolean,
+    private val listItems: suspend () -> List<MetaPreview> = { emptyList() }
 ) {
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
@@ -56,6 +57,7 @@ class ZapPool(
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
+    private var listsAdded = false
 
     suspend fun next(): ZapResult {
         val all = sources ?: loadSources().also { sources = it }
@@ -74,16 +76,19 @@ class ZapPool(
         return ZapResult.Empty(if (failures > 0) ZapEmpty.OFFLINE else ZapEmpty.NO_MATCHES)
     }
 
+    private fun wantedTypes(): Set<String> = when (filters.type) {
+        ZapMediaType.Both -> setOf("movie", "series")
+        ZapMediaType.Movies -> setOf("movie")
+        ZapMediaType.Series -> setOf("series")
+    }
+
     private suspend fun loadSources(): List<ZapSource> {
-        val wanted = when (filters.type) {
-            ZapMediaType.Both -> setOf("movie", "series")
-            ZapMediaType.Movies -> setOf("movie")
-            ZapMediaType.Series -> setOf("series")
-        }
+        val wanted = wantedTypes()
         return addons().filter { it.isActive }.flatMap { addon ->
             addon.catalogs.mapNotNull { catalog ->
                 val type = catalog.apiType.lowercase()
                 if (type !in wanted) return@mapNotNull null
+                if (looksLikeHistory("${catalog.id} ${catalog.name}")) return@mapNotNull null
                 if (catalog.isSearchOnlyCatalog()) return@mapNotNull null
                 val blocked = catalog.extra.any { e ->
                     e.isRequired && when (e.name.lowercase()) {
@@ -118,6 +123,12 @@ class ZapPool(
             }
         } else {
             for (source in all) added += discoverPage(source)
+            if (!listsAdded) {
+                listsAdded = true
+                // The user's own lists: saved items plus Trakt, Simkl and MDBList lists.
+                added += runCatching { listItems() }.getOrDefault(emptyList())
+                    .filter { it.apiType.lowercase() in wantedTypes() }
+            }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.rawType}:${it.id}" !in seen }.forEach(queue::addLast)
@@ -194,6 +205,9 @@ private fun sameGenre(a: String, b: String): Boolean {
     val y = normalizeGenre(b)
     return x == y || (x.length > 3 && y.length > 3 && (x.contains(y) || y.contains(x)))
 }
+
+private fun looksLikeHistory(text: String): Boolean =
+    Regex("watched|history|continue|resume|recently|in.?progress|watching|scrobbl", RegexOption.IGNORE_CASE).containsMatchIn(text)
 
 private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
     id = id,
