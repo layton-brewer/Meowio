@@ -24,6 +24,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -64,26 +67,36 @@ class ZapViewModel @Inject constructor(
     init {
         zap()
         viewModelScope.launch {
-            val addons = withTimeoutOrNull(8_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } }.orEmpty()
-            val options = addons.filter { it.isActive }.flatMap { addon ->
-                addon.catalogs.filter { !it.isSearchOnlyCatalog() }.mapNotNull { catalog ->
-                    val type = catalog.apiType.lowercase()
-                    if (!(type == "movie" || type == "series" || type == "tv" || type == "anime" || type.startsWith("anime."))) return@mapNotNull null
-                    ZapSourceOption(
-                        key = homeCatalogKey(addon.id, type, catalog.id),
-                        label = "${addon.displayName} · ${catalog.name} (${if (type.endsWith("movie")) "movies" else "series"})"
-                    )
-                }
-            }.distinctBy { it.key }
-            _state.value = _state.value.copy(sourceOptions = options)
+            // Follow the add-on list as manifests finish loading, so the picker always shows every catalog.
+            addonRepository.getInstalledAddons().collect { addons ->
+                val options = addons.filter { it.isActive }.flatMap { addon ->
+                    addon.catalogs.filter { !it.isSearchOnlyCatalog() }.mapNotNull { catalog ->
+                        val type = catalog.apiType.lowercase()
+                        if (!(type == "movie" || type == "series" || type == "tv" || type == "anime" || type.startsWith("anime."))) return@mapNotNull null
+                        ZapSourceOption(
+                            key = homeCatalogKey(addon.id, type, catalog.id),
+                            label = "${addon.displayName} · ${catalog.name} (${if (type.endsWith("movie")) "movies" else "series"})"
+                        )
+                    }
+                }.distinctBy { it.key }
+                _state.value = _state.value.copy(sourceOptions = options)
+            }
         }
     }
 
+    /**
+     * The add-on list once it has stopped changing. The list first emits whatever manifests are cached
+     * and then fills in the rest as they load, so the first emission can be missing add-ons or catalogs.
+     */
+    @OptIn(FlowPreview::class)
+    private suspend fun settledAddons() =
+        withTimeoutOrNull(12_000) {
+            addonRepository.getInstalledAddons().filter { it.isNotEmpty() }.debounce(2_000).first()
+        } ?: withTimeoutOrNull(3_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } } ?: emptyList()
+
     private fun newPool(filters: ZapFilters) = ZapPool(
         filters = filters,
-        addons = {
-            withTimeoutOrNull(8_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } } ?: emptyList()
-        },
+        addons = { settledAddons() },
         catalogs = catalogRepository,
         isWatched = { id ->
             watchProgressRepository.isWatched(id).first() ||
