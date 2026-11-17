@@ -880,6 +880,7 @@ internal suspend fun HomeViewModel.updateCatalogRowsPipeline() {
     // catalogs loaded after the initial startup race set an error).
     val hasContent = computedHomeRows.isNotEmpty() || baseHeroItems.isNotEmpty() || displayRows.isNotEmpty()
 
+    com.nuvio.tv.core.zap.ZapHomeRows.rows = displayRows
     _uiState.update { state ->
         state.copy(
             catalogRows = if (state.catalogRows == displayRows) state.catalogRows else displayRows,

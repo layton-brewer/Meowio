@@ -134,7 +134,8 @@ final class ZapPool {
 
     /// The next title, or why there is none.
     func next() async -> (ZapTitle?, ZapEmpty?) {
-        if sources == nil { sources = await loadSources() }
+        // Like phone: don't remember an empty list, so add-ons that finish loading later still count.
+        if sources?.isEmpty ?? true { sources = await loadSources() }
         guard let all = sources, !all.isEmpty else { return (nil, .noSources) }
         var refills = 0
         while refills <= 30 {
@@ -217,7 +218,9 @@ final class ZapPool {
                 if (catalogQueues[source.key] ?? []).isEmpty { catalogQueues[source.key] = await discoverPage(source).shuffled() }
                 while !(catalogQueues[source.key] ?? []).isEmpty {
                     let item = catalogQueues[source.key]!.removeFirst()
-                    if !matches(item) || seen.contains("\(item.type):\(item.id)") { continue }
+                    // Like phone: a saved or watched title doesn't use up this catalog's turn.
+                    if !matches(item) || seen.contains("\(item.type):\(item.id)") || isSaved(item.id)
+                        || (filters.hideWatched && isWatched(item.id)) { continue }
                     added.append(item)
                     break
                 }
