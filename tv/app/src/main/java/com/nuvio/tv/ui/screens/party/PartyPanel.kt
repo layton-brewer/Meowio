@@ -27,6 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +55,11 @@ import com.nuvio.tv.core.party.PartyUiState
 import com.nuvio.tv.ui.screens.detail.formatPlaybackTime
 import com.nuvio.tv.ui.screens.detail.requestFocusAfterFrames
 import com.nuvio.tv.ui.screens.player.DialogButton
+import com.nuvio.tv.ui.theme.LocalSettingsUiStyle
+import com.nuvio.tv.ui.theme.NuvioGlass
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.nuvio.tv.domain.model.SettingsUiStyle
+import com.nuvio.tv.ui.theme.nuvioGlassPanel
 
 @Composable
 fun PartyPanel(
@@ -81,9 +86,13 @@ fun PartyPanel(
         modifier = modifier
             .fillMaxHeight()
             .width(520.dp)
-            .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
-            .background(NuvioTheme.colors.BackgroundElevated),
+            .nuvioGlassPanel(
+                shape = RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg),
+                alpha = NuvioGlass.OverVideoAlpha,
+            ),
     ) {
+        // Classic rows give the rounded cards and focus ring the Episodes panel uses.
+        CompositionLocalProvider(LocalSettingsUiStyle provides SettingsUiStyle.CLASSIC) {
         Column(modifier = Modifier.padding(NuvioTheme.spacing.xl)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -135,6 +144,7 @@ fun PartyPanel(
                 }
             }
         }
+        }
     }
 }
 
@@ -161,7 +171,7 @@ private fun StartContent(
         SeatsHero(
             profile = profile,
             size = 56.dp,
-            ringColor = NuvioTheme.colors.BackgroundElevated,
+            ringColor = NuvioGlass.Base,
             modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm),
         )
         Text(
@@ -307,7 +317,7 @@ private fun PartyDetailsList(
         }
         MembersSection(
             party = party,
-            ringColor = NuvioTheme.colors.BackgroundElevated,
+            ringColor = NuvioGlass.Base,
             onRemove = onRemove,
             selfBehindMs = behindMs,
         )
