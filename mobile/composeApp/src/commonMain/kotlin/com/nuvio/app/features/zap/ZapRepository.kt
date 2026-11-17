@@ -2,6 +2,9 @@ package com.nuvio.app.features.zap
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.search.buildDiscoverSources
+import com.nuvio.app.features.search.DiscoverCatalogOption
+import com.nuvio.app.features.addons.ManagedAddon
+import com.nuvio.app.features.home.buildHomeCatalogDefinitions
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
@@ -46,6 +49,41 @@ internal data class ZapSource(
 private data class ZapCandidate(val item: MetaPreview, val sourceName: String)
 
 private const val MAX_PAGES = 10
+
+internal fun isZapType(type: String): Boolean {
+    val t = type.lowercase()
+    return t == "movie" || t == "series" || t == "tv" || t == "anime" || t.startsWith("anime.")
+}
+
+internal fun isZapMovieType(type: String): Boolean = type.lowercase().endsWith("movie")
+
+/**
+ * Every title catalog of every enabled add-on, in the order the add-ons are listed (and the order
+ * each add-on lists its catalogs). Includes everything Home can show plus the discoverable ones.
+ */
+internal fun zapCatalogOptions(addons: List<ManagedAddon>): List<DiscoverCatalogOption> {
+    val active = addons.filter { it.isActive }
+    val discover = buildDiscoverSources(active)
+    val have = discover.map { it.key }.toSet()
+    val urls = active.map { it.manifestUrl }.toSet()
+    val homeOnly = buildHomeCatalogDefinitions(active)
+        .filter { it.key !in have && it.manifestUrl in urls }
+        .map {
+            DiscoverCatalogOption(
+                key = it.key,
+                addonName = it.addonName,
+                manifestUrl = it.manifestUrl,
+                type = it.type,
+                catalogId = it.catalogId,
+                catalogName = it.catalogName,
+                supportsPagination = it.supportsPagination,
+            )
+        }
+    val order = active.map { it.manifestUrl }
+    return (discover + homeOnly).distinctBy { it.key }
+        .sortedBy { order.indexOf(it.manifestUrl) }
+        .filter { isZapType(it.type) }
+}
 
 /**
  * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
@@ -117,43 +155,28 @@ class ZapPool(private val filters: ZapFilters) {
                 state.addons.any { it.enabled } && state.addons.none { it.enabled && it.isRefreshing }
             }
         }
-        val options = buildDiscoverSources(AddonRepository.uiState.value.addons.filter { it.isActive })
+        val options = zapCatalogOptions(AddonRepository.uiState.value.addons)
         fun optionFor(manifestUrl: String, type: String, catalogId: String) =
             options.firstOrNull { it.manifestUrl == manifestUrl && it.type == type && it.catalogId == catalogId }
         val found: List<ZapSource> = if (filters.sourceKeys.isNotEmpty()) {
             // The user chose catalogs in the Surprise Me filters.
             options.filter { it.key in filters.sourceKeys }.map { it.toZapSource() }
         } else {
-            // Automatic: exactly the rows on the home screen, the same catalogs Home loads.
-            val fromHome = HomeRepository.uiState.value.sections.mapNotNull { section ->
-                val target = section.target as? CatalogTarget.Addon ?: return@mapNotNull null
-                val option = optionFor(target.manifestUrl, target.contentType, target.catalogId)
-                ZapSource(
-                    sourceName = "${section.addonName} · ${section.title}",
-                    manifestUrl = target.manifestUrl,
-                    type = target.contentType,
-                    catalogId = target.catalogId,
-                    genreOptions = option?.genreOptions.orEmpty(),
-                    supportsSkip = target.supportsPagination,
-                    supportsSearch = false,
-                    requiredExtras = if (option?.genreRequired == true) mapOf("genre" to option.genreOptions.random()) else emptyMap(),
-                )
-            }
-            if (fromHome.isNotEmpty()) {
-                fromHome
-            } else {
-                // Home has not loaded yet: use the catalogs Home settings keep switched on, else everything.
-                val homeKeys = HomeCatalogSettingsRepository.uiState.value.items
-                    .filter { it.enabled && !it.isCollection }.map { it.key }.toSet()
-                options.filter { it.key in homeKeys }.ifEmpty { options }.map { it.toZapSource() }
-            }
+            // Automatic: every catalog of every add-on, in the order the add-ons are listed.
+            options.map { it.toZapSource() }
         }
         val wantedTypes = when (filters.type) {
-            ZapMediaType.Both -> setOf("movie", "series", "tv")
-            ZapMediaType.Movies -> setOf("movie")
-            ZapMediaType.Series -> setOf("series", "tv")
+            ZapMediaType.Both -> null
+            ZapMediaType.Movies -> "movie"
+            ZapMediaType.Series -> "series"
         }
-        return found.filter { it.type in wantedTypes }.distinctBy { it.key }
+        return found.filter {
+            when (wantedTypes) {
+                null -> true
+                "movie" -> isZapMovieType(it.type)
+                else -> !isZapMovieType(it.type)
+            }
+        }.distinctBy { it.key }
     }
 
     private fun com.nuvio.app.features.search.DiscoverCatalogOption.toZapSource(): ZapSource = ZapSource(
@@ -175,14 +198,14 @@ class ZapPool(private val filters: ZapFilters) {
         if (filters.sourceKeys.isNotEmpty()) return emptyList()
         return HomeRepository.uiState.value.sections.flatMap { section ->
             section.items.map { ZapCandidate(it, "${section.addonName} · ${section.title}") }
-        }.filter { it.item.type == "movie" || it.item.type == "series" || it.item.type == "tv" }
+        }.filter { isZapType(it.item.type) }
             .filter { matchesType(it.item) && matches(it.item) }
     }
 
     private fun matchesType(item: MetaPreview): Boolean = when (filters.type) {
         ZapMediaType.Both -> true
-        ZapMediaType.Movies -> item.type == "movie"
-        ZapMediaType.Series -> item.type != "movie"
+        ZapMediaType.Movies -> isZapMovieType(item.type)
+        ZapMediaType.Series -> !isZapMovieType(item.type)
     }
 
     private suspend fun refill(all: List<ZapSource>) {
@@ -196,7 +219,7 @@ class ZapPool(private val filters: ZapFilters) {
             }
         } else {
             // Visit each installed catalog before revisiting any of them.
-            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted || catalogQueues[it.key]?.isNotEmpty() == true }.shuffled())
+            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted || catalogQueues[it.key]?.isNotEmpty() == true })
             repeat(minOf(5, sourceTurns.size)) {
                 val source = sourceTurns.removeFirst()
                 val candidates = catalogQueues.getOrPut(source.key) { ArrayDeque() }
@@ -288,7 +311,7 @@ private fun sameGenre(a: String, b: String): Boolean {
 private fun MetaPreview.toZapTitle(sourceName: String): ZapTitle = ZapTitle(
     sourceName = sourceName,
     id = id,
-    isSeries = type == "series" || type == "tv",
+    isSeries = !isZapMovieType(type),
     name = name,
     year = itemYear(this)?.toString(),
     overview = description.orEmpty(),
