@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
-// Watch party: the same rooms the Android and phone apps use. Needs the Meowio account (the account server runs the
+// Watch party: the same rooms the Android and phone apps use. Needs the Nuvio account (the account server runs the
 // rooms). Playback state travels over the account server's live channel, a room's members are listed by the server,
 // and every member's player follows the same position, pause and speed.
 
@@ -158,7 +158,7 @@ enum PartyError: String {
         case .removed: return "You were removed from the watch party."
         case .ended: return "That watch party has ended."
         case .rateLimited: return "Too many tries. Wait a moment and try again."
-        case .signInRequired: return "Sign in to your Meowio account first (Settings, Meowio account)."
+        case .signInRequired: return "Sign in to your Nuvio account first (Settings, Nuvio account)."
         case .unavailable: return "Watch party is not available on this account server."
         case .network: return "Could not reach the watch party. Try again."
         }
@@ -1337,9 +1337,9 @@ struct PartySettingsView: View {
     var body: some View {
         List {
             if !AccountStore.available {
-                Text("Watch party needs the Meowio account server, which this build does not have.").foregroundStyle(.secondary)
+                Text("Watch party needs the Nuvio account server, which this build does not have.").foregroundStyle(.secondary)
             } else if !account.signedIn {
-                Text("Sign in under Settings, Meowio account, to use watch party.").foregroundStyle(.secondary)
+                Text("Sign in under Settings, Nuvio account, to use watch party.").foregroundStyle(.secondary)
             } else if !party.available {
                 Text("Watch party is not available on this account server.").foregroundStyle(.secondary)
             } else if let p = party.party {

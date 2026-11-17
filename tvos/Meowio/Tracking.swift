@@ -300,63 +300,168 @@ struct SimklSettingsView: View {
 
 // MARK: - MDBList
 
-/// MDBList for one profile: the user's own API key (mdblist.com/preferences), watchlist, watched history
-/// and scrobbling.
+/// MDBList for one profile: code sign-in with the build's MDBList app (like the other Meowio apps), watchlist,
+/// watched history and scrobbling. Older installs that saved a personal API key keep working with it.
 @MainActor
 final class MDBListStore: ObservableObject {
+    struct DeviceCode: Equatable {
+        var deviceCode: String
+        var userCode: String
+        var verificationURL: String
+        var expires: Date
+        var interval: Int
+    }
+
     @Published private(set) var username: String?
+    @Published private(set) var pending: DeviceCode?
     @Published private(set) var watchlist: [MetaItem] = []
     @Published private(set) var syncing = false
     @Published var message: String?
 
     private let store = ProfileScope.defaults
     private var apiKey: String?
+    private var accessToken: String?
+    private var refreshToken: String?
+    private var expiresAt: Date?
+    private var pollTask: Task<Void, Never>?
     private var lastScrobble: (key: String, action: String, at: Date)?
 
     static let api = "https://api.mdblist.com"
+    static var clientId: String { BuildSecrets.mdblistClientId }
+    static var configured: Bool { !clientId.isEmpty }
 
     init() {
         apiKey = store.string(forKey: "mdblistKey")
+        accessToken = store.string(forKey: "mdblistAccess")
+        refreshToken = store.string(forKey: "mdblistRefresh")
+        if let t = store.object(forKey: "mdblistExpires") as? Double { expiresAt = Date(timeIntervalSince1970: t) }
         username = store.string(forKey: "mdblistUser")
     }
 
-    var connected: Bool { apiKey != nil }
+    var connected: Bool { accessToken != nil || apiKey != nil }
 
-    func connect(key: String) async {
-        let k = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !k.isEmpty else { return }
+    // MARK: Sign-in
+
+    func startSignIn() async {
+        guard Self.configured else { message = "MDBList isn't set up yet."; return }
         message = nil
-        let r = await get("/user", key: k)
-        guard r.status == 200, let obj = r.json as? [String: Any] else {
-            message = r.status == 0 ? "Could not reach MDBList." : "MDBList did not accept that API key."
+        let r = await oauth("/oauth/device-authorization/", ["scope": "write"])
+        guard r.status == 200, let obj = r.json as? [String: Any],
+              let device = obj["device_code"] as? String, let user = obj["user_code"] as? String else {
+            message = "Could not reach MDBList."
             return
         }
-        apiKey = k
-        username = obj["username"] as? String ?? obj["name"] as? String
-        store.set(k, forKey: "mdblistKey")
-        store.set(username, forKey: "mdblistUser")
+        let code = DeviceCode(deviceCode: device, userCode: user,
+                              verificationURL: obj["verification_uri"] as? String ?? "https://mdblist.com/oauth/device/",
+                              expires: Date().addingTimeInterval(Double(obj["expires_in"] as? Int ?? 600)),
+                              interval: max(obj["interval"] as? Int ?? 5, 2))
+        pending = code
+        pollTask?.cancel()
+        pollTask = Task { await poll(code) }
+    }
+
+    func cancelSignIn() {
+        pollTask?.cancel()
+        pending = nil
+    }
+
+    private func poll(_ code: DeviceCode) async {
+        var wait = code.interval
+        while !Task.isCancelled, Date() < code.expires {
+            try? await Task.sleep(nanoseconds: UInt64(wait) * 1_000_000_000)
+            if Task.isCancelled { return }
+            let r = await oauth("/oauth/token/", ["grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                                                  "device_code": code.deviceCode, "scope": "write"])
+            if r.status == 200, let obj = r.json as? [String: Any], obj["access_token"] is String {
+                saveTokens(obj)
+                pending = nil
+                await loadUser()
+                await sync()
+                return
+            }
+            let error = (r.json as? [String: Any])?["error"] as? String
+            if error == "slow_down" { wait += 5 }
+            if error == "expired_token" { break }
+            if error == "access_denied" {
+                pending = nil
+                message = "Sign-in was declined on MDBList."
+                return
+            }
+        }
+        if !Task.isCancelled { message = "The code expired. Try again." }
+        pending = nil
     }
 
     func signOut() {
+        if let token = refreshToken {
+            Task { _ = await oauth("/oauth/revoke_token/", ["token": token, "token_type_hint": "refresh_token"]) }
+        }
         apiKey = nil
+        accessToken = nil
+        refreshToken = nil
+        expiresAt = nil
         username = nil
         watchlist = []
-        for k in ["mdblistKey", "mdblistUser"] { store.removeObject(forKey: k) }
+        for k in ["mdblistKey", "mdblistAccess", "mdblistRefresh", "mdblistExpires", "mdblistUser"] { store.removeObject(forKey: k) }
     }
 
-    private func url(_ path: String, key: String) -> URL? {
-        let sep = path.contains("?") ? "&" : "?"
-        return URL(string: "\(Self.api)\(path)\(sep)apikey=\(key)")
+    private func saveTokens(_ obj: [String: Any]) {
+        accessToken = obj["access_token"] as? String
+        refreshToken = obj["refresh_token"] as? String ?? refreshToken
+        expiresAt = Date().addingTimeInterval(obj["expires_in"] as? Double ?? 3600)
+        store.set(accessToken, forKey: "mdblistAccess")
+        store.set(refreshToken, forKey: "mdblistRefresh")
+        store.set(expiresAt?.timeIntervalSince1970, forKey: "mdblistExpires")
     }
 
-    private func get(_ path: String, key: String? = nil) async -> TrackingHTTP.Reply {
-        guard let k = key ?? apiKey, let u = url(path, key: k) else { return .init(status: 0, json: nil) }
-        return await TrackingHTTP.send(u)
+    private func refreshIfNeeded() async {
+        guard let refreshToken, let expiresAt, expiresAt.timeIntervalSinceNow < 60 else { return }
+        let r = await oauth("/oauth/token/", ["grant_type": "refresh_token", "refresh_token": refreshToken])
+        if r.status == 200, let obj = r.json as? [String: Any], obj["access_token"] is String { saveTokens(obj) }
+        else if r.status == 400 || r.status == 401 { signOut(); message = "MDBList signed out. Sign in again." }
+    }
+
+    private func loadUser() async {
+        if let obj = await get("/user").json as? [String: Any] {
+            username = obj["username"] as? String ?? obj["name"] as? String
+            store.set(username, forKey: "mdblistUser")
+        }
+    }
+
+    /// Form-encoded OAuth request with the build's client ID.
+    private func oauth(_ path: String, _ fields: [String: String]) async -> TrackingHTTP.Reply {
+        guard let url = URL(string: Self.api + path) else { return .init(status: 0, json: nil) }
+        var r = URLRequest(url: url)
+        r.httpMethod = "POST"
+        r.timeoutInterval = 20
+        r.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        r.setValue("Meowio", forHTTPHeaderField: "User-Agent")
+        var form = URLComponents()
+        form.queryItems = fields.merging(["client_id": Self.clientId]) { a, _ in a }.map { URLQueryItem(name: $0.key, value: $0.value) }
+        r.httpBody = form.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B").data(using: .utf8)
+        guard let result = try? await URLSession.shared.data(for: r) else { return .init(status: 0, json: nil) }
+        return .init(status: (result.1 as? HTTPURLResponse)?.statusCode ?? 0, json: try? JSONSerialization.jsonObject(with: result.0))
+    }
+
+    // MARK: API
+
+    private func get(_ path: String) async -> TrackingHTTP.Reply {
+        await send(path, method: "GET", body: nil)
     }
 
     private func post(_ path: String, _ body: Any) async -> TrackingHTTP.Reply {
-        guard let k = apiKey, let u = url(path, key: k) else { return .init(status: 0, json: nil) }
-        return await TrackingHTTP.send(u, method: "POST", body: body)
+        await send(path, method: "POST", body: body)
+    }
+
+    /// Signed-in users send their token; installs that saved a personal API key send that instead.
+    private func send(_ path: String, method: String, body: Any?) async -> TrackingHTTP.Reply {
+        await refreshIfNeeded()
+        if let token = accessToken, let u = URL(string: Self.api + path) {
+            return await TrackingHTTP.send(u, method: method, headers: ["Authorization": "Bearer \(token)"], body: body)
+        }
+        let sep = path.contains("?") ? "&" : "?"
+        guard let k = apiKey, let u = URL(string: "\(Self.api)\(path)\(sep)apikey=\(k)") else { return .init(status: 0, json: nil) }
+        return await TrackingHTTP.send(u, method: method, body: body)
     }
 
     func scrobble(_ action: String, meta: MetaItem, videoId: String?, progress: Double) {
@@ -436,7 +541,6 @@ final class MDBListStore: ObservableObject {
 struct MDBListSettingsView: View {
     @EnvironmentObject var mdb: MDBListStore
     @EnvironmentObject var library: LibraryStore
-    @State private var key = ""
     var body: some View {
         List {
             if mdb.connected {
@@ -448,13 +552,24 @@ struct MDBListSettingsView: View {
                 } footer: {
                     Text("What you watch is scrobbled to MDBList, your watched history and watchlist come back here, and My List follows your MDBList watchlist.")
                 }
+            } else if let code = mdb.pending {
+                Section {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("On your phone or computer, go to").foregroundStyle(.secondary)
+                        Text(code.verificationURL).font(.title2.bold())
+                        Text("and enter this code:").foregroundStyle(.secondary)
+                        Text(code.userCode).font(.system(size: 72, weight: .heavy, design: .monospaced)).kerning(8)
+                        HStack(spacing: 14) { ProgressView(); Text("Waiting for MDBList…") }
+                    }
+                    .padding(.vertical, 20)
+                    Button("Cancel") { mdb.cancelSignIn() }
+                }
             } else {
                 Section {
-                    SecureField("MDBList API key", text: $key)
-                    Button("Connect") { Task { await mdb.connect(key: key); key = ""; await mdb.sync(into: library) } }
-                        .disabled(key.trimmingCharacters(in: .whitespaces).isEmpty)
+                    Button("Sign in to MDBList") { Task { await mdb.startSignIn() } }
+                        .disabled(!MDBListStore.configured)
                 } footer: {
-                    Text("Copy your API key from mdblist.com/preferences. It stays on this device.")
+                    Text(MDBListStore.configured ? "You'll get a short code to enter on mdblist.com." : "Not set up yet.")
                 }
             }
             if let m = mdb.message { Text(m).foregroundStyle(.secondary) }

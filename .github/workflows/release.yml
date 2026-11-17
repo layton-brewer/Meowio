@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.41 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.42 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.41 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.42 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,11 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.41"
+          tag="v0.2.42"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.41
+          ## What's new in 0.2.42
 
-          - **Trakt sign-in works with new Trakt apps:** Trakt no longer gives new apps a client secret, so sign-in now needs only the Client ID. Every app now signs in with a short code you enter at trakt.tv/activate. Once you're signed in to Trakt, Simkl or MDBList, you can pick it as your Library and watch-progress source.
+          - **Apple TV MDBList sign-in:** Apple TV now signs in to MDBList with a short code, the same way the other apps do, so you no longer paste your own API key. If you already connected one, it keeps working.
+          - **Nuvio account wording:** account screens and messages now say "Nuvio account", since Meowio signs in with your Nuvio account.
+          - **Intel Macs dropped:** the Mac download is Apple Silicon only (M1 and newer), so releases finish sooner.
 
           ## Download
 
@@ -272,7 +274,6 @@ jobs:
           | Android phone or tablet | [Meowio-mobile.apk](https://github.com/REPO/releases/download/TAG/Meowio-mobile.apk) |
           | iPhone / iPad | [Meowio-ios.ipa](https://github.com/REPO/releases/download/TAG/Meowio-ios.ipa) |
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
-          | Mac, Intel | [Meowio-macos-x86_64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-x86_64.dmg) |
           | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
           | Windows 10/11 (64-bit) | [Meowio-windows-x64.exe](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.exe) |
 
