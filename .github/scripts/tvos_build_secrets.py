@@ -33,6 +33,7 @@ fields = {
     "traktClientId": value("TRAKT_CLIENT_ID"),
     "traktClientSecret": value("TRAKT_CLIENT_SECRET"),
     "simklClientId": value("SIMKL_CLIENT_ID"),
+    "mdblistClientId": value("MDBLIST_API_KEY") or value("MDBLIST_CLIENT_ID"),
     "introDbURL": value("INTRODB_API_URL"),
     "tmdbApiKey": value("TMDB_API_KEY"),
 }
@@ -46,3 +47,4 @@ with open(sys.argv[1], "w") as f:
 print("Account server:", "set" if fields["supabaseURL"] else "not set")
 print("TMDB key:", "set" if fields["tmdbApiKey"] else "not set")
 print("Trakt app:", "set" if fields["traktClientId"] else "not set")
+print("MDBList app:", "set" if fields["mdblistClientId"] else "not set")

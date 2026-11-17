@@ -66,8 +66,7 @@ Needs Android 7.0 or newer.
 ### 💻 Mac
 
 1. Download the right file from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest):
-   - **Apple Silicon (M1, M2, M3, M4):** `Meowio-macos-arm64.dmg`
-   - **Intel:** `Meowio-macos-x86_64.dmg`
+   - **Apple Silicon (M1 and newer):** `Meowio-macos-arm64.dmg`. Intel Macs aren't supported from 0.2.42 on.
 2. Open the DMG and drag **Meowio** into **Applications**.
 3. First time only: **right-click** the app → **Open** → **Open** again. (macOS warns because the app isn't notarized.)
 
@@ -184,7 +183,7 @@ Honest list of what doesn't work everywhere:
 
 ### Privacy
 
-- Meowio collects no analytics. If you sign in to a Meowio account, your library, watch progress and settings sync through the account server so they follow you between devices.
+- Meowio collects no analytics. If you sign in to your Nuvio account, your library, watch progress and settings sync through the account server so they follow you between devices.
 - Sign-ins to Trakt, Simkl or MDBList are stored only on your device. Meowio uses them to read and update your watchlist, watch history and progress on that service, and only after you sign in. Signing out removes them.
 - Services you turn on (your add-ons, Trakt, Simkl, MDBList, an AI provider with your own key, update checks on GitHub) get requests under their own terms.
 
