@@ -11,7 +11,9 @@
 [![License](https://img.shields.io/badge/License-GPL%20v3-E17055?style=for-the-badge)](LICENSE)
 ![Platforms](https://img.shields.io/badge/Android%20%7C%20Android%20TV%20%7C%20iOS%20%7C%20Apple%20TV%20%7C%20Mac%20%7C%20Windows-0984E3?style=for-the-badge)
 
-A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) with **one-tap Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
+A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**, with **one-tap Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
+
+🆕 Current release: **v0.2.45** · Apple TV ships on its own `appletv-vX` release.
 
 [⬇️ Download](#-download-and-install) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
 
@@ -89,9 +91,11 @@ Needs Android 7.0 or newer.
 | 📦 | **Season packs** | For shows, it prefers full-season releases and sticks with the same one for the next episode. |
 | 📐 | **Resolution matching** | It prefers streams that fit your screen. |
 | ⚡ | **Preloading** | It starts finding streams while you browse, so Play is fast. |
-| 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide. Or use your own M3U or Xtream playlist. |
+| 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide, plus a built-in VPN option. Or use your own M3U or Xtream playlist. |
 | 🎲 | **Surprise Me** | Can't decide? Let Meowio pick something for you. |
-| 📊 | **Tracking services** | Keep your watch history synced with Trakt and similar services. |
+| 📊 | **Tracking services** | Keep your watchlist and history synced with **Trakt**, **Simkl** and **MDBList**. |
+| ☁️ | **Debrid services** | Sign in to **Premiumize** or **TorBox** for fast cached streams. |
+| 🎉 | **Watch party** | Watch together with friends, in sync. |
 | 🧊 | **Glass UI** | A frosted-glass, Netflix-style look with a cat theme. |
 | 🎨 | **Themes** | Pick the colors you like. |
 | 💾 | **Backup and restore** | Save your settings and move them to a new device. |
@@ -210,8 +214,10 @@ cd ../tv
 | --- | --- | --- |
 | [mobile/](mobile/) | Android phone / tablet | [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile) |
 | [tv/](tv/) | Android TV | [NuvioTV](https://github.com/NuvioMedia/NuvioTV) |
+| [apple/macos/](apple/macos/) | Mac and Windows (overlay on desktop sources) | [NuvioDesktop](https://github.com/NuvioMedia/NuvioDesktop) |
+| [tvos/](tvos/) | Apple TV (native app) | Meowio's own |
 
-Apple code lives in `apple/`. Some files still use the original Nuvio names.
+The iPhone/iPad app is built from `mobile/`. Some files still use the original Nuvio names.
 
 ---
 
@@ -223,5 +229,7 @@ Meowio is built on the work of the [Nuvio team](https://github.com/NuvioMedia).
 Live TV list from [Free-TV/IPTV](https://github.com/Free-TV/IPTV).
 
 Licensed under [GNU GPL v3.0](LICENSE).
+
+Made with ❤️ by the Meowio team 🐱
 
 </div>
