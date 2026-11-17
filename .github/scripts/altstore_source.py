@@ -35,7 +35,7 @@ description = (
 app = {
     "name": "Meowio",
     "bundleIdentifier": "com.meowio.app",
-    "developerName": "Layton Brewer",
+    "developerName": "Meowio team",
     "subtitle": subtitle,
     "localizedDescription": description,
     "iconURL": icon,
