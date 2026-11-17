@@ -1,6 +1,13 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 import com.nuvio.app.core.ui.nuvioTap
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -204,6 +211,33 @@ internal fun PlayerControlActions(
     }
 }
 
+private val PlayerToolbarRepeatGuard = 450.milliseconds
+
+/**
+ * Top-right player buttons act the moment the finger lands, not on release.
+ *
+ * On phones these buttons sit over the live video, where a real touch is often cut short
+ * before its release is seen as a tap: the picture and controls keep recomposing during
+ * playback, the overlay can fade or the gesture can be cancelled, and the press is lost.
+ * That made the buttons hit or miss even though they work in tests. Acting on the press
+ * and consuming the whole touch means one tap always does one thing, and nothing below
+ * (video tap, double-tap seek, swipe gestures) sees it.
+ */
+private fun Modifier.playerToolbarPress(onPress: () -> Unit): Modifier =
+    pointerInput(onPress) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            down.consume()
+            onPress()
+            // Swallow the rest of this touch so the release is not read as a second tap.
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                event.changes.forEach { it.consume() }
+                if (event.changes.none { it.pressed }) break
+            }
+        }
+    }
+
 @Composable
 private fun PlayerAction(
     description: String,
@@ -214,10 +248,26 @@ private fun PlayerAction(
     tint: Color = Color.White,
     size: Dp = 48.dp,
 ) {
-    // Keep keyboard activation while accepting taps whose down event was consumed.
-    val tapModifier = Modifier.nuvioTap(onClick).clickable(role = Role.Button, onClick = onClick)
+    val latestOnClick by rememberUpdatedState(onClick)
+    // One guarded action shared by touch, keyboard and accessibility, so a single tap can
+    // never run twice (a double run flips lock on and straight back off).
+    val guardedClick = remember {
+        var lastRun: TimeSource.Monotonic.ValueTimeMark? = null
+        val action: () -> Unit = {
+            val now = TimeSource.Monotonic.markNow()
+            val previous = lastRun
+            if (previous == null || (now - previous) >= PlayerToolbarRepeatGuard) {
+                lastRun = now
+                latestOnClick()
+            }
+        }
+        action
+    }
     Box(
-        modifier = Modifier.size(size).then(tapModifier),
+        modifier = Modifier
+            .size(size)
+            .playerToolbarPress(guardedClick)
+            .clickable(role = Role.Button, onClick = guardedClick),
         contentAlignment = Alignment.Center,
     ) {
         if (painter != null) {
