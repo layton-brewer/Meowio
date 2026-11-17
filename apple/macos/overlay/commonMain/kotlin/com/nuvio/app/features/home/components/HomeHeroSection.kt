@@ -670,22 +670,6 @@ private fun DesktopHomeHeroFrame(
                 )
             }
 
-            if (isFullscreenActionSupported) {
-                FullscreenActionButton(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .statusBarsPadding()
-                        .padding(
-                            top = space.s32,
-                            end = contentHorizontalPadding,
-                        ),
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp,
-                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.82f),
-                    contentColor = colorScheme.onSurface,
-                )
-            }
-
             HeroPageIndicatorRow(
                 itemCount = items.size,
                 pagerState = pagerState,
