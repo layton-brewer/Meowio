@@ -2,6 +2,7 @@ package com.nuvio.tv.core.zap
 
 import android.util.Log
 import com.nuvio.tv.core.network.NetworkResult
+import com.nuvio.tv.core.sync.homeCatalogKey
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.supportsExtra
@@ -31,6 +32,7 @@ private data class ZapSource(
     val genreOptions: List<String>,
     val supportsSkip: Boolean,
     val supportsSearch: Boolean,
+    val homeKey: String = "",
     val requiredExtras: Map<String, String>
 ) {
     val key: String get() = "${addon.baseUrl}|$type|$catalogId"
@@ -48,7 +50,8 @@ class ZapPool(
     private val addons: suspend () -> List<Addon>,
     private val catalogs: CatalogRepository,
     private val isWatched: suspend (String) -> Boolean,
-    private val isSaved: suspend (String) -> Boolean = { false }
+    private val isSaved: suspend (String) -> Boolean = { false },
+    private val disabledHomeKeys: suspend () -> Set<String> = { emptySet() }
 ) {
     private val queue = ArrayDeque<MetaPreview>()
     private val seen = HashSet<String>()
@@ -115,10 +118,21 @@ class ZapPool(
                     genreOptions = catalog.extra.firstOrNull { it.name.equals("genre", true) }?.options.orEmpty(),
                     supportsSkip = catalog.supportsExtra("skip"),
                     supportsSearch = catalog.supportsExtra("search"),
+                    homeKey = homeCatalogKey(addon.id, type, catalog.id),
                     requiredExtras = required
                 )
             }
-        }.distinctBy { it.key }
+        }.distinctBy { it.key }.let { all ->
+            // Automatic: the home screen's catalogs (those not switched off). A custom choice replaces
+            // that. If nothing is left, use every catalog rather than showing nothing.
+            val chosen = if (filters.sourceKeys.isNotEmpty()) {
+                all.filter { it.homeKey in filters.sourceKeys }
+            } else {
+                val disabled = runCatching { disabledHomeKeys() }.getOrDefault(emptySet())
+                all.filter { it.homeKey !in disabled }
+            }
+            chosen.ifEmpty { all }
+        }
     }
 
     private suspend fun refill(all: List<ZapSource>) {

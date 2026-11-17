@@ -20,6 +20,8 @@ data class ZapFilters(
     val people: List<ZapPerson> = emptyList(),
     val minRating: Float = 0f,
     val hideWatched: Boolean = true,
+    /** Catalogs Surprise Me may draw from, as home-screen catalog keys. Empty means automatic: the home screen's catalogs. */
+    val sourceKeys: Set<String> = emptySet(),
 ) {
     val activeCount: Int
         get() = listOf(
@@ -28,6 +30,7 @@ data class ZapFilters(
             genres.isNotEmpty(),
             people.isNotEmpty(),
             minRating > 0f,
+            sourceKeys.isNotEmpty(),
         ).count { it }
 }
 
