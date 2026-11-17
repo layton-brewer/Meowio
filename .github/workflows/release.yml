@@ -59,6 +59,7 @@ jobs:
           TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
           MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+          PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
@@ -171,6 +172,7 @@ jobs:
           TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
           MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+          PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
@@ -262,6 +264,7 @@ jobs:
 
           - **Apple TV MDBList sign-in:** Apple TV now signs in to MDBList with a short code, the same way the other apps do, so you no longer paste your own API key. If you already connected one, it keeps working.
           - **Nuvio account wording:** account screens and messages now say "Nuvio account", since Meowio signs in with your Nuvio account.
+          - **Premiumize sign-in:** connecting Premiumize in Connected services now works with a short code, the same way TorBox does.
           - **Intel Macs dropped:** the Mac download is Apple Silicon only (M1 and newer), so releases finish sooner.
 
           ## Download
