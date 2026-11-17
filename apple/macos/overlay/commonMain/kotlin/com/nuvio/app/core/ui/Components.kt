@@ -146,6 +146,9 @@ fun NuvioSurfaceCard(
     }
 }
 
+/** Set by the desktop top-bar shell so every tab's header starts below the shared navigation bar. */
+val LocalDesktopTopChromePadding = androidx.compose.runtime.compositionLocalOf<Dp?> { null }
+
 @Composable
 fun NuvioScreenHeader(
     title: String,
@@ -172,7 +175,10 @@ fun NuvioScreenHeader(
         )
         return
     }
-    val resolvedTopPadding = topPadding ?: if (includeStatusBarPadding) statusBarTop else NuvioTokens.Space.none
+    // Desktop: a header with no explicit padding (Live TV) sits below the top navigation bar like the others.
+    val desktopTopChrome = LocalDesktopTopChromePadding.current
+    val resolvedTopPadding = topPadding
+        ?: if (includeStatusBarPadding) statusBarTop else (desktopTopChrome ?: NuvioTokens.Space.none)
     Box(
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -222,11 +228,6 @@ fun NuvioScreenHeader(
                 horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FullscreenActionButton(
-                    buttonSize = 48.dp,
-                    iconSize = 24.dp,
-                    contentColor = tokens.colors.textPrimary,
-                )
                 actions()
             }
         }

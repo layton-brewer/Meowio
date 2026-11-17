@@ -42,6 +42,9 @@ import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
 import com.nuvio.app.core.ui.DesktopNavigationBar
+import com.nuvio.app.core.ui.FullscreenActionButton
+import com.nuvio.app.core.ui.LocalDesktopTopChromePadding
+import com.nuvio.app.core.ui.isFullscreenActionSupported
 import com.nuvio.app.core.ui.FloatingNavigationBar
 import com.nuvio.app.core.ui.FloatingNavigationItem
 import com.nuvio.app.core.ui.PlatformBackHandler
@@ -263,6 +266,7 @@ internal fun MainTabsDestination(
                 CompositionLocalProvider(
                     LocalNuvioBottomNavigationOverlayPadding provides if (useNativeBottomTabs) 49.dp else if (!isDesktop && !isTabletLayout && navBarStyleSetting != NavBarStyle.CLASSIC) 72.dp else 0.dp,
                     LocalNuvioNavBarScrollState provides navBarScrollState,
+                    LocalDesktopTopChromePadding provides (if (useDesktopTopBar) topChromePadding else null),
                 ) {
                     AppTabHost(
                         selectedTab = selectedTab,
@@ -341,6 +345,22 @@ internal fun MainTabsDestination(
                         profileSwitcherOpen = isTopProfileSwitcherOpen,
                         windowWidth = screenWidth,
                         glowEnabled = navBarGlowEnabled,
+                    )
+                }
+
+                if (isDesktop && isFullscreenActionSupported) {
+                    // One fullscreen button in one place on every tab, level with the navigation bar.
+                    FullscreenActionButton(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(
+                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 32.dp,
+                                end = 20.dp,
+                            ),
+                        buttonSize = 48.dp,
+                        iconSize = 24.dp,
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
+                        contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
                     )
                 }
 
