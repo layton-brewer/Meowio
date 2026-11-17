@@ -197,7 +197,7 @@ internal fun ModernSidebarBlurPanel(
             }
         }
 
-        Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))
+        Spacer(modifier = Modifier.height(NuvioTheme.spacing.xl))
 
         Column(
             modifier = Modifier
@@ -207,7 +207,7 @@ internal fun ModernSidebarBlurPanel(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
-                modifier = Modifier.offset(y = (-12).dp),
+                modifier = Modifier,
                 verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm - NuvioTheme.spacing.xxs)
             ) {
                 drawerItems.forEachIndexed { index, item ->
@@ -268,8 +268,9 @@ private fun SidebarNavigationItem(
     )
     val backgroundColor = if (selected && !isFocused) backgroundColorTarget else animatedBackgroundColor
 
+    // The selected pill is tinted with the accent colour, so its icon and label stay white to be readable on it.
     val contentColorTarget = when {
-        selected -> accentColor
+        selected -> Color.White
         isFocused -> colors.TextPrimary
         else -> colors.text.onOverlay
     }
@@ -280,7 +281,7 @@ private fun SidebarNavigationItem(
     )
     val contentColor = if (selected && !isFocused) contentColorTarget else animatedContentColor
 
-    val iconBrush = if (selected) palette.accentBrush() else null
+    val iconBrush: Brush? = null
     val iconTintTarget = when {
         selected -> Color.White
         isFocused -> colors.TextPrimary
@@ -293,7 +294,7 @@ private fun SidebarNavigationItem(
     )
     val iconTint = if (selected && !isFocused) iconTintTarget else animatedIconTint
     val itemScale by animateFloatAsState(
-        targetValue = if (isFocused) 1.1f else 1f,
+        targetValue = if (isFocused) 1.04f else 1f,
         animationSpec = tween(durationMillis = NuvioMotion.tokens.durations.fast, easing = NuvioMotion.tokens.easings.standard),
         label = "sidebarItemScale"
     )
