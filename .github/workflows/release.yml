@@ -260,7 +260,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new in 0.2.41
 
-          - **Trakt sign-in works with new Trakt apps:** Trakt no longer gives new apps a client secret, so sign-in now needs only the Client ID. Phone, iPhone and desktop use PKCE, and Android TV and Apple TV use a sign-in code. Once you're signed in to Trakt, Simkl or MDBList, you can pick it as your Library and watch-progress source.
+          - **Trakt sign-in works with new Trakt apps:** Trakt no longer gives new apps a client secret, so sign-in now needs only the Client ID. Every app now signs in with a short code you enter at trakt.tv/activate. Once you're signed in to Trakt, Simkl or MDBList, you can pick it as your Library and watch-progress source.
 
           ## Download
 

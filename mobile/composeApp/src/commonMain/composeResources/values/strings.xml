@@ -1485,6 +1485,9 @@
     <string name="settings_trakt_missing_credentials">Not set up yet.</string>
     <string name="settings_trakt_open_login">Open Trakt Login</string>
     <string name="settings_trakt_save_actions_description">Sync your watchlist, watch progress, continue watching, scrobbles, and personal lists with Trakt.</string>
+    <string name="settings_trakt_device_finish_sign_in">Enter this code on Trakt</string>
+    <string name="settings_trakt_device_instructions">Open the link and enter this code to approve Meowio. This screen will update automatically.</string>
+    <string name="settings_trakt_open_activation">Open Trakt Activate</string>
     <string name="settings_trakt_sign_in_description">Sync your watchlist, watch progress, continue watching, scrobbles, and personal lists with Trakt.</string>
     <string name="settings_tracking_data_sources">Sources</string>
     <string name="settings_tracking_features">SOURCE PREFERENCES</string>
@@ -1986,6 +1989,10 @@
     <string name="source_embedded">Embedded</string>
     <string name="trakt_authorization_denied">Authorization denied</string>
     <string name="trakt_authorization_expired_reconnect">Your Trakt authorization is no longer valid. Reconnect your Trakt account.</string>
+    <string name="trakt_device_authorization_expired">Trakt authorization expired. Try again.</string>
+    <string name="trakt_device_authorization_failed">Could not start Trakt device authorization.</string>
+    <string name="trakt_device_authorization_starting">Starting Trakt sign in...</string>
+    <string name="trakt_device_authorization_waiting">Waiting for Trakt approval...</string>
     <string name="trakt_complete_sign_in_browser">Complete Trakt sign in in your browser</string>
     <string name="trakt_connected">Connected to Trakt</string>
     <string name="trakt_disconnected">Disconnected from Trakt</string>

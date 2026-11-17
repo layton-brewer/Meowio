@@ -60,5 +60,6 @@ commonMain/kotlin/com/nuvio/app/features/zap/ZapModels.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapRepository.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapScreen.kt
 commonMain/kotlin/com/nuvio/app/features/zap/ZapSourceStorage.kt
-
 commonMain/kotlin/com/nuvio/app/features/search/DiscoverCatalogSources.kt
+commonMain/kotlin/com/nuvio/app/features/trakt/TraktAuthRepository.kt
+commonMain/kotlin/com/nuvio/app/features/trakt/TraktModels.kt
