@@ -37,7 +37,7 @@ jobs:
       REPO: ${{ github.repository }}
       DRY_RUN: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
       SELF_RUN: ${{ github.run_id }}
-      KEEP_BRANCHES: "main claude/apple-builds claude/meowio-icon-splash claude/project-thread-m21r9r"
+      KEEP_BRANCHES: "main apple-builds meowio-icon-splash tv-apps-page tvos-edr-fix"
     steps:
       - uses: actions/checkout@v4
         with:
