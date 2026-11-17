@@ -121,6 +121,7 @@ final class ZapPool {
     private var pagesFetched: [String: Int] = [:]
     private var exhausted = Set<String>()
     private var sourceTurns: [ZapSource] = []
+    private var catalogQueues: [String: [MetaItem]] = [:]
     private var searched = Set<String>()
     private let maxPages = 10
 
@@ -209,8 +210,18 @@ final class ZapPool {
             }
         } else {
             // Every installed catalog gets a turn before any is revisited.
-            if sourceTurns.isEmpty { sourceTurns = all.filter { !exhausted.contains($0.key) } }
-            for _ in 0..<min(5, sourceTurns.count) { added += await discoverPage(sourceTurns.removeFirst()) }
+            // One title per visit, so every catalog (in add-on order) contributes before any repeats.
+            if sourceTurns.isEmpty { sourceTurns = all.filter { !exhausted.contains($0.key) || !(catalogQueues[$0.key] ?? []).isEmpty } }
+            for _ in 0..<min(5, sourceTurns.count) {
+                let source = sourceTurns.removeFirst()
+                if (catalogQueues[source.key] ?? []).isEmpty { catalogQueues[source.key] = await discoverPage(source).shuffled() }
+                while !(catalogQueues[source.key] ?? []).isEmpty {
+                    let item = catalogQueues[source.key]!.removeFirst()
+                    if !matches(item) || seen.contains("\(item.type):\(item.id)") { continue }
+                    added.append(item)
+                    break
+                }
+            }
         }
         added.shuffle()
         for item in added where matches(item) && !seen.contains("\(item.type):\(item.id)") { queue.append(item) }
@@ -488,7 +499,7 @@ struct ZapFilterSheet: View {
             .padding(60)
         }
         .background(settings.theme.background.ignoresSafeArea())
-        .task { catalogs = await AddonClient.addonCatalogs(settings.addons) }
+        .task { catalogs = await AddonClient.zapCatalogs(settings.addons) }
         .task(id: actorQuery) {
             let q = actorQuery.trimmingCharacters(in: .whitespaces)
             guard q.count >= 2 else { suggestions = []; return }
@@ -519,5 +530,24 @@ struct ZapFilterSheet: View {
                 .padding(.vertical, 6)
                 .overlay(alignment: .trailing) { if selected { Image(systemName: "checkmark").font(.caption.bold()) } }
         }
+    }
+}
+
+
+extension AddonClient {
+    /// Every title catalog of every add-on, in add-on order, for the Surprise Me picker.
+    static func zapCatalogs(_ addons: [String]) async -> [AddonCatalog] {
+        var out: [AddonCatalog] = []
+        for base in addons {
+            guard let m = await manifest(for: base), m.has("catalog") else { continue }
+            let addon = m.name ?? URL(string: base)?.host ?? base
+            for c in m.catalogs ?? [] where c.isBrowsable {
+                let t = c.type.lowercased()
+                guard t == "movie" || t == "series" || t == "tv" || t == "anime" || t.hasPrefix("anime.") else { continue }
+                let title = "\(addon) · \(c.name ?? c.id) (\(t.hasSuffix("movie") ? "movies" : "series"))"
+                out.append(AddonCatalog(base: base, type: c.type, id: c.id, title: title))
+            }
+        }
+        return out
     }
 }
