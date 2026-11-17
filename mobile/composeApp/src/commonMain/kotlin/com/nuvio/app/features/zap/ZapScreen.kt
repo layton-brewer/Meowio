@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -496,11 +497,8 @@ private fun ZapFilterPanel(
             }
 
             FilterLabel("Pull titles from")
-            val sourceOptions = remember {
-                com.nuvio.app.features.search.buildDiscoverSources(
-                    com.nuvio.app.features.addons.AddonRepository.uiState.value.addons.filter { it.isActive },
-                ).filter { it.type == "movie" || it.type == "series" }
-            }
+            val addonState by com.nuvio.app.features.addons.AddonRepository.uiState.collectAsState()
+            val sourceOptions = remember(addonState.addons) { zapCatalogOptions(addonState.addons) }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(
                     label = "Automatic (home screen catalogs)",
@@ -509,7 +507,7 @@ private fun ZapFilterPanel(
                 )
                 sourceOptions.forEach { option ->
                     Chip(
-                        label = "${option.addonName} · ${option.catalogName} (${if (option.type == "series") "series" else "movies"})",
+                        label = "${option.addonName} · ${option.catalogName} (${if (isZapMovieType(option.type)) "movies" else "series"})",
                         selected = option.key in draft.sourceKeys,
                         onClick = {
                             val next = if (option.key in draft.sourceKeys) draft.sourceKeys - option.key else draft.sourceKeys + option.key

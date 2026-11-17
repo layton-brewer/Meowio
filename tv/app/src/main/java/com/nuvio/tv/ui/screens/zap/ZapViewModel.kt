@@ -68,10 +68,10 @@ class ZapViewModel @Inject constructor(
             val options = addons.filter { it.isActive }.flatMap { addon ->
                 addon.catalogs.filter { !it.isSearchOnlyCatalog() }.mapNotNull { catalog ->
                     val type = catalog.apiType.lowercase()
-                    if (type != "movie" && type != "series") return@mapNotNull null
+                    if (!(type == "movie" || type == "series" || type == "tv" || type == "anime" || type.startsWith("anime."))) return@mapNotNull null
                     ZapSourceOption(
                         key = homeCatalogKey(addon.id, type, catalog.id),
-                        label = "${addon.displayName} · ${catalog.name} (${if (type == "series") "series" else "movies"})"
+                        label = "${addon.displayName} · ${catalog.name} (${if (type.endsWith("movie")) "movies" else "series"})"
                     )
                 }
             }.distinctBy { it.key }
