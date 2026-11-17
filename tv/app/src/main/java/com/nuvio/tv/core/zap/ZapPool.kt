@@ -59,6 +59,7 @@ class ZapPool(
     private val pagesFetched = HashMap<String, Int>()
     private val exhausted = HashSet<String>()
     private val sourceTurns = ArrayDeque<ZapSource>()
+    private val catalogQueues = HashMap<String, ArrayDeque<MetaPreview>>()
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
@@ -143,8 +144,21 @@ class ZapPool(
             }
         } else {
             // Give every installed catalog a turn before revisiting one.
-            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted })
-            repeat(minOf(5, sourceTurns.size)) { added += discoverPage(sourceTurns.removeFirst()) }
+            // One title per visit, so every catalog (in add-on order) contributes before any repeats.
+            if (sourceTurns.isEmpty()) {
+                sourceTurns.addAll(all.filter { it.key !in exhausted || catalogQueues[it.key]?.isNotEmpty() == true })
+            }
+            repeat(minOf(5, sourceTurns.size)) {
+                val source = sourceTurns.removeFirst()
+                val candidates = catalogQueues.getOrPut(source.key) { ArrayDeque() }
+                if (candidates.isEmpty()) candidates.addAll(discoverPage(source).shuffled())
+                while (candidates.isNotEmpty()) {
+                    val item = candidates.removeFirst()
+                    if (!matches(item) || "${item.rawType}:${item.id}" in seen) continue
+                    added += item
+                    break
+                }
+            }
         }
         added.shuffle()
         added.filter { matches(it) && "${it.rawType}:${it.id}" !in seen }.forEach(queue::addLast)
