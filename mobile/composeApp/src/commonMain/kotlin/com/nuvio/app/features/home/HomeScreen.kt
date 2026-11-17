@@ -5,6 +5,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
@@ -1204,6 +1211,29 @@ fun HomeScreen(
                 }
             }
         }
+
+        // Once the page scrolls up, keep the status bar area solid so the hero's button and page dots
+        // never show through behind the clock and icons.
+        val statusBarTop = androidx.compose.foundation.layout.WindowInsets.statusBars
+            .asPaddingValues().calculateTopPadding()
+        val statusBarPx = with(androidx.compose.ui.platform.LocalDensity.current) { statusBarTop.toPx() }
+        val statusBarScrim by remember(homeListState, statusBarPx) {
+            derivedStateOf {
+                when {
+                    homeListState.firstVisibleItemIndex > 0 -> 1f
+                    statusBarPx <= 0f -> 0f
+                    else -> (homeListState.firstVisibleItemScrollOffset / statusBarPx).coerceIn(0f, 1f)
+                }
+            }
+        }
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(statusBarTop)
+                .graphicsLayer { alpha = statusBarScrim }
+                .background(androidx.compose.material3.MaterialTheme.colorScheme.background),
+        )
     }
 }
 

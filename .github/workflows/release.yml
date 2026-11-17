@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.34 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.35 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.34 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.35 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,13 +256,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.34"
+          tag="v0.2.35"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.34
+          ## What's new in 0.2.35
 
-          - **Surprise Me catalogs:** it now pulls from the catalogs shown on your home screen automatically, instead of every catalog an add-on lists. If none of those match it uses all of them.
-          - **Choose where Surprise Me pulls from:** open Surprise Me filters and use "Pull titles from" to pick specific catalogs, on phone, desktop, Android TV and Apple TV. Your choice is remembered; "Automatic" goes back to the home screen catalogs.
-          - **Phone player top buttons:** back, watch party, lock and switch player now act the moment your finger touches them, so one tap always works. Each tap runs only once, so lock no longer flips on and straight back off.
+          - **Surprise Me uses your home screen rows:** it now draws from the exact catalogs shown on your home screen (and starts with the titles already loaded in those rows), instead of looking add-ons up separately. This fixes the "install a catalog add-on" message when Home clearly had rows.
+          - **Phone home:** the status bar area stays solid once you scroll, so the hero's View Details button and page dots no longer show through behind the clock.
+          - **Android TV sidebar:** the selected item's pill no longer hides its icon and label (they stay white on the pink pill), and there is more room between the Meowio header and the first item.
 
           ## Download
 
