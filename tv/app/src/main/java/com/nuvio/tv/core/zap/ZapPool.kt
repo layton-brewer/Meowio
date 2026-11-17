@@ -82,18 +82,20 @@ class ZapPool(
         return ZapResult.Empty(if (failures > 0) ZapEmpty.OFFLINE else ZapEmpty.NO_MATCHES)
     }
 
-    private fun wantedTypes(): Set<String> = when (filters.type) {
-        ZapMediaType.Both -> setOf("movie", "series")
-        ZapMediaType.Movies -> setOf("movie")
-        ZapMediaType.Series -> setOf("series")
+    private fun isZapType(type: String): Boolean =
+        type == "movie" || type == "series" || type == "tv" || type == "anime" || type.startsWith("anime.")
+
+    private fun typeWanted(type: String): Boolean = isZapType(type) && when (filters.type) {
+        ZapMediaType.Both -> true
+        ZapMediaType.Movies -> type.endsWith("movie")
+        ZapMediaType.Series -> !type.endsWith("movie")
     }
 
     private suspend fun loadSources(): List<ZapSource> {
-        val wanted = wantedTypes()
         return addons().filter { it.isActive }.flatMap { addon ->
             addon.catalogs.mapNotNull { catalog ->
                 val type = catalog.apiType.lowercase()
-                if (type !in wanted) return@mapNotNull null
+                if (!typeWanted(type)) return@mapNotNull null
                 val requiredNames = (catalog.extra.filter { it.isRequired }.map { it.name } + catalog.extraRequired).toSet()
                 val required = mutableMapOf<String, String>()
                 for (name in requiredNames) {
@@ -123,14 +125,9 @@ class ZapPool(
                 )
             }
         }.distinctBy { it.key }.let { all ->
-            // Automatic: the home screen's catalogs (those not switched off). A custom choice replaces
-            // that. If nothing is left, use every catalog rather than showing nothing.
-            val chosen = if (filters.sourceKeys.isNotEmpty()) {
-                all.filter { it.homeKey in filters.sourceKeys }
-            } else {
-                val disabled = runCatching { disabledHomeKeys() }.getOrDefault(emptySet())
-                all.filter { it.homeKey !in disabled }
-            }
+            // Automatic: every catalog of every add-on, in the order the add-ons are listed.
+            // A custom choice replaces that.
+            val chosen = if (filters.sourceKeys.isNotEmpty()) all.filter { it.homeKey in filters.sourceKeys } else all
             chosen.ifEmpty { all }
         }
     }
@@ -146,7 +143,7 @@ class ZapPool(
             }
         } else {
             // Give every installed catalog a turn before revisiting one.
-            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted }.shuffled())
+            if (sourceTurns.isEmpty()) sourceTurns.addAll(all.filter { it.key !in exhausted })
             repeat(minOf(5, sourceTurns.size)) { added += discoverPage(sourceTurns.removeFirst()) }
         }
         added.shuffle()
@@ -231,7 +228,7 @@ private fun sameGenre(a: String, b: String): Boolean {
 
 private fun MetaPreview.toZapTitle(): ZapTitle = ZapTitle(
     id = id,
-    isSeries = rawType.equals("series", ignoreCase = true),
+    isSeries = !rawType.lowercase().endsWith("movie"),
     name = name,
     year = itemYear(this)?.toString(),
     overview = description.orEmpty(),
