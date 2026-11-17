@@ -2,7 +2,7 @@ name: Shared desktop sources check
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
     paths:
       - "apple/macos/**"
       - "mobile/composeApp/src/commonMain/**"
