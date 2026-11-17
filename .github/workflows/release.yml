@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.35 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.36 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.35 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.36 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,14 +256,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.35"
+          tag="v0.2.36"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.35
+          ## What's new in 0.2.36
 
-          - **Surprise Me uses your home screen rows:** it now draws from the exact catalogs shown on your home screen (and starts with the titles already loaded in those rows), instead of looking add-ons up separately. This fixes the "install a catalog add-on" message when Home clearly had rows.
-          - **Phone player buttons:** the back, watch party, lock and switch player buttons use the original tap matching from v0.2.9 again, so they respond on a normal tap.
-          - **Phone home:** the status bar area stays solid once you scroll, so the hero's View Details button and page dots no longer show through behind the clock.
-          - **Android TV sidebar:** the selected item's pill no longer hides its icon and label (they stay white on the pink pill), and there is more room between the Meowio header and the first item.
+          - **Surprise Me pulls from every add-on catalog:** the catalog picker now lists every catalog of every add-on (including all of AIOMetadata's), in the same order as the Addons screen, and Automatic draws from all of them instead of one source. Same on phone, TV, Apple TV and desktop.
 
           ## Download
 

@@ -152,16 +152,19 @@ final class ZapPool {
     }
 
     private func loadSources() async -> [ZapSource] {
-        let wanted: Set<String>
-        switch filters.type {
-        case .both: wanted = ["movie", "series"]
-        case .movies: wanted = ["movie"]
-        case .series: wanted = ["series"]
+        func wanted(_ type: String) -> Bool {
+            let t = type.lowercased()
+            guard t == "movie" || t == "series" || t == "tv" || t == "anime" || t.hasPrefix("anime.") else { return false }
+            switch filters.type {
+            case .both: return true
+            case .movies: return t.hasSuffix("movie")
+            case .series: return !t.hasSuffix("movie")
+            }
         }
         var found: [ZapSource] = []
         for base in addons {
             guard let man = await AddonClient.manifest(for: base), man.has("catalog") else { continue }
-            for c in man.catalogs ?? [] where wanted.contains(c.type) {
+            for c in man.catalogs ?? [] where wanted(c.type) {
                 let extras = c.extra ?? []
                 let requiredNames = Set(extras.filter { $0.isRequired == true }.map(\.name) + (c.extraRequired ?? []))
                 var required: [String: String] = [:]
@@ -206,7 +209,7 @@ final class ZapPool {
             }
         } else {
             // Every installed catalog gets a turn before any is revisited.
-            if sourceTurns.isEmpty { sourceTurns = all.filter { !exhausted.contains($0.key) }.shuffled() }
+            if sourceTurns.isEmpty { sourceTurns = all.filter { !exhausted.contains($0.key) } }
             for _ in 0..<min(5, sourceTurns.count) { added += await discoverPage(sourceTurns.removeFirst()) }
         }
         added.shuffle()
@@ -248,7 +251,7 @@ final class ZapPool {
     }
 
     private func title(from item: MetaItem) -> ZapTitle {
-        ZapTitle(id: item.id, isSeries: item.type == "series", name: item.name,
+        ZapTitle(id: item.id, isSeries: !item.type.lowercased().hasSuffix("movie"), name: item.name,
                  year: Self.year(of: item).map(String.init), overview: item.description ?? "",
                  poster: item.poster, backdrop: item.background ?? item.poster,
                  rating: Double(item.imdbRating ?? "").flatMap { $0 > 0 ? $0 : nil },
