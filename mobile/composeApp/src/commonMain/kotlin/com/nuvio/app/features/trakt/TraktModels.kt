@@ -13,10 +13,19 @@ data class TraktAuthState(
     val userSlug: String? = null,
     val pendingAuthorizationState: String? = null,
     val pendingAuthorizationStartedAtMillis: Long? = null,
-    val pendingCodeVerifier: String? = null,
+    val pendingDeviceCode: String? = null,
+    val pendingDeviceUserCode: String? = null,
+    val pendingDeviceVerificationUrl: String? = null,
+    val pendingDeviceIntervalSeconds: Int? = null,
+    val pendingDeviceExpiresAtMillis: Long? = null,
 ) {
     val isAuthenticated: Boolean
         get() = !accessToken.isNullOrBlank() && !refreshToken.isNullOrBlank()
+
+    val hasPendingDeviceAuthorization: Boolean
+        get() = !pendingDeviceCode.isNullOrBlank() &&
+            !pendingDeviceUserCode.isNullOrBlank() &&
+            !pendingDeviceVerificationUrl.isNullOrBlank()
 }
 
 enum class TraktConnectionMode {
@@ -32,6 +41,10 @@ data class TraktAuthUiState(
     val username: String? = null,
     val tokenExpiresAtMillis: Long? = null,
     val pendingAuthorizationStartedAtMillis: Long? = null,
+    val usesDeviceCodeFlow: Boolean = false,
+    val pendingDeviceUserCode: String? = null,
+    val pendingDeviceVerificationUrl: String? = null,
+    val pendingDeviceExpiresAtMillis: Long? = null,
     val statusMessage: String? = null,
     val errorMessage: String? = null,
 )
