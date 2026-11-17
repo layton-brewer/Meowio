@@ -81,6 +81,7 @@ internal fun PlayerToolbar(
                 description = stringResource(Res.string.cd_switch_player_engine),
                 icon = Icons.Rounded.SwapHoriz,
                 onClick = onSwitchEngineClick,
+                tapKey = "engine",
             )
         }
         if (onPartyClick != null) {
@@ -88,6 +89,7 @@ internal fun PlayerToolbar(
                 description = stringResource(Res.string.party_title),
                 icon = Icons.Rounded.Groups,
                 onClick = onPartyClick,
+                tapKey = "party",
                 tint = if (partyActive) MaterialTheme.colorScheme.primary else Color.White,
             )
         }
@@ -97,11 +99,13 @@ internal fun PlayerToolbar(
             ),
             icon = if (isLocked) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
             onClick = onLockToggle,
+            tapKey = "lock",
         )
         PlayerAction(
             description = stringResource(Res.string.compose_player_close),
             icon = Icons.AutoMirrored.Rounded.ArrowBack,
             onClick = onBack,
+            tapKey = "back",
             size = 56.dp,
         )
     }
@@ -246,6 +250,7 @@ private fun PlayerAction(
     painter: Painter? = null,
     iconSize: Dp = 24.dp,
     tint: Color = Color.White,
+    tapKey: String? = null,
     size: Dp = 48.dp,
 ) {
     val latestOnClick by rememberUpdatedState(onClick)
@@ -266,6 +271,10 @@ private fun PlayerAction(
     Box(
         modifier = Modifier
             .size(size)
+            // On Android the activity matches these buttons before any view sees the touch
+            // (see PlayerTopButtonTaps), so taps over the video picture always land. The
+            // Compose handlers below stay as the fallback (iOS, tests, keyboard).
+            .then(if (tapKey != null) Modifier.playerTopButtonTarget(tapKey, guardedClick) else Modifier)
             .playerToolbarPress(guardedClick)
             .clickable(role = Role.Button, onClick = guardedClick),
         contentAlignment = Alignment.Center,

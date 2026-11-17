@@ -101,6 +101,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         }
     }
 
+    CompositionLocalProvider(LocalPlayerTopButtonTaps provides PlayerTopButtonTaps.shared) {
     BoxWithConstraints(
         modifier = args.modifier
             .fillMaxSize()
@@ -199,5 +200,6 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
             partyPanelInset = partyPanelInset,
             dockPartyPanel = dockPartyPanel,
         )
+    }
     }
 }

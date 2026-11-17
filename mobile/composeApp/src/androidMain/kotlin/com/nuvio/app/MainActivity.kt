@@ -4,6 +4,11 @@ import android.content.Intent
 import android.content.res.Configuration
 import com.nuvio.app.features.autosync.AutoSyncPreferencesAndroid
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.ViewConfiguration
+import androidx.compose.ui.geometry.Offset
+import com.nuvio.app.features.player.PlayerTopButtonTaps
+import kotlin.math.hypot
 import androidx.activity.compose.setContent
 
 import androidx.activity.enableEdgeToEdge
@@ -161,6 +166,41 @@ open class MainActivity : AppCompatActivity() {
         setContent {
             App()
         }
+    }
+
+    // Phone player top-right buttons (switch engine, watch party, lock, back) are matched here,
+    // before any view sees the touch: over the video picture the touch did not reliably reach
+    // them through Compose. This is the approach that worked on device in v0.2.9. A touch that
+    // starts on one of them belongs to it entirely and runs it on release.
+    private var topButtonTap: (() -> Unit)? = null
+    private var topButtonDownX = 0f
+    private var topButtonDownY = 0f
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        val taps = PlayerTopButtonTaps.shared
+        if (ev.actionMasked == MotionEvent.ACTION_DOWN) {
+            topButtonTap = null
+            if (taps.hasTargets) {
+                val slop = 10f * resources.displayMetrics.density
+                val target = taps.hit(Offset(ev.x, ev.y), slop)
+                if (target != null) {
+                    topButtonTap = target
+                    topButtonDownX = ev.x
+                    topButtonDownY = ev.y
+                    return true
+                }
+            }
+        }
+        val pending = topButtonTap ?: return super.dispatchTouchEvent(ev)
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_UP -> {
+                topButtonTap = null
+                val maxMove = ViewConfiguration.get(this).scaledTouchSlop * 3f
+                if (hypot(ev.x - topButtonDownX, ev.y - topButtonDownY) <= maxMove) pending()
+            }
+            MotionEvent.ACTION_CANCEL -> topButtonTap = null
+        }
+        return true
     }
 
     override fun onNewIntent(intent: Intent) {
