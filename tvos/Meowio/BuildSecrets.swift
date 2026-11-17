@@ -6,6 +6,7 @@ enum BuildSecrets {
     static let traktClientId = ""
     static let traktClientSecret = ""
     static let simklClientId = ""
+    static let mdblistClientId = ""
     static let introDbURL = ""
     static let tmdbApiKey = ""
 }

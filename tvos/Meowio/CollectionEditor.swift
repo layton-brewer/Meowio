@@ -1,7 +1,7 @@
 import SwiftUI
 
 // Collection editor: add, rename and remove collections, folders and add-on catalog sources. Changes show on Home
-// right away and go to the Meowio account, so the phone and Android TV apps get them too. TMDB and Trakt sources
+// right away and go to the Nuvio account, so the phone and Android TV apps get them too. TMDB and Trakt sources
 // made in those apps stay as they are and can be removed here.
 
 struct CollectionEditorView: View {
@@ -22,8 +22,8 @@ struct CollectionEditorView: View {
                     }
                 }
             } footer: {
-                Text(account.signedIn ? "Changes are saved to your Meowio account."
-                     : "Sign in to your Meowio account to keep collections in step with your other devices. Until then edits stay on this Apple TV.")
+                Text(account.signedIn ? "Changes are saved to your Nuvio account."
+                     : "Sign in to your Nuvio account to keep collections in step with your other devices. Until then edits stay on this Apple TV.")
             }
             Section("New collection") {
                 TextField("Collection name", text: $newTitle)

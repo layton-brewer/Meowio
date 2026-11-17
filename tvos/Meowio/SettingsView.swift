@@ -30,7 +30,7 @@ struct SettingsView: View {
                     }
                     NavigationLink { AccountSettingsView() } label: {
                         HStack {
-                            Text("Meowio account")
+                            Text("Nuvio account")
                             Spacer()
                             Text(account.signedIn ? (account.email ?? "Signed in") : (AccountStore.available ? "Not signed in" : "Off"))
                                 .foregroundStyle(.secondary)
