@@ -131,12 +131,17 @@ struct SettingsView: View {
                         ForEach(DebridService.allCases) { Text($0.title).tag($0) }
                     }
                     if settings.debridService != .none {
+                        if Debrid.canSignIn(settings.debridService) {
+                            NavigationLink { DebridSignInView(service: settings.debridService) } label: {
+                                LabeledContent("Sign in with a code", value: settings.debridReady ? "Connected" : "")
+                            }
+                        }
                         SecureField("\(settings.debridService.title) API key", text: $settings.debridKey)
                     }
                 } header: {
                     Text("Debrid (plays torrent results)")
                 } footer: {
-                    Text("Apple TV can't run torrents itself. With a debrid key, torrent results from your add-ons are turned into direct links, and uncached ones are skipped so playback never waits on a download. The key stays on this device and is never in backups.")
+                    Text("Apple TV can't run torrents itself. With a debrid key, torrent results from your add-ons are turned into direct links, and uncached ones are skipped so playback never waits on a download. Signed in to your Nuvio account, the key comes from your phone or Android TV automatically. It is never in backups.")
                 }
 
                 if !settings.addons.isEmpty {
@@ -438,5 +443,56 @@ private extension SettingsView {
         if !settings.liveVpnEnabled { return "Off. Live TV connects directly." }
         if LiveVpnGuard.parseProxy(settings.liveVpnProxy) == nil { return "Enter an http:// proxy address with a port." }
         return "Switches on by itself while a channel plays and off when you leave. Debrid and other playback never use it."
+    }
+}
+
+/// Shows a short code to approve on the debrid service's site, then stores the account token as the key.
+struct DebridSignInView: View {
+    let service: DebridService
+    @EnvironmentObject var settings: SettingsStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var code: Debrid.DeviceCode?
+    @State private var failed = false
+
+    var body: some View {
+        VStack(spacing: 30) {
+            if let code {
+                if let qr = QRCode.image(code.qrURL ?? code.url) {
+                    Image(uiImage: qr).interpolation(.none).resizable().frame(width: 280, height: 280)
+                }
+                Text("Scan the code, or go to").foregroundStyle(.secondary)
+                Text(code.url.replacingOccurrences(of: "https://", with: "")).font(.title2.bold())
+                Text(code.userCode).font(.system(size: 72, weight: .heavy, design: .monospaced)).kerning(8)
+                HStack(spacing: 14) { ProgressView(); Text("Waiting for \(service.title)…") }
+            } else if failed {
+                Text("Could not sign in to \(service.title). Try again, or paste an API key instead.").foregroundStyle(.orange)
+            } else {
+                ProgressView()
+            }
+        }
+        .padding(60)
+        .navigationTitle(service.title)
+        .task { await run() }
+    }
+
+    private func run() async {
+        guard let c = await Debrid.startSignIn(service) else { failed = true; return }
+        code = c
+        for _ in 0..<(600 / c.interval) {
+            try? await Task.sleep(nanoseconds: UInt64(c.interval) * 1_000_000_000)
+            if Task.isCancelled { return }
+            do {
+                if let token = try await Debrid.pollSignIn(service, c) {
+                    settings.debridService = service
+                    settings.debridKey = token
+                    dismiss()
+                    return
+                }
+            } catch {
+                break
+            }
+        }
+        code = nil
+        failed = true
     }
 }

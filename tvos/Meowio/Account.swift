@@ -69,6 +69,93 @@ final class AccountStore: ObservableObject {
         }
     }
 
+    // MARK: Code sign-in (the Android TV flow: scan or type a code on nuvio.tv, no typing on the TV)
+
+    struct LinkCode: Equatable {
+        var code: String
+        var userCode: String
+        var url: String
+        var nonce: String
+        var interval: Int
+    }
+
+    /// The code shown while waiting for the user to approve this Apple TV on their phone.
+    @Published private(set) var linkCode: LinkCode?
+    private var linkTask: Task<Void, Never>?
+    /// Called once a code sign-in finishes, so the app can pull the account's data.
+    var onSignedIn: (() async -> Void)?
+
+    private static let linkBase = "https://nuvio.tv/link"
+    private static let legacyLinkBase = "https://nuvio.tv/tv-login"
+
+    func startCodeSignIn() async {
+        guard Self.available else { return }
+        cancelCodeSignIn()
+        message = nil
+        let nonce = (UUID().uuidString + UUID().uuidString).replacingOccurrences(of: "-", with: "").lowercased()
+        var link: LinkCode?
+        let v2 = await call("/rest/v1/rpc/start_device_login_session",
+                            body: ["p_device_nonce": nonce, "p_redirect_base_url": Self.linkBase, "p_device_type": "tv",
+                                   "p_device_name": "Apple TV"], authed: false)
+        if let row = (v2.json as? [[String: Any]])?.first, let code = row["device_code"] as? String {
+            link = LinkCode(code: code, userCode: row["user_code"] as? String ?? code,
+                            url: row["verification_uri_complete"] as? String ?? Self.linkBase, nonce: nonce,
+                            interval: max(2, row["poll_interval_seconds"] as? Int ?? 3))
+        } else {
+            // Older account servers only have the first version of TV sign-in.
+            let v1 = await call("/rest/v1/rpc/start_tv_login_session",
+                                body: ["p_device_nonce": nonce, "p_redirect_base_url": Self.legacyLinkBase], authed: false)
+            if let row = (v1.json as? [[String: Any]])?.first, let code = row["code"] as? String {
+                link = LinkCode(code: code, userCode: code, url: row["web_url"] as? String ?? Self.legacyLinkBase, nonce: nonce,
+                                interval: max(2, row["poll_interval_seconds"] as? Int ?? 3))
+            }
+        }
+        guard let link else {
+            message = "Could not get a sign-in code. Check the connection and try again."
+            return
+        }
+        linkCode = link
+        linkTask = Task { [weak self] in await self?.pollCode(link) }
+    }
+
+    func cancelCodeSignIn() {
+        linkTask?.cancel()
+        linkTask = nil
+        linkCode = nil
+    }
+
+    private func pollCode(_ link: LinkCode) async {
+        // Codes last about ten minutes.
+        for _ in 0..<(600 / link.interval) {
+            try? await Task.sleep(nanoseconds: UInt64(link.interval) * 1_000_000_000)
+            guard !Task.isCancelled, linkCode == link else { return }
+            let r = await call("/rest/v1/rpc/poll_tv_login_session", body: ["p_code": link.code, "p_device_nonce": link.nonce],
+                               authed: false)
+            let status = ((r.json as? [[String: Any]])?.first?["status"] as? String ?? "").lowercased()
+            switch status {
+            case "approved":
+                let x = await call("/functions/v1/tv-logins-exchange", body: ["code": link.code, "device_nonce": link.nonce],
+                                   authed: false)
+                linkCode = nil
+                if let obj = x.json as? [String: Any], obj["access_token"] != nil {
+                    save(obj)
+                    if email == nil { email = "your Nuvio account" }
+                    await onSignedIn?()
+                } else {
+                    message = "Sign-in was approved but could not finish. Try again."
+                }
+                return
+            case "expired", "used", "cancelled":
+                linkCode = nil
+                message = "That code expired. Get a new one."
+                return
+            default:
+                continue
+            }
+        }
+        if linkCode == link { linkCode = nil; message = "That code expired. Get a new one." }
+    }
+
     func signOut() {
         if accessToken != nil { Task { _ = await call("/auth/v1/logout", body: [String: String]()) } }
         accessToken = nil
@@ -131,7 +218,7 @@ final class AccountStore: ObservableObject {
         r.timeoutInterval = 20
         r.setValue(Self.anonKey, forHTTPHeaderField: "apikey")
         r.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        r.setValue("Bearer \(authed ? (accessToken ?? Self.anonKey) : Self.anonKey)", forHTTPHeaderField: "Authorization")
+        if authed { r.setValue("Bearer \(accessToken ?? Self.anonKey)", forHTTPHeaderField: "Authorization") }
         if let body { r.httpBody = try? JSONSerialization.data(withJSONObject: body) }
         guard let result = try? await URLSession.shared.data(for: r) else { return Reply(status: 0, json: nil) }
         let status = (result.1 as? HTTPURLResponse)?.statusCode ?? 0
@@ -197,7 +284,10 @@ final class AccountStore: ObservableObject {
             return Profile(id: index, name: name, colorHex: row["avatar_color_hex"] as? String ?? "#1E88E5",
                            usesPrimaryAddons: row["uses_primary_addons"] as? Bool ?? false)
         }
-        profiles.adopt(remote: remote)
+        // PINs set on the account (from the phone or Android TV) lock the profile here too.
+        let locks = (await rpc("sync_pull_profile_locks").json as? [[String: Any]]) ?? []
+        let locked = Set(locks.filter { $0["pin_enabled"] as? Bool ?? false }.compactMap { $0["profile_index"] as? Int })
+        profiles.adopt(remote: remote.map { var p = $0; p.accountLocked = locked.contains(p.id); return p })
     }
 
     /// Profiles made on this Apple TV go up to the account so other devices see them.
@@ -209,12 +299,68 @@ final class AccountStore: ObservableObject {
         _ = await rpc("sync_push_profiles", ["p_profiles": rows])
     }
 
+    /// Checks a PIN set on the account. True when it opens the profile.
+    func verifyPin(profileId: Int, pin: String) async -> Bool {
+        let r = await rpc("verify_profile_pin", ["p_profile_id": profileId, "p_pin": pin])
+        let row = (r.json as? [[String: Any]])?.first ?? (r.json as? [String: Any])
+        return row?["unlocked"] as? Bool ?? false
+    }
+
+    // MARK: Debrid keys (the account's provider credentials, shared with the phone and Android TV)
+
+    private static func credentialId(_ s: DebridService) -> String? {
+        switch s {
+        case .none: return nil
+        case .realDebrid: return "debrid:realdebrid"
+        case .torbox: return "debrid:torbox"
+        case .premiumize: return "debrid:premiumize"
+        }
+    }
+
+    /// Brings the account's debrid key to this profile, or sends a key entered here up to the account.
+    /// A key changed on this Apple TV since the last sync wins; otherwise the account's key does.
+    func syncCredentials(profileId: Int, settings: SettingsStore) async {
+        guard signedIn else { return }
+        let r = await rpc("sync_pull_provider_credentials", ["p_profile_id": profileId])
+        guard r.status < 300, let rows = r.json as? [[String: Any]] else { return }
+        var remote: [String: [String: Any]] = [:]
+        for row in rows {
+            if let id = row["provider"] as? String { remote[id] = row["credential_json"] as? [String: Any] ?? [:] }
+        }
+        func key(_ s: DebridService) -> String {
+            guard let id = Self.credentialId(s) else { return "" }
+            return (remote[id]?["api_key"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let store = ProfileScope.defaults(for: profileId)
+        let localKey = settings.debridKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let local = "\(settings.debridService.rawValue)|\(localKey)"
+        let synced = store.string(forKey: "syncedDebrid")
+        let remoteKey = key(settings.debridService)
+        // First sync on this device: the account wins unless it has no key for this service.
+        let pushLocal = settings.debridReady && remoteKey != localKey && (synced == nil ? remoteKey.isEmpty : local != synced)
+        if pushLocal, let id = Self.credentialId(settings.debridService) {
+            // Send every provider back so nothing else on the account is lost.
+            remote[id, default: [:]]["api_key"] = localKey
+            let list: [[String: Any]] = remote.map { ["provider": $0.key, "credential_json": $0.value] }
+            _ = await rpc("sync_push_provider_credentials", ["p_profile_id": profileId, "p_credentials": list,
+                                                              "p_origin_client_id": clientId])
+        } else if !remoteKey.isEmpty {
+            if remoteKey != localKey { settings.debridKey = remoteKey }
+        } else if !settings.debridReady, let other = [DebridService.torbox, .premiumize, .realDebrid].first(where: { !key($0).isEmpty }) {
+            settings.debridService = other
+            settings.debridKey = key(other)
+        }
+        store.set("\(settings.debridService.rawValue)|\(settings.debridKey.trimmingCharacters(in: .whitespacesAndNewlines))",
+                  forKey: "syncedDebrid")
+    }
+
     /// Full two-way sync for one profile: add-ons, My List, progress and watched marks.
     func sync(profile: Profile, settings: SettingsStore, library: LibraryStore) async {
         guard signedIn, !busy else { return }
         busy = true
         defer { busy = false; lastSync = Date() }
         await syncAddons(profile: profile, settings: settings)
+        await syncCredentials(profileId: profile.id, settings: settings)
         await syncLibrary(profileId: profile.id, library: library)
         await syncProgress(profileId: profile.id, library: library)
         await syncWatched(profileId: profile.id, library: library)
@@ -434,10 +580,33 @@ struct AccountSettingsView: View {
                     }
                     Button("Sign out", role: .destructive) { account.signOut() }
                 } footer: {
-                    Text("Profiles, add-ons, My List, watch progress and watched episodes sync with your other Meowio devices.")
+                    Text("Profiles, PINs, add-ons, debrid keys, My List, watch progress and watched episodes sync with your phone and Android TV.")
+                }
+            } else if let code = account.linkCode {
+                Section {
+                    HStack(alignment: .center, spacing: 60) {
+                        if let qr = QRCode.image(code.url) {
+                            Image(uiImage: qr).interpolation(.none).resizable().frame(width: 320, height: 320)
+                        }
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text("Scan the code with your phone, or go to").foregroundStyle(.secondary)
+                            Text(code.url.replacingOccurrences(of: "https://", with: "")
+                                .components(separatedBy: "?").first ?? code.url).font(.title2.bold())
+                            Text("and enter this code:").foregroundStyle(.secondary)
+                            Text(code.userCode).font(.system(size: 72, weight: .heavy, design: .monospaced)).kerning(8)
+                            HStack(spacing: 14) { ProgressView(); Text("Waiting for you to approve…") }
+                        }
+                    }
+                    .padding(.vertical, 20)
+                    Button("Cancel") { account.cancelCodeSignIn() }
                 }
             } else {
                 Section {
+                    Button("Sign in with a code") { Task { await account.startCodeSignIn() } }
+                } footer: {
+                    Text("The same Nuvio account as your phone and Android TV. Approve this Apple TV from your phone, no typing needed.")
+                }
+                Section("Or sign in with email") {
                     TextField("Email", text: $email)
                         .textContentType(.username)
                         .keyboardType(.emailAddress)
@@ -449,13 +618,12 @@ struct AccountSettingsView: View {
                     .disabled(account.busy || email.isEmpty || password.isEmpty)
                     Button("Create account") { Task { await signedIn(create: true) } }
                         .disabled(account.busy || email.isEmpty || password.count < 6)
-                } footer: {
-                    Text("Use the same account as Meowio on your phone or Android TV.")
                 }
             }
             if let m = account.message { Text(m).foregroundStyle(.orange) }
         }
         .navigationTitle("Account")
+        .onDisappear { account.cancelCodeSignIn() }
     }
 
     private func signedIn(create: Bool) async {

@@ -31,10 +31,11 @@ enum SmartRanker {
         var sourceQuality: Int
     }
 
-    static func rank(_ streams: [StreamItem], isSeries: Bool, pinned: Set<String> = [], height: Int? = nil) -> [StreamItem] {
+    static func rank(_ streams: [StreamItem], isSeries: Bool, pinned: Set<String> = [], cached: Set<String> = [],
+                     height: Int? = nil) -> [StreamItem] {
         if streams.count < 2 { return streams }
         let target = normalizeHeight(height ?? deviceHeight)
-        let scored = streams.enumerated().map { (index: $0.offset, score: score($0.element, isSeries: isSeries, target: target)) }
+        let scored = streams.enumerated().map { (index: $0.offset, score: score($0.element, isSeries: isSeries, target: target, cached: cached)) }
         let ordered = scored.sorted { a, b in
             if a.score.availabilityTier != b.score.availabilityTier { return a.score.availabilityTier < b.score.availabilityTier }
             if a.score.isJunk != b.score.isJunk { return !a.score.isJunk }
@@ -49,10 +50,10 @@ enum SmartRanker {
         return ordered.map { streams[$0.index] }
     }
 
-    static func score(_ stream: StreamItem, isSeries: Bool, target: Int) -> Score {
+    static func score(_ stream: StreamItem, isSeries: Bool, target: Int, cached: Set<String> = []) -> Score {
         let text = stream.combinedText
         return Score(
-            availabilityTier: availabilityTier(stream, text: text),
+            availabilityTier: availabilityTier(stream, text: text, cached: cached),
             isJunk: isJunk(text),
             isSeasonPack: isSeries && isSeasonPack(text),
             resolutionFit: resolutionFit(parseHeight(text), target: target),
@@ -61,7 +62,9 @@ enum SmartRanker {
     }
 
     /// 0 = plays at once, 1 = probably fine, 2 = has to download first.
-    static func availabilityTier(_ stream: StreamItem, text: String) -> Int {
+    static func availabilityTier(_ stream: StreamItem, text: String, cached: Set<String> = []) -> Int {
+        // A torrent the user's debrid service already has plays at once.
+        if stream.isTorrentOnly, let h = stream.infoHash?.lowercased(), cached.contains(h) { return 0 }
         if text.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#) { return 2 }
         if stream.playableURL != nil { return 0 }
         if stream.infoHash != nil { return 2 }

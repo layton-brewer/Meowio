@@ -1,0 +1,120 @@
+name: Apple TV
+
+# Apple TV has its own release page, so a tvOS change builds only Meowio-tvos.ipa and never rebuilds the
+# Android, iPhone, Mac or Windows apps. Bump APPLETV_VERSION for every Apple TV release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tvos/**"
+      - ".github/scripts/tvos_build_secrets.py"
+      - ".github/workflows/appletv.yml"
+  # Pull requests build as a compile check; only main publishes.
+  pull_request:
+    paths:
+      - "tvos/**"
+      - ".github/scripts/tvos_build_secrets.py"
+      - ".github/workflows/appletv.yml"
+  workflow_dispatch:
+
+env:
+  APPLETV_VERSION: 0.2.43
+
+permissions:
+  contents: write
+
+concurrency:
+  group: appletv-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tvos:
+    name: Build tvOS IPA (unsigned)
+    runs-on: macos-26
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: tvos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Fetch MPVKit
+        run: git init -q MPVKit && git -C MPVKit fetch -q --depth 1 https://github.com/mpvkit/MPVKit.git d9194243bdc68b87d8989376ab52aee7da6c8e0b && git -C MPVKit checkout -q FETCH_HEAD
+
+      # Account server and app keys come from repository secrets only (the same ones the Android builds use).
+      - name: Build settings from secrets
+        env:
+          NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
+          NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+          MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
+          PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
+          INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TV_LOCAL_PROPERTIES_BASE64: ${{ secrets.TV_LOCAL_PROPERTIES_BASE64 }}
+        run: python3 ../.github/scripts/tvos_build_secrets.py Meowio/BuildSecrets.swift
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
+            -sdk appletvos -destination 'generic/platform=tvOS' \
+            -derivedDataPath build \
+            MARKETING_VERSION=$APPLETV_VERSION CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
+
+      - name: Package IPA
+        run: |
+          app="build/Build/Products/Release-appletvos/Meowio.app"
+          test -d "$app"
+          rm -rf pkg && mkdir -p pkg/Payload
+          cp -R "$app" pkg/Payload/
+          (cd pkg && zip -qry ../Meowio-tvos.ipa Payload)
+          shasum -a 256 Meowio-tvos.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-tvos
+          path: tvos/Meowio-tvos.ipa
+          retention-days: 14
+
+      - name: Publish the Apple TV release
+        # Only main publishes. Its own page, never marked latest, so the main Meowio release stays on top.
+        if: github.ref == 'refs/heads/main'
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="appletv-v$APPLETV_VERSION"
+          cat > notes.md <<'NOTES'
+          ## What's new
+
+          - **Same account as Android TV:** sign in with a code or QR from your phone, the same way Android TV does. Profiles, PINs, add-ons, debrid keys, My List, progress and watched episodes all come over.
+          - **Debrid keys from your account:** your TorBox, Premiumize or Real-Debrid key comes from your Nuvio account automatically. TorBox and Premiumize can also sign in with a code.
+          - **Cached links first:** TorBox and Premiumize are asked which torrents are already cached, so auto-play starts on one that plays at once.
+          - **Own release page:** Apple TV updates now ship here on their own, without rebuilding the other apps.
+
+          ## Download
+
+          [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa). Sideload it over your current version; settings and library stay.
+
+          The other apps are on the [main Meowio release](https://github.com/REPO/releases/latest).
+          NOTES
+          sed -i '' 's/^          //' notes.md
+          sed -i '' "s|REPO|$GH_REPO|g; s|TAG|$tag|g" notes.md
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "${{ github.sha }}" --title "Meowio for Apple TV $APPLETV_VERSION" \
+              --notes-file notes.md --latest=false
+          fi
+          for i in 1 2 3 4; do gh release upload "$tag" tvos/Meowio-tvos.ipa --clobber && exit 0; sleep 30; done
+          exit 1

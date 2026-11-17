@@ -60,7 +60,7 @@ Needs Android 7.0 or newer.
 
 ### 📺 Apple TV
 
-1. Download **`Meowio-tvos.ipa`** from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest).
+1. Download **`Meowio-tvos.ipa`** from the newest [Apple TV release](https://github.com/layton-brewer/Meowio/releases?q=appletv&expanded=true). Apple TV has its own release page.
 2. Install it with [Sideloadly](https://sideloadly.io) or Xcode (**Window → Devices and Simulators**) using your own Apple ID.
 
 ### 💻 Mac

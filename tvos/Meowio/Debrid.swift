@@ -20,6 +20,98 @@ enum Debrid {
         }
     }
 
+    // MARK: Code sign-in (TorBox and Premiumize, like the Android TV app)
+
+    struct DeviceCode: Equatable {
+        var deviceCode: String
+        var userCode: String
+        var url: String
+        var interval: Int
+        var qrURL: String? = nil
+    }
+
+    static func canSignIn(_ service: DebridService) -> Bool {
+        service == .torbox || (service == .premiumize && !BuildSecrets.premiumizeClientId.isEmpty)
+    }
+
+    static func startSignIn(_ service: DebridService) async -> DeviceCode? {
+        switch service {
+        case .torbox:
+            guard let (obj, _) = try? await send(get("\(tb)/user/auth/device/start?app=Meowio")),
+                  let d = (obj as? [String: Any])?["data"] as? [String: Any],
+                  let code = d["device_code"] as? String else { return nil }
+            return DeviceCode(deviceCode: code, userCode: d["code"] as? String ?? "",
+                              url: d["friendly_verification_url"] as? String ?? d["verification_url"] as? String ?? "https://tor.box/link",
+                              interval: max(3, d["interval"] as? Int ?? 5), qrURL: d["verification_url_complete"] as? String)
+        case .premiumize:
+            guard let (obj, _) = try? await send(form("https://www.premiumize.me/token",
+                                                      ["response_type": "device_code", "client_id": BuildSecrets.premiumizeClientId])),
+                  let d = obj as? [String: Any], let code = d["device_code"] as? String else { return nil }
+            return DeviceCode(deviceCode: code, userCode: d["user_code"] as? String ?? "",
+                              url: d["verification_uri"] as? String ?? "https://www.premiumize.me/device",
+                              interval: max(3, d["interval"] as? Int ?? 5), qrURL: d["verification_uri_complete"] as? String)
+        default:
+            return nil
+        }
+    }
+
+    /// The account token once the user approves, nil while still waiting. Throws when the code is dead.
+    static func pollSignIn(_ service: DebridService, _ code: DeviceCode) async throws -> String? {
+        switch service {
+        case .torbox:
+            var r = URLRequest(url: URL(string: "\(tb)/user/auth/device/token")!)
+            r.httpMethod = "POST"
+            r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            r.httpBody = try? JSONSerialization.data(withJSONObject: ["device_code": code.deviceCode])
+            let (obj, _) = (try? await send(r)) ?? (nil, 0)
+            return ((obj as? [String: Any])?["data"] as? [String: Any])?["access_token"] as? String
+        case .premiumize:
+            let (obj, _) = (try? await send(form("https://www.premiumize.me/token",
+                                                 ["grant_type": "device_code", "code": code.deviceCode,
+                                                  "client_id": BuildSecrets.premiumizeClientId]))) ?? (nil, 0)
+            let d = obj as? [String: Any]
+            if let token = d?["access_token"] as? String { return token }
+            if let err = d?["error"] as? String, err != "authorization_pending", err != "slow_down" { throw Failure.badKey }
+            return nil
+        default:
+            throw Failure.badKey
+        }
+    }
+
+    // MARK: Cache check
+
+    /// Which of [hashes] the service already has, so cached torrents can be tried first (like Android TV).
+    /// Real-Debrid has no cache check, so nothing is reported for it.
+    /// Nil when the check could not be made.
+    static func cached(_ hashes: [String], service: DebridService, key: String) async -> Set<String>? {
+        let token = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        var hits: Set<String> = []
+        for start in stride(from: 0, to: hashes.count, by: 100) {
+            let chunk = Array(hashes[start..<min(start + 100, hashes.count)])
+            switch service {
+            case .torbox:
+                var r = URLRequest(url: URL(string: "\(tb)/torrents/checkcached?format=object&list_files=false")!)
+                r.httpMethod = "POST"
+                r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                r.httpBody = try? JSONSerialization.data(withJSONObject: ["hashes": chunk])
+                guard let (obj, status) = try? await send(r), status < 300 else { return nil }
+                if let data = (obj as? [String: Any])?["data"] as? [String: Any] { hits.formUnion(data.keys.map { $0.lowercased() }) }
+            case .premiumize:
+                var r = form("https://www.premiumize.me/api/cache/check", [:], bearer: token)
+                var allowed = CharacterSet.alphanumerics
+                allowed.insert(charactersIn: "-._~")
+                r.httpBody = chunk.map { "items%5B%5D=\($0.addingPercentEncoding(withAllowedCharacters: allowed) ?? $0)" }
+                    .joined(separator: "&").data(using: .utf8)
+                guard let (obj, _) = try? await send(r), let flags = (obj as? [String: Any])?["response"] as? [Bool] else { return nil }
+                for (h, ok) in zip(chunk, flags) where ok { hits.insert(h) }
+            case .realDebrid, .none:
+                return nil
+            }
+        }
+        return hits
+    }
+
     // MARK: File choice
 
     struct File {
@@ -157,8 +249,8 @@ enum Debrid {
     // MARK: Premiumize
 
     private static func premiumize(magnet: String, stream: StreamItem, season: Int?, episode: Int?, key: String) async throws -> URL {
-        let apikey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-        let (res, _) = try await send(form("https://www.premiumize.me/api/transfer/directdl?apikey=\(apikey)", ["src": magnet]))
+        // Bearer works for both an API key and a device sign-in token (what the Android apps store and sync).
+        let (res, _) = try await send(form("https://www.premiumize.me/api/transfer/directdl", ["src": magnet], bearer: key))
         guard let obj = res as? [String: Any] else { throw Failure.network }
         guard (obj["status"] as? String) == "success" else {
             let msg = (obj["message"] as? String ?? "").lowercased()

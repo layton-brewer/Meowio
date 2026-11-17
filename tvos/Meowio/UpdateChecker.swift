@@ -13,7 +13,7 @@ final class UpdateChecker: ObservableObject {
 
     @Published private(set) var state: State = .idle
     /// The release page of the newest version, and its notes.
-    @Published private(set) var releaseURL = "https://github.com/layton-brewer/Meowio/releases/latest"
+    @Published private(set) var releaseURL = "https://github.com/layton-brewer/Meowio/releases?q=appletv"
     @Published private(set) var notes = ""
 
     static var currentVersion: String {
@@ -22,7 +22,8 @@ final class UpdateChecker: ObservableObject {
 
     func check() async {
         state = .checking
-        guard let url = URL(string: "https://api.github.com/repos/layton-brewer/Meowio/releases/latest") else {
+        // Apple TV has its own releases, tagged appletv-v<version>.
+        guard let url = URL(string: "https://api.github.com/repos/layton-brewer/Meowio/releases?per_page=30") else {
             state = .failed
             return
         }
@@ -33,8 +34,9 @@ final class UpdateChecker: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200,
-                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let tag = json["tag_name"] as? String else {
+                  let list = try JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+                  let json = list.first(where: { ($0["tag_name"] as? String ?? "").hasPrefix("appletv-v") && $0["draft"] as? Bool != true }),
+                  let tag = (json["tag_name"] as? String)?.replacingOccurrences(of: "appletv-", with: "") else {
                 state = .failed
                 return
             }

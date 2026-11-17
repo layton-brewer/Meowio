@@ -10,6 +10,10 @@ struct Profile: Codable, Identifiable, Hashable {
     var pin: String? = nil
     /// Uses the main profile's add-ons instead of its own (matches the Android setting of the same name).
     var usesPrimaryAddons: Bool = false
+    /// A PIN is set for this profile on the account; it is checked by the account server.
+    var accountLocked: Bool? = nil
+
+    var isLocked: Bool { pin != nil || accountLocked == true }
 
     var color: Color { Color(hex: colorHex) ?? .purple }
     var initial: String { String(name.trimmingCharacters(in: .whitespaces).first ?? "M").uppercased() }
@@ -50,7 +54,7 @@ final class ProfileStore: ObservableObject {
         askOnLaunch = d.object(forKey: "profilesAskOnLaunch") as? Bool ?? true
         let last = d.object(forKey: "activeProfile") as? Int ?? 1
         let lastExists = list.contains { $0.id == last }
-        let lastLocked = list.first { $0.id == last }?.pin != nil
+        let lastLocked = list.first { $0.id == last }?.isLocked == true
         if list.count > 1 && (askOnLaunch || lastLocked) {
             activeId = nil
         } else {
@@ -144,7 +148,7 @@ struct ProfileAvatar: View {
         }
         .frame(width: size, height: size)
         .overlay(alignment: .bottomTrailing) {
-            if profile.pin != nil {
+            if profile.isLocked {
                 Image(systemName: "lock.fill").font(.system(size: size * 0.16)).padding(size * 0.06)
                     .background(.ultraThinMaterial, in: Circle())
             }
@@ -155,6 +159,7 @@ struct ProfileAvatar: View {
 /// "Who's watching?" Shown at launch when there is more than one profile, like the Android TV app.
 struct ProfilePickerView: View {
     @EnvironmentObject var profiles: ProfileStore
+    @EnvironmentObject var account: AccountStore
     @State private var locked: Profile?
     @State private var adding = false
 
@@ -194,7 +199,8 @@ struct ProfilePickerView: View {
         }
         .sheet(item: $locked) { p in
             PinEntryView(title: "Enter the PIN for \(p.name)") { entered in
-                if entered == p.pin {
+                let ok = p.pin != nil ? entered == p.pin : await account.verifyPin(profileId: p.id, pin: entered)
+                if ok {
                     locked = nil
                     profiles.select(p.id)
                     return true
@@ -206,14 +212,14 @@ struct ProfilePickerView: View {
     }
 
     private func open(_ p: Profile) {
-        if p.pin != nil { locked = p } else { profiles.select(p.id) }
+        if p.isLocked { locked = p } else { profiles.select(p.id) }
     }
 }
 
 struct PinEntryView: View {
     let title: String
     /// Returns true when the PIN was right.
-    let check: (String) -> Bool
+    let check: (String) async -> Bool
     @State private var pin = ""
     @State private var wrong = false
     @Environment(\.dismiss) private var dismiss
@@ -235,7 +241,8 @@ struct PinEntryView: View {
     }
 
     private func submit() {
-        if !check(pin) { wrong = true; pin = "" }
+        let entered = pin
+        Task { if !(await check(entered)) { wrong = true; pin = "" } }
     }
 }
 
