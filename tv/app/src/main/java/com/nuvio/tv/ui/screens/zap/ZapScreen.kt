@@ -80,6 +80,7 @@ fun ZapScreen(
     if (showFilters) {
         ZapFilterPanel(
             initial = state.filters,
+            sourceOptions = state.sourceOptions,
             suggestions = state.suggestions,
             onSearchPeople = viewModel::searchPeople,
             onClearSuggestions = viewModel::clearSuggestions,
@@ -213,6 +214,7 @@ fun ZapScreen(
 @Composable
 private fun ZapFilterPanel(
     initial: ZapFilters,
+    sourceOptions: List<com.nuvio.tv.core.zap.ZapSourceOption>,
     suggestions: List<ZapPerson>,
     onSearchPeople: (String) -> Unit,
     onClearSuggestions: () -> Unit,
@@ -310,6 +312,18 @@ private fun ZapFilterPanel(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             listOf(0f to "Any", 6f to "6+", 7f to "7+", 8f to "8+").forEach { (value, label) ->
                 Pill(label, draft.minRating == value) { draft = draft.copy(minRating = value) }
+            }
+        }
+
+        Label("Pull titles from")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Pill("Automatic (home screen catalogs)", draft.sourceKeys.isEmpty()) { draft = draft.copy(sourceKeys = emptySet()) }
+            sourceOptions.forEach { option ->
+                Pill(option.label, option.key in draft.sourceKeys) {
+                    draft = draft.copy(
+                        sourceKeys = if (option.key in draft.sourceKeys) draft.sourceKeys - option.key else draft.sourceKeys + option.key
+                    )
+                }
             }
         }
 

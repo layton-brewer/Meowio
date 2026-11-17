@@ -28,9 +28,11 @@ struct ZapFilters: Equatable {
     var people: [ZapPerson] = []
     var minRating: Double = 0
     var hideWatched = true
+    /// Catalogs Surprise Me may draw from, as "base|type|id" keys. Empty means automatic: every catalog on the home screen.
+    var sourceKeys: Set<String> = []
 
     var activeCount: Int {
-        [type != .both, yearFrom != nil || yearTo != nil, !genres.isEmpty, !people.isEmpty, minRating > 0].filter { $0 }.count
+        [type != .both, yearFrom != nil || yearTo != nil, !genres.isEmpty, !people.isEmpty, minRating > 0, !sourceKeys.isEmpty].filter { $0 }.count
     }
 }
 
@@ -187,7 +189,9 @@ final class ZapPool {
         }
         var unique: [ZapSource] = []
         for s in found where !unique.contains(where: { $0.key == s.key }) { unique.append(s) }
-        return unique
+        // Automatic uses every catalog on the home screen; a custom choice replaces that.
+        let chosen = filters.sourceKeys.isEmpty ? unique : unique.filter { filters.sourceKeys.contains($0.key) }
+        return chosen.isEmpty ? unique : chosen
     }
 
     private func refill(_ all: [ZapSource]) async {
@@ -268,7 +272,16 @@ final class ZapPool {
 }
 
 /// The filters the user last chose, kept while the app runs.
-enum ZapMemory { @MainActor static var filters = ZapFilters() }
+enum ZapMemory {
+    private static let sourcesKey = "meowio_zap_sources"
+    @MainActor static var filters: ZapFilters = {
+        var f = ZapFilters()
+        f.sourceKeys = Set(UserDefaults.standard.stringArray(forKey: sourcesKey) ?? [])
+        return f
+    }() {
+        didSet { UserDefaults.standard.set(Array(filters.sourceKeys), forKey: ZapMemory.sourcesKey) }
+    }
+}
 
 struct ZapView: View {
     @EnvironmentObject var settings: SettingsStore
@@ -394,6 +407,7 @@ struct ZapFilterSheet: View {
     let apply: (ZapFilters) -> Void
     @State private var actorQuery = ""
     @State private var suggestions: [ZapPerson] = []
+    @State private var catalogs: [AddonClient.AddonCatalog] = []
 
     init(initial: ZapFilters, apply: @escaping (ZapFilters) -> Void) {
         _draft = State(initialValue: initial)
@@ -449,6 +463,15 @@ struct ZapFilterSheet: View {
                         pill(r.1, draft.minRating == r.0) { draft.minRating = r.0 }
                     }
                 }
+                section("Pull titles from") {
+                    pill("Automatic (home screen catalogs)", draft.sourceKeys.isEmpty) { draft.sourceKeys = [] }
+                    ForEach(catalogs, id: \.self) { c in
+                        let key = c.rowId
+                        pill(c.title, draft.sourceKeys.contains(key)) {
+                            if draft.sourceKeys.contains(key) { draft.sourceKeys.remove(key) } else { draft.sourceKeys.insert(key) }
+                        }
+                    }
+                }
                 section("Already watched") {
                     pill("Hide watched", draft.hideWatched) { draft.hideWatched = true }
                     pill("Include watched", !draft.hideWatched) { draft.hideWatched = false }
@@ -462,6 +485,7 @@ struct ZapFilterSheet: View {
             .padding(60)
         }
         .background(settings.theme.background.ignoresSafeArea())
+        .task { catalogs = await AddonClient.addonCatalogs(settings.addons) }
         .task(id: actorQuery) {
             let q = actorQuery.trimmingCharacters(in: .whitespaces)
             guard q.count >= 2 else { suggestions = []; return }
