@@ -109,7 +109,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.33 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.34 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -213,7 +213,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.33 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.34 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -256,12 +256,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.33"
+          tag="v0.2.34"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.33
+          ## What's new in 0.2.34
 
-          - **Player controls:** toolbar and panel buttons now handle taps when another gesture handler has consumed the initial press.
-          - **Surprise Me:** each pick displays its catalog source on phone and desktop to help investigate unexpected saved-library results. The reported cloud-only selection issue is still under investigation.
+          - **Surprise Me catalogs:** it now pulls from the catalogs shown on your home screen automatically, instead of every catalog an add-on lists. If none of those match it uses all of them.
+          - **Choose where Surprise Me pulls from:** open Surprise Me filters and use "Pull titles from" to pick specific catalogs, on phone, desktop, Android TV and Apple TV. Your choice is remembered; "Automatic" goes back to the home screen catalogs.
 
           ## Download
 

@@ -8,6 +8,11 @@ import com.nuvio.tv.core.zap.ZapFilters
 import com.nuvio.tv.core.zap.ZapPerson
 import com.nuvio.tv.core.zap.ZapPool
 import com.nuvio.tv.core.zap.ZapResult
+import com.nuvio.tv.core.zap.ZapSourceOption
+import com.nuvio.tv.core.sync.homeCatalogKey
+import com.nuvio.tv.data.local.LayoutPreferenceDataStore
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.nuvio.tv.core.zap.ZapTitle
 import com.nuvio.tv.core.zap.zapSearchPeople
 import com.nuvio.tv.domain.model.LibraryEntryInput
@@ -32,25 +37,46 @@ data class ZapUiState(
     val saved: Boolean = false,
     val filters: ZapFilters = ZapFilters(),
     val canGoBack: Boolean = false,
-    val suggestions: List<ZapPerson> = emptyList()
+    val suggestions: List<ZapPerson> = emptyList(),
+    val sourceOptions: List<ZapSourceOption> = emptyList()
 )
 
 @HiltViewModel
 class ZapViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
     private val client: OkHttpClient,
     private val addonRepository: AddonRepository,
     private val catalogRepository: CatalogRepository,
     private val libraryRepository: LibraryRepository,
     private val watchProgressRepository: WatchProgressRepository
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ZapUiState())
+    private val sourcePrefs = context.getSharedPreferences("meowio_zap_sources", Context.MODE_PRIVATE)
+    private val startFilters = ZapFilters(
+        sourceKeys = sourcePrefs.getString("keys", "").orEmpty().split('\n').filter { it.isNotBlank() }.toSet()
+    )
+    private val _state = MutableStateFlow(ZapUiState(filters = startFilters))
     val state: StateFlow<ZapUiState> = _state.asStateFlow()
 
-    private var pool = newPool(ZapFilters())
+    private var pool = newPool(startFilters)
     private val history = ArrayDeque<ZapTitle>()
 
     init {
         zap()
+        viewModelScope.launch {
+            val addons = withTimeoutOrNull(8_000) { addonRepository.getInstalledAddons().first { it.isNotEmpty() } }.orEmpty()
+            val options = addons.filter { it.isActive }.flatMap { addon ->
+                addon.catalogs.filter { !it.isSearchOnlyCatalog() }.mapNotNull { catalog ->
+                    val type = catalog.apiType.lowercase()
+                    if (type != "movie" && type != "series") return@mapNotNull null
+                    ZapSourceOption(
+                        key = homeCatalogKey(addon.id, type, catalog.id),
+                        label = "${addon.displayName} · ${catalog.name} (${if (type == "series") "series" else "movies"})"
+                    )
+                }
+            }.distinctBy { it.key }
+            _state.value = _state.value.copy(sourceOptions = options)
+        }
     }
 
     private fun newPool(filters: ZapFilters) = ZapPool(
@@ -63,7 +89,8 @@ class ZapViewModel @Inject constructor(
             watchProgressRepository.isWatched(id).first() ||
                 watchProgressRepository.allProgress.first().any { it.contentId == id }
         },
-        isSaved = { id -> libraryRepository.libraryItems.first().any { it.id == id } }
+        isSaved = { id -> libraryRepository.libraryItems.first().any { it.id == id } },
+        disabledHomeKeys = { layoutPreferenceDataStore.disabledHomeCatalogKeys.first().toSet() }
     )
 
     fun zap() {
@@ -132,6 +159,7 @@ class ZapViewModel @Inject constructor(
 
     fun applyFilters(filters: ZapFilters) {
         if (filters == _state.value.filters) return
+        sourcePrefs.edit().putString("keys", filters.sourceKeys.joinToString("\n")).apply()
         pool = newPool(filters)
         history.clear()
         _state.value = _state.value.copy(filters = filters, empty = null, canGoBack = false, loading = false)

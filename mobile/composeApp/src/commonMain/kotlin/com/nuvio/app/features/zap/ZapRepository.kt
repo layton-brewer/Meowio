@@ -6,6 +6,7 @@ import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.catalog.CatalogPage
+import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
@@ -107,9 +108,16 @@ class ZapPool(private val filters: ZapFilters) {
         withTimeoutOrNull(12_000) {
             AddonRepository.uiState.first { state -> state.addons.none { it.enabled && it.isRefreshing } }
         }
-        val found = buildDiscoverSources(
-            AddonRepository.uiState.value.addons.filter { it.isActive },
-        ).map { catalog ->
+        val options = buildDiscoverSources(AddonRepository.uiState.value.addons.filter { it.isActive })
+        // Automatic: the catalogs shown on the home screen (those not switched off in Home settings).
+        // A custom choice, made in Surprise Me's filters, replaces that. If nothing matches, use everything.
+        val homeKeys = HomeCatalogSettingsRepository.uiState.value.items
+            .filter { it.enabled && !it.isCollection }
+            .map { it.key }
+            .toSet()
+        val wantedKeys = filters.sourceKeys.ifEmpty { homeKeys }
+        val chosen = options.filter { it.key in wantedKeys }.ifEmpty { options }
+        val found = chosen.map { catalog ->
             ZapSource(
                 sourceName = "${catalog.addonName} · ${catalog.catalogName}",
                 manifestUrl = catalog.manifestUrl,
@@ -272,9 +280,20 @@ object ZapSearch {
     }
 }
 
-/** The filters the user last chose; kept for the life of the app so reopening Zap feels the same. */
+/** The filters the user last chose; kept for the life of the app so reopening Surprise Me feels the same. */
 object ZapFilterMemory {
-    var filters: ZapFilters = ZapFilters()
+    private var current: ZapFilters? = null
+
+    var filters: ZapFilters
+        get() = current ?: ZapFilters(sourceKeys = loadSourceKeys()).also { current = it }
+        set(value) {
+            current = value
+            runCatching { ZapSourceStorage.save(value.sourceKeys.joinToString("\n")) }
+        }
+
+    private fun loadSourceKeys(): Set<String> =
+        runCatching { ZapSourceStorage.load() }.getOrNull().orEmpty()
+            .split('\n').filter { it.isNotBlank() }.toSet()
 }
 
 private fun percentEncode(value: String): String {

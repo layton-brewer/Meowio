@@ -495,6 +495,30 @@ private fun ZapFilterPanel(
                 }
             }
 
+            FilterLabel("Pull titles from")
+            val sourceOptions = remember {
+                com.nuvio.app.features.search.buildDiscoverSources(
+                    com.nuvio.app.features.addons.AddonRepository.uiState.value.addons.filter { it.isActive },
+                ).filter { it.type == "movie" || it.type == "series" }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip(
+                    label = "Automatic (home screen catalogs)",
+                    selected = draft.sourceKeys.isEmpty(),
+                    onClick = { draft = draft.copy(sourceKeys = emptySet()) },
+                )
+                sourceOptions.forEach { option ->
+                    Chip(
+                        label = "${option.addonName} · ${option.catalogName} (${if (option.type == "series") "series" else "movies"})",
+                        selected = option.key in draft.sourceKeys,
+                        onClick = {
+                            val next = if (option.key in draft.sourceKeys) draft.sourceKeys - option.key else draft.sourceKeys + option.key
+                            draft = draft.copy(sourceKeys = next)
+                        },
+                    )
+                }
+            }
+
             FilterLabel("Already watched")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Chip(label = "Hide watched", selected = draft.hideWatched, onClick = { draft = draft.copy(hideWatched = true) })
