@@ -1,5 +1,6 @@
 package com.nuvio.app.features.party
 
+import com.nuvio.app.features.player.playerTopButtonTarget
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -141,6 +142,9 @@ internal fun PartyPanel(
                             PlayerDialogButton(
                                 label = stringResource(Res.string.action_close),
                                 onClick = onDismiss,
+                                // Matched by the Android activity before the video can take
+                                // the touch, like the player's top buttons.
+                                modifier = Modifier.playerTopButtonTarget("partyClose", onDismiss),
                             )
                         }
                         Spacer(Modifier.height(20.dp))
