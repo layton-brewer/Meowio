@@ -40,6 +40,11 @@ private data class ZapSource(
 
 private const val MAX_PAGES = 10
 
+/** Titles the home screen has already loaded, so Surprise Me has something before any fetch (as on phone). */
+object ZapHomeRows {
+    @Volatile var rows: List<com.nuvio.tv.domain.model.CatalogRow> = emptyList()
+}
+
 /**
  * A shuffled supply of random titles for one set of [ZapFilters], drawn from the catalogs of the
  * add-ons the user has installed (the same ones Home and Search use). Needs no TMDB key.
@@ -63,18 +68,28 @@ class ZapPool(
     private val searched = HashSet<String>()
     private var failures = 0
     private var sources: List<ZapSource>? = null
+    private var homeSeeded = false
 
     suspend fun next(): ZapResult {
-        val all = sources ?: loadSources().also { sources = it }
+        // Like phone: don't remember an empty list, so add-ons that finish loading later still count.
+        val all = sources ?: loadSources().also { if (it.isNotEmpty()) sources = it }
         if (all.isEmpty()) return ZapResult.Empty(ZapEmpty.NO_SOURCES)
+        if (!homeSeeded) {
+            homeSeeded = true
+            if (filters.sourceKeys.isEmpty()) {
+                queue.addAll(
+                    ZapHomeRows.rows.flatMap { it.items }
+                        .filter { typeWanted(it.rawType.lowercase()) && matches(it) }
+                        .shuffled()
+                )
+            }
+        }
         var refills = 0
         while (refills <= 30) {
             while (queue.isNotEmpty()) {
                 val item = queue.removeFirst()
                 if (!seen.add("${item.rawType}:${item.id}")) continue
-                // Surprise Me finds new things: titles already in the library or lists never come up.
-                if (runCatching { isSaved(item.id) }.getOrDefault(false)) continue
-                if (filters.hideWatched && runCatching { isWatched(item.id) }.getOrDefault(false)) continue
+                if (skipped(item)) continue
                 return ZapResult.Found(item.toZapTitle())
             }
             refills++
@@ -82,6 +97,11 @@ class ZapPool(
         }
         return ZapResult.Empty(if (failures > 0) ZapEmpty.OFFLINE else ZapEmpty.NO_MATCHES)
     }
+
+    /** Surprise Me finds new things: titles already in the library or lists (or watched) never come up. */
+    private suspend fun skipped(item: MetaPreview): Boolean =
+        runCatching { isSaved(item.id) }.getOrDefault(false) ||
+            (filters.hideWatched && runCatching { isWatched(item.id) }.getOrDefault(false))
 
     private fun isZapType(type: String): Boolean =
         type == "movie" || type == "series" || type == "tv" || type == "anime" || type.startsWith("anime.")
@@ -154,7 +174,8 @@ class ZapPool(
                 if (candidates.isEmpty()) candidates.addAll(discoverPage(source).shuffled())
                 while (candidates.isNotEmpty()) {
                     val item = candidates.removeFirst()
-                    if (!matches(item) || "${item.rawType}:${item.id}" in seen) continue
+                    // Like phone: a saved or watched title doesn't use up this catalog's turn.
+                    if (!matches(item) || "${item.rawType}:${item.id}" in seen || skipped(item)) continue
                     added += item
                     break
                 }

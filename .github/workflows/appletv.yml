@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.43
+  APPLETV_VERSION: 0.2.44
 
 permissions:
   contents: write
@@ -99,6 +99,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
+          - **Surprise Me works like the phone:** a title already in your library or watched no longer uses up a catalog's turn, so every add-on catalog keeps contributing, and add-ons that finish loading late are still picked up.
           - **Same account as Android TV:** sign in with a code or QR from your phone, the same way Android TV does. Profiles, PINs, add-ons, debrid keys, My List, progress and watched episodes all come over.
           - **Debrid keys from your account:** your TorBox, Premiumize or Real-Debrid key comes from your Nuvio account automatically. TorBox and Premiumize can also sign in with a code.
           - **Cached links first:** TorBox and Premiumize are asked which torrents are already cached, so auto-play starts on one that plays at once.
