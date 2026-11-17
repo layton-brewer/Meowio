@@ -375,8 +375,11 @@ private fun PlayerScreenRuntime.RenderTopToolbar(
                 partyActive = partyState.party != null,
                 onSwitchEngineClick = if (playerController?.playbackEngine != null) {
                     {
-                        showSwitchEngineConfirm = true
+                        // Switch straight away (the video resumes where it was) and show
+                        // "Switching to …" on screen, instead of a confirm dialog that never
+                        // seemed to appear on phones.
                         controlsActivityTick += 1
+                        switchPlaybackEngine()
                     }
                 } else {
                     null
