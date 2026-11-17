@@ -260,7 +260,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new in 0.2.38
 
-          - **Surprise Me matches on every device:** Android TV and Apple TV now take one title from each add-on catalog in turn, in Addons-screen order, instead of staying on the first few, exactly like the phone and desktop. The Apple TV catalog picker lists every add-on catalog too.
+          - **Surprise Me matches on every device:** Android TV and Apple TV now take one title from each add-on catalog in turn, in Addons-screen order, instead of staying on the first few, exactly like the phone and desktop. The Apple TV catalog picker now lists every add-on catalog.
 
           ## Download
 
