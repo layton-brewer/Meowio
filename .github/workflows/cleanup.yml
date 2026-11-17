@@ -70,8 +70,20 @@ jobs:
           set -u
           live=$(gh api "repos/$REPO/actions/workflows?per_page=100" --jq '[.workflows[] | select(.state=="active") | .id | tostring] | join(" ")')
           cutoff=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
-          gh api "repos/$REPO/actions/runs?status=completed&per_page=100" --paginate \
-            --jq '.workflow_runs[] | [.id, .workflow_id, (.conclusion // ""), .head_branch, .created_at, .name] | @tsv' > "$RUNNER_TEMP/runs.tsv"
+          # The runs list is heavy; page through it in small pages with retries (it 502s on big ones).
+          : > "$RUNNER_TEMP/runs.tsv"
+          page=1
+          while :; do
+            for try in 1 2 3 4 5; do
+              out=$(gh api "repos/$REPO/actions/runs?status=completed&per_page=30&page=$page" \
+                --jq '.workflow_runs[] | [.id, .workflow_id, (.conclusion // ""), .head_branch, .created_at, .name] | @tsv') && break
+              out="__error__"; sleep $((try * 5))
+            done
+            [ "$out" = "__error__" ] && { echo "runs page $page kept failing, stopping here"; break; }
+            [ -z "$out" ] && break
+            printf '%s\n' "$out" >> "$RUNNER_TEMP/runs.tsv"
+            page=$((page + 1))
+          done
           count=0
           while IFS=$'\t' read -r id wf conclusion branch created name; do
             [ "$id" = "$SELF_RUN" ] && continue
