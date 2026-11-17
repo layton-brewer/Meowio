@@ -76,6 +76,12 @@ struct ProfileRoot: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await syncAll() } }
             }
+            .task(id: "\(settings.debridService.rawValue)|\(settings.debridKey)") {
+                // A debrid key typed here reaches the account a moment after the last keystroke.
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                guard !Task.isCancelled, account.signedIn, !account.busy else { return }
+                await account.syncCredentials(profileId: profile.id, settings: settings)
+            }
             .onChange(of: settings.addons) { _, addons in
                 guard !profile.usesPrimaryAddons || profile.id == 1 else { return }
                 Task { await account.pushAddons(addons, profileId: profile.id) }
@@ -102,6 +108,10 @@ struct ProfileRoot: View {
         let sk = simkl
         let md = mdblist
         streams.servers = servers
+        account.onSignedIn = { [profiles] in
+            await acc.pullProfiles(into: profiles)
+            await self.syncAll()
+        }
         party.configure(account: account, profiles: profiles)
         library.onSavedChanged = { [weak acc, weak tr, weak sk, weak md] item, added in
             Task { @MainActor in

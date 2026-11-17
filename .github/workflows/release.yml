@@ -277,14 +277,14 @@ jobs:
           | Android phone or tablet | [Meowio-mobile.apk](https://github.com/REPO/releases/download/TAG/Meowio-mobile.apk) |
           | iPhone / iPad | [Meowio-ios.ipa](https://github.com/REPO/releases/download/TAG/Meowio-ios.ipa) |
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
-          | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
+          | Apple TV | [Apple TV releases](https://github.com/REPO/releases?q=appletv&expanded=true) (its own page) |
           | Windows 10/11 (64-bit) | [Meowio-windows-x64.exe](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.exe) |
 
           ## Installation
 
           See the [installation guide](https://github.com/REPO#readme) for your device.
 
-          Apple and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
+          iPhone, Mac and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
 
           NOTES
           sed -i 's/^          //' notes.md
@@ -299,7 +299,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
           done
           # Never overwrite a file the Apple or Windows build already attached to this page, and never fail
           # the release over a carried-over file (those builds attach their own copy anyway).

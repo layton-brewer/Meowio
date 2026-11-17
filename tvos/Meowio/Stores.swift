@@ -224,7 +224,8 @@ final class StreamStore: ObservableObject {
         var list = MediaServerStore.isServerId(id) ? [] : await raw(type: type, id: id, addons: settings.addons)
         if !settings.debridReady { list.removeAll { $0.isTorrentOnly } }
         let ownList = await own
-        var ranked = SmartRanker.rank(list + ownList, isSeries: type == "series", pinned: Set(settings.pinnedSources))
+        let cached = await cachedHashes(list, settings: settings)
+        var ranked = SmartRanker.rank(list + ownList, isSeries: type == "series", pinned: Set(settings.pinnedSources), cached: cached)
         if servers?.preferServers ?? true, !ownList.isEmpty {
             // The user's own copies first, in the order Smart ranking gave them.
             ranked = ranked.filter { $0.isServer } + ranked.filter { !$0.isServer }
@@ -238,10 +239,30 @@ final class StreamStore: ObservableObject {
         return ranked
     }
 
+    /// Debrid cache answers, kept per service and key so each torrent is only asked about once.
+    private var cacheAnswers: [String: Bool] = [:]
+
+    private func cachedHashes(_ list: [StreamItem], settings: SettingsStore) async -> Set<String> {
+        guard settings.debridReady else { return [] }
+        let service = settings.debridService, key = settings.debridKey
+        let prefix = "\(service.rawValue)|\(key)|"
+        let hashes = list.filter(\.isTorrentOnly).compactMap { $0.infoHash?.lowercased() }
+        let unknown = Array(Set(hashes.filter { cacheAnswers[prefix + $0] == nil }))
+        if !unknown.isEmpty {
+            if let hits = await Debrid.cached(unknown, service: service, key: key) {
+                for h in unknown { cacheAnswers[prefix + h] = hits.contains(h) }
+            }
+        }
+        return Set(hashes.filter { cacheAnswers[prefix + $0] == true })
+    }
+
     func preload(type: String, id: String, settings: SettingsStore) {
         guard settings.streamMode == .smart, !settings.addons.isEmpty, !MediaServerStore.isServerId(id) else { return }
         let addons = settings.addons
-        Task { _ = await raw(type: type, id: id, addons: addons) }
+        Task {
+            let list = await raw(type: type, id: id, addons: addons)
+            _ = await cachedHashes(list, settings: settings)
+        }
     }
 
     func rememberRelease(parentId: String, stream: StreamItem) {

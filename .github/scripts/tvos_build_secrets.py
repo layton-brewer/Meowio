@@ -34,6 +34,7 @@ fields = {
     "traktClientSecret": value("TRAKT_CLIENT_SECRET"),
     "simklClientId": value("SIMKL_CLIENT_ID"),
     "mdblistClientId": value("MDBLIST_API_KEY") or value("MDBLIST_CLIENT_ID"),
+    "premiumizeClientId": value("PREMIUMIZE_CLIENT_ID"),
     "introDbURL": value("INTRODB_API_URL"),
     "tmdbApiKey": value("TMDB_API_KEY"),
 }
