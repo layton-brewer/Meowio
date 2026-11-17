@@ -45,8 +45,13 @@ final class TraktStore: ObservableObject {
         let own = UserDefaults.standard.string(forKey: "traktClientSecret")?.trimmingCharacters(in: .whitespaces) ?? ""
         return own.isEmpty ? BuildSecrets.traktClientSecret : own
     }
-    static var hasBuiltInApp: Bool { !BuildSecrets.traktClientId.isEmpty && !BuildSecrets.traktClientSecret.isEmpty }
-    static var configured: Bool { !clientId.isEmpty && !clientSecret.isEmpty }
+    static var hasBuiltInApp: Bool { !BuildSecrets.traktClientId.isEmpty }
+    static var configured: Bool { !clientId.isEmpty }
+
+    /// Adds the client secret only when there is one. New Trakt apps have none (PKCE), so nothing is sent.
+    private static func withSecret(_ body: [String: String]) -> [String: String] {
+        clientSecret.isEmpty ? body : body.merging(["client_secret": clientSecret]) { a, _ in a }
+    }
 
     var connected: Bool { accessToken != nil }
 
@@ -82,8 +87,7 @@ final class TraktStore: ObservableObject {
         while !Task.isCancelled, Date() < code.expires {
             try? await Task.sleep(nanoseconds: UInt64(wait) * 1_000_000_000)
             if Task.isCancelled { return }
-            let r = await post("/oauth/device/token", ["code": code.deviceCode, "client_id": Self.clientId,
-                                                        "client_secret": Self.clientSecret], auth: false)
+            let r = await post("/oauth/device/token", Self.withSecret(["code": code.deviceCode, "client_id": Self.clientId]), auth: false)
             switch r.status {
             case 200:
                 if let obj = r.json as? [String: Any] { saveTokens(obj) }
@@ -105,7 +109,7 @@ final class TraktStore: ObservableObject {
 
     func signOut() {
         if let token = accessToken {
-            let body = ["token": token, "client_id": Self.clientId, "client_secret": Self.clientSecret]
+            let body = Self.withSecret(["token": token, "client_id": Self.clientId])
             Task { _ = await post("/oauth/revoke", body, auth: false) }
         }
         accessToken = nil
@@ -128,9 +132,8 @@ final class TraktStore: ObservableObject {
 
     private func refreshIfNeeded() async {
         guard let refreshToken, let expiresAt, expiresAt.timeIntervalSinceNow < 86_400 else { return }
-        let r = await post("/oauth/token", ["refresh_token": refreshToken, "client_id": Self.clientId,
-                                            "client_secret": Self.clientSecret, "grant_type": "refresh_token",
-                                            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob"], auth: false)
+        let r = await post("/oauth/token", Self.withSecret(["refresh_token": refreshToken, "client_id": Self.clientId, "grant_type": "refresh_token",
+                                            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob"]), auth: false)
         if r.status == 200, let obj = r.json as? [String: Any] { saveTokens(obj) }
         else if r.status == 401 || r.status == 400 { signOut(); message = "Trakt signed out. Sign in again." }
     }
@@ -148,7 +151,9 @@ final class TraktStore: ObservableObject {
     private struct Reply { var status: Int; var json: Any? }
 
     private func request(_ path: String, method: String, body: Any?, auth: Bool) async -> Reply {
-        guard let url = URL(string: Self.api + path) else { return Reply(status: 0, json: nil) }
+        // Trakt serves OAuth from its own host.
+        let host = path.hasPrefix("/oauth/") ? "https://auth.trakt.tv" : Self.api
+        guard let url = URL(string: host + path) else { return Reply(status: 0, json: nil) }
         var r = URLRequest(url: url)
         r.httpMethod = method
         r.timeoutInterval = 20

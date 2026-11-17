@@ -110,16 +110,16 @@ import nuvio.composeapp.generated.resources.settings_tracking_approval_redirect
 import nuvio.composeapp.generated.resources.settings_tracking_disconnect_description
 import nuvio.composeapp.generated.resources.settings_tracking_disconnect_title
 import nuvio.composeapp.generated.resources.settings_tracking_not_connected
-import nuvio.composeapp.generated.resources.settings_trakt_approval_redirect
+import nuvio.composeapp.generated.resources.settings_trakt_device_finish_sign_in
+import nuvio.composeapp.generated.resources.settings_trakt_device_instructions
+import nuvio.composeapp.generated.resources.settings_trakt_open_activation
 import nuvio.composeapp.generated.resources.settings_trakt_connect
 import nuvio.composeapp.generated.resources.settings_trakt_connected_as
 import nuvio.composeapp.generated.resources.settings_trakt_default_user
 import nuvio.composeapp.generated.resources.settings_trakt_disconnect
 import nuvio.composeapp.generated.resources.settings_trakt_disconnect_description
 import nuvio.composeapp.generated.resources.settings_trakt_failed_open_browser
-import nuvio.composeapp.generated.resources.settings_trakt_finish_sign_in
 import nuvio.composeapp.generated.resources.settings_trakt_missing_credentials
-import nuvio.composeapp.generated.resources.settings_trakt_open_login
 import nuvio.composeapp.generated.resources.settings_trakt_save_actions_description
 import nuvio.composeapp.generated.resources.settings_trakt_sign_in_description
 import org.jetbrains.compose.resources.stringResource
@@ -244,10 +244,11 @@ private fun TraktProviderCard(
         ),
         connectedDescription = stringResource(Res.string.settings_trakt_save_actions_description),
         signInDescription = stringResource(Res.string.settings_trakt_sign_in_description),
-        finishSignInLabel = stringResource(Res.string.settings_trakt_finish_sign_in),
-        approvalDescription = stringResource(Res.string.settings_trakt_approval_redirect),
+        finishSignInLabel = stringResource(Res.string.settings_trakt_device_finish_sign_in),
+        approvalDescription = stringResource(Res.string.settings_trakt_device_instructions),
         connectLabel = stringResource(Res.string.settings_trakt_connect),
-        openLoginLabel = stringResource(Res.string.settings_trakt_open_login),
+        openLoginLabel = stringResource(Res.string.settings_trakt_open_activation),
+        authorizationCode = uiState.pendingDeviceUserCode,
         disconnectLabel = stringResource(Res.string.settings_trakt_disconnect),
         missingCredentialsMessage = stringResource(Res.string.settings_trakt_missing_credentials),
         statusMessage = uiState.statusMessage.takeUnless {
