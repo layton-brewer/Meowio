@@ -297,7 +297,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-arm64.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
           done
           # Never overwrite a file the Apple or Windows build already attached to this page, and never fail
           # the release over a carried-over file (those builds attach their own copy anyway).
