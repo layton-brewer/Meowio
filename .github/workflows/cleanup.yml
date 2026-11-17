@@ -1,0 +1,109 @@
+name: Repo cleanup
+
+# Housekeeping only: never touches releases, tags, main or app code.
+# - deletes branches whose pull request was merged (or that are already in main),
+#   unless a PR is still open or the branch is in KEEP_BRANCHES
+# - deletes failed, cancelled and skipped workflow runs, runs of workflows that no longer exist,
+#   and finished branch/PR runs older than 7 days (their artifacts go with them)
+# - deletes Actions caches that don't belong to main
+# Pull requests run it as a dry run that only prints what it would delete.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup.yml"
+  pull_request:
+    paths:
+      - ".github/workflows/cleanup.yml"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DRY_RUN: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+      SELF_RUN: ${{ github.run_id }}
+      KEEP_BRANCHES: "main claude/apple-builds claude/meowio-icon-splash claude/project-thread-m21r9r"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete merged branches
+        run: |
+          set -u
+          git fetch -q origin '+refs/heads/*:refs/remotes/origin/*'
+          gh api "repos/$REPO/pulls?state=all&per_page=100" --paginate \
+            --jq '.[] | [.state, (.merged_at != null), .head.ref, .head.sha] | @tsv' > "$RUNNER_TEMP/prs.tsv"
+          default=$(gh api "repos/$REPO" --jq .default_branch)
+          git for-each-ref --format='%(refname:lstrip=3) %(objectname)' refs/remotes/origin |
+          while read -r branch sha; do
+            case " $KEEP_BRANCHES $default HEAD ${GITHUB_HEAD_REF:-} " in *" $branch "*) echo "keep $branch"; continue ;; esac
+            if awk -F'\t' -v b="$branch" '$1=="open" && $3==b {f=1} END {exit !f}' "$RUNNER_TEMP/prs.tsv"; then
+              echo "keep $branch (open PR)"; continue
+            fi
+            if awk -F'\t' -v s="$sha" '$2=="true" && $4==s {f=1} END {exit !f}' "$RUNNER_TEMP/prs.tsv" \
+               || git merge-base --is-ancestor "$sha" "origin/$default"; then
+              echo "delete $branch"
+              [ "$DRY_RUN" = "true" ] || gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" --silent || echo "  could not delete $branch"
+            else
+              echo "keep $branch (not merged)"
+            fi
+          done
+
+      - name: Delete old workflow runs
+        run: |
+          set -u
+          live=$(gh api "repos/$REPO/actions/workflows?per_page=100" --jq '[.workflows[] | select(.state=="active") | .id | tostring] | join(" ")')
+          cutoff=$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          # The runs list is heavy; page through it in small pages with retries (it 502s on big ones).
+          : > "$RUNNER_TEMP/runs.tsv"
+          page=1
+          while :; do
+            for try in 1 2 3 4 5; do
+              out=$(gh api "repos/$REPO/actions/runs?status=completed&per_page=30&page=$page" \
+                --jq '.workflow_runs[] | [.id, .workflow_id, (.conclusion // ""), .head_branch, .created_at, .name] | @tsv') && break
+              out="__error__"; sleep $((try * 5))
+            done
+            [ "$out" = "__error__" ] && { echo "runs page $page kept failing, stopping here"; break; }
+            [ -z "$out" ] && break
+            printf '%s\n' "$out" >> "$RUNNER_TEMP/runs.tsv"
+            page=$((page + 1))
+          done
+          count=0
+          while IFS=$'\t' read -r id wf conclusion branch created name; do
+            [ "$id" = "$SELF_RUN" ] && continue
+            reason=""
+            case " $live " in *" $wf "*) ;; *) reason="workflow removed" ;; esac
+            case "$conclusion" in failure|cancelled|skipped|startup_failure|timed_out|action_required|stale) reason="${reason:-$conclusion}" ;; esac
+            if [ -z "$reason" ] && [ "$branch" != "main" ] && [[ "$created" < "$cutoff" ]]; then reason="old branch run"; fi
+            [ -z "$reason" ] && continue
+            echo "delete run $id ($name, $branch, $reason)"
+            count=$((count + 1))
+            [ "$DRY_RUN" = "true" ] || gh api -X DELETE "repos/$REPO/actions/runs/$id" --silent || echo "  could not delete run $id"
+          done < "$RUNNER_TEMP/runs.tsv"
+          echo "$count runs selected out of $(wc -l < "$RUNNER_TEMP/runs.tsv") completed"
+
+      - name: Delete caches not on main
+        run: |
+          set -u
+          gh api "repos/$REPO/actions/caches?per_page=100" --paginate \
+            --jq '.actions_caches[] | select(.ref != "refs/heads/main") | [.id, .ref, .size_in_bytes] | @tsv' |
+          while IFS=$'\t' read -r id ref size; do
+            echo "delete cache $id ($ref, $((size / 1048576)) MB)"
+            [ "$DRY_RUN" = "true" ] || gh api -X DELETE "repos/$REPO/actions/caches/$id" --silent || echo "  could not delete cache $id"
+          done
