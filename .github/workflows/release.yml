@@ -110,7 +110,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.42 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.43 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -215,7 +215,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.42 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.43 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -258,14 +258,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.42"
+          tag="v0.2.43"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.42
+          ## What's new in 0.2.43
 
-          - **Apple TV MDBList sign-in:** Apple TV now signs in to MDBList with a short code, the same way the other apps do, so you no longer paste your own API key. If you already connected one, it keeps working.
-          - **Nuvio account wording:** account screens and messages now say "Nuvio account", since Meowio signs in with your Nuvio account.
-          - **Premiumize sign-in:** connecting Premiumize in Connected services now works with a short code, the same way TorBox does.
-          - **Intel Macs dropped:** the Mac download is Apple Silicon only (M1 and newer), so releases finish sooner.
+          - **Watch party panel:** on Android TV the Watch party panel now has the same glass look as the Episodes panel, and on phones it floats over the video instead of shrinking it.
+          - **Apple TV has its own release page:** Apple TV now signs in to your Nuvio account with a code like Android TV, brings over your debrid keys and profile PINs, and plays cached TorBox/Premiumize links first. Its download lives on the [Apple TV releases](https://github.com/REPO/releases?q=appletv&expanded=true) page so Apple TV updates no longer rebuild the other apps.
 
           ## Download
 
@@ -277,14 +275,14 @@ jobs:
           | Android phone or tablet | [Meowio-mobile.apk](https://github.com/REPO/releases/download/TAG/Meowio-mobile.apk) |
           | iPhone / iPad | [Meowio-ios.ipa](https://github.com/REPO/releases/download/TAG/Meowio-ios.ipa) |
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
-          | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
+          | Apple TV | [Apple TV releases](https://github.com/REPO/releases?q=appletv&expanded=true) (its own page) |
           | Windows 10/11 (64-bit) | [Meowio-windows-x64.exe](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.exe) |
 
           ## Installation
 
           See the [installation guide](https://github.com/REPO#readme) for your device.
 
-          Apple and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
+          iPhone, Mac and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
 
           NOTES
           sed -i 's/^          //' notes.md
@@ -299,7 +297,7 @@ jobs:
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-*.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
           done
           # Never overwrite a file the Apple or Windows build already attached to this page, and never fail
           # the release over a carried-over file (those builds attach their own copy anyway).
