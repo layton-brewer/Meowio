@@ -45,4 +45,4 @@ with open(sys.argv[1], "w") as f:
     f.write("\n".join(out) + "\n")
 print("Account server:", "set" if fields["supabaseURL"] else "not set")
 print("TMDB key:", "set" if fields["tmdbApiKey"] else "not set")
-print("Trakt app:", "set" if fields["traktClientId"] and fields["traktClientSecret"] else "not set")
+print("Trakt app:", "set" if fields["traktClientId"] else "not set")
