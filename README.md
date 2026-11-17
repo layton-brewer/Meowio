@@ -179,8 +179,14 @@ Honest list of what doesn't work everywhere:
 - **Meowio does not host, store, provide or link to any movies, shows or other copyrighted content.** It is a media player. On-demand playback only works through add-ons and services that *you* choose. You're responsible for using them legally where you live.
 - Built-in Live TV uses the community [Free-TV/IPTV](https://github.com/Free-TV/IPTV) list of free public channels. Meowio doesn't control those streams.
 - Meowio is an independent fork. It is **not** affiliated with or endorsed by the Nuvio team, Trakt, or any add-on or service.
-- Meowio collects no analytics. Services you turn on (your add-ons, Trakt, an AI provider with your own key, update checks on GitHub) get requests under their own terms.
+- Meowio uses Trakt but is not endorsed or certified by Trakt.
 - Provided "as is", with no warranty, under the [GPL v3](LICENSE). See [CREDITS.md](CREDITS.md) for upstream projects.
+
+### Privacy
+
+- Meowio collects no analytics. If you sign in to a Meowio account, your library, watch progress and settings sync through the account server so they follow you between devices.
+- Sign-ins to Trakt, Simkl or MDBList are stored only on your device. Meowio uses them to read and update your watchlist, watch history and progress on that service, and only after you sign in. Signing out removes them.
+- Services you turn on (your add-ons, Trakt, Simkl, MDBList, an AI provider with your own key, update checks on GitHub) get requests under their own terms.
 
 ---
 
