@@ -12,7 +12,7 @@ final class AccountStore: ObservableObject {
     /// MDBList API key saved on the account by the phone or Android TV, picked up when this profile has no sign-in.
     private(set) var mdblistKey: String?
 
-    private var accessToken: String?
+    @Published private var accessToken: String?
     private var refreshToken: String?
     private var expiresAt: Date?
     private var userId: String?
@@ -715,6 +715,107 @@ final class AccountStore: ObservableObject {
     }
 }
 
+/// Sign in with a code or with email. Used on the Account page and on the first-launch screen.
+struct AccountSignInForm: View {
+    @EnvironmentObject var account: AccountStore
+    /// Runs after an email sign-in. A code sign-in runs the account's own onSignedIn hook instead.
+    var onSignedIn: () async -> Void = {}
+    @State private var email = ""
+    @State private var password = ""
+
+    var body: some View {
+        if let code = account.linkCode {
+            Section {
+                HStack(alignment: .center, spacing: 60) {
+                    if let qr = QRCode.image(code.url) {
+                        Image(uiImage: qr).interpolation(.none).resizable().frame(width: 320, height: 320)
+                    }
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Scan the code with your phone, or go to").foregroundStyle(.secondary)
+                        Text(code.url.replacingOccurrences(of: "https://", with: "")
+                            .components(separatedBy: "?").first ?? code.url).font(.title2.bold())
+                        Text("and enter this code:").foregroundStyle(.secondary)
+                        Text(code.userCode).font(.system(size: 72, weight: .heavy, design: .monospaced)).kerning(8)
+                        HStack(spacing: 14) { ProgressView(); Text("Waiting for you to approve…") }
+                    }
+                }
+                .padding(.vertical, 20)
+                Button("Cancel") { account.cancelCodeSignIn() }
+            }
+        } else {
+            Section {
+                Button("Sign in with a code") { Task { await account.startCodeSignIn() } }
+            } footer: {
+                Text("The same Nuvio account as your phone and Android TV. Approve this Apple TV from your phone, no typing needed.")
+            }
+            Section("Or sign in with email") {
+                TextField("Email", text: $email)
+                    .textContentType(.username)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                SecureField("Password", text: $password)
+                    .textContentType(.password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button(account.busy ? "Signing in…" : "Sign in") {
+                    Task { await signIn(create: false) }
+                }
+                .disabled(account.busy || email.isEmpty || password.isEmpty)
+                Button("Create account") { Task { await signIn(create: true) } }
+                    .disabled(account.busy || email.isEmpty || password.count < 6)
+            }
+        }
+    }
+
+    private func signIn(create: Bool) async {
+        await account.signIn(email: email, password: password, create: create)
+        guard account.signedIn else { return }
+        password = ""
+        await onSignedIn()
+    }
+}
+
+/// What a fresh install opens on, like Android TV: sign in to bring your profiles, add-ons and library, or skip.
+struct FirstLaunchSignInView: View {
+    @EnvironmentObject var account: AccountStore
+    @EnvironmentObject var profiles: ProfileStore
+    let onFinish: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Welcome to Meowio").font(.largeTitle.bold())
+                        Text("Sign in to bring your profiles, add-ons, debrid keys, My List and watch progress from your phone or Android TV.")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 10)
+                }
+                AccountSignInForm()
+                if let m = account.message { Text(m).foregroundStyle(.orange) }
+                Section {
+                    Button("Continue without signing in") {
+                        account.cancelCodeSignIn()
+                        onFinish()
+                    }
+                } footer: {
+                    Text("You can sign in later in Settings, Account.")
+                }
+            }
+        }
+        // Either way of signing in ends here: bring the account's profiles, then open the app.
+        .onChange(of: account.signedIn) { _, signedIn in
+            guard signedIn else { return }
+            Task {
+                await account.pullProfiles(into: profiles)
+                onFinish()
+            }
+        }
+    }
+}
+
 // MARK: - Settings page
 
 struct AccountSettingsView: View {
@@ -722,9 +823,6 @@ struct AccountSettingsView: View {
     @EnvironmentObject var profiles: ProfileStore
     @EnvironmentObject var settings: SettingsStore
     @EnvironmentObject var library: LibraryStore
-    @State private var email = ""
-    @State private var password = ""
-
     var body: some View {
         List {
             if !AccountStore.available {
@@ -749,47 +847,8 @@ struct AccountSettingsView: View {
                 } footer: {
                     Text("Profiles, PINs, add-ons, debrid keys, My List, watch progress and watched episodes sync with your phone and Android TV.")
                 }
-            } else if let code = account.linkCode {
-                Section {
-                    HStack(alignment: .center, spacing: 60) {
-                        if let qr = QRCode.image(code.url) {
-                            Image(uiImage: qr).interpolation(.none).resizable().frame(width: 320, height: 320)
-                        }
-                        VStack(alignment: .leading, spacing: 20) {
-                            Text("Scan the code with your phone, or go to").foregroundStyle(.secondary)
-                            Text(code.url.replacingOccurrences(of: "https://", with: "")
-                                .components(separatedBy: "?").first ?? code.url).font(.title2.bold())
-                            Text("and enter this code:").foregroundStyle(.secondary)
-                            Text(code.userCode).font(.system(size: 72, weight: .heavy, design: .monospaced)).kerning(8)
-                            HStack(spacing: 14) { ProgressView(); Text("Waiting for you to approve…") }
-                        }
-                    }
-                    .padding(.vertical, 20)
-                    Button("Cancel") { account.cancelCodeSignIn() }
-                }
             } else {
-                Section {
-                    Button("Sign in with a code") { Task { await account.startCodeSignIn() } }
-                } footer: {
-                    Text("The same Nuvio account as your phone and Android TV. Approve this Apple TV from your phone, no typing needed.")
-                }
-                Section("Or sign in with email") {
-                    TextField("Email", text: $email)
-                        .textContentType(.username)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    SecureField("Password", text: $password)
-                        .textContentType(.password)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Button(account.busy ? "Signing in…" : "Sign in") {
-                        Task { await signedIn(create: false) }
-                    }
-                    .disabled(account.busy || email.isEmpty || password.isEmpty)
-                    Button("Create account") { Task { await signedIn(create: true) } }
-                        .disabled(account.busy || email.isEmpty || password.count < 6)
-                }
+                AccountSignInForm { await afterSignIn() }
             }
             if let m = account.message { Text(m).foregroundStyle(.orange) }
         }
@@ -797,10 +856,7 @@ struct AccountSettingsView: View {
         .onDisappear { account.cancelCodeSignIn() }
     }
 
-    private func signedIn(create: Bool) async {
-        await account.signIn(email: email, password: password, create: create)
-        guard account.signedIn else { return }
-        password = ""
+    private func afterSignIn() async {
         await account.pullProfiles(into: profiles)
         if let p = profiles.active { await account.sync(profile: p, settings: settings, library: library) }
     }

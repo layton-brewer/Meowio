@@ -123,6 +123,7 @@ jobs:
           ## What's new
 
           - **Email sign-in fixed:** the email is sent in lower case with autocorrect off, so a correct password is no longer rejected. Accounts made with Google or Apple sign in with "Sign in with a code".
+          - **Sign-in comes first:** a fresh install opens on the sign-in screen, like Android TV, so your profiles, add-ons and library arrive before Home. "Continue without signing in" skips it.
 
           ## Download
 
