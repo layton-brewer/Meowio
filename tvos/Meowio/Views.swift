@@ -886,7 +886,7 @@ struct DetailView: View {
         .fullScreenCover(isPresented: $showTrailer) {
             if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
         }
-        .sheet(item: $picker) { state in
+        .fullScreenCover(item: $picker) { state in
             SourcePicker(state: state) { chosen in
                 picker = nil
                 start(videoId: state.videoId, title: state.title, candidates: chosen)
@@ -1143,34 +1143,73 @@ struct DetailView: View {
     }
 }
 
-/// The ranked source list: Manual mode, or the Sources button in Smart mode.
+/// The ranked source list: Manual mode, or the Sources button in Smart mode. Laid out like Android TV's
+/// sources screen: what is playing on the left, a column of source cards on the right.
 struct SourcePicker: View {
     let state: DetailView.PickerState
     let onChoose: ([StreamItem]) -> Void
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(Array(state.candidates.prefix(40).enumerated()), id: \.offset) { i, s in
-                    Button {
-                        var reordered = state.candidates
-                        let picked = reordered.remove(at: i)
-                        reordered.insert(picked, at: 0)
-                        onChoose(reordered)
-                    } label: {
-                        HStack(alignment: .top, spacing: 20) {
-                            if i == 0 {
-                                Image(systemName: "sparkles").foregroundStyle(.yellow)
-                            }
-                            VStack(alignment: .leading) {
-                                Text(s.label).font(.headline)
-                                Text("\(s.addonName ?? "")  \(s.detail)").font(.caption).lineLimit(2)
-                            }
+        HStack(alignment: .top, spacing: 60) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Sources").font(.system(size: 28, weight: .semibold)).foregroundStyle(.secondary)
+                Text(state.title).font(.system(size: 48, weight: .bold)).lineLimit(3)
+                Text("\(state.candidates.count) found. The first one is Smart auto-play's pick.")
+                    .font(.system(size: 24)).foregroundStyle(.secondary)
+            }
+            .frame(width: 560, alignment: .leading)
+            .padding(.top, 40)
+            ScrollView {
+                LazyVStack(spacing: 18) {
+                    ForEach(Array(state.candidates.prefix(40).enumerated()), id: \.offset) { i, s in
+                        Button {
+                            var reordered = state.candidates
+                            let picked = reordered.remove(at: i)
+                            reordered.insert(picked, at: 0)
+                            onChoose(reordered)
+                        } label: {
+                            SourceCard(stream: s, best: i == 0)
                         }
+                        .buttonStyle(.focusRing)
                     }
                 }
+                .padding(.vertical, 40)
+                .padding(.horizontal, 20)
             }
-            .navigationTitle(state.title)
+            .scrollClipDisabled()
         }
+        .padding(.horizontal, 96)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black.opacity(0.92).ignoresSafeArea())
+    }
+}
+
+private struct SourceCard: View {
+    let stream: StreamItem
+    let best: Bool
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    if best {
+                        Label("Best", systemImage: "sparkles").font(.system(size: 20, weight: .bold))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(.yellow.opacity(0.9), in: Capsule()).foregroundStyle(.black)
+                    }
+                    Text(stream.label).font(.system(size: 30, weight: .semibold)).lineLimit(1)
+                }
+                Text(stream.detail).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(3)
+            }
+            Spacer(minLength: 20)
+            if let addon = stream.addonName {
+                Text(addon).font(.system(size: 22, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(28)
+        .frame(width: 1060, alignment: .leading)
+        .background(.white.opacity(focused ? 0.16 : 0.07), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
+        .overlay(RoundedRectangle(cornerRadius: CardMetrics.radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
     }
 }
