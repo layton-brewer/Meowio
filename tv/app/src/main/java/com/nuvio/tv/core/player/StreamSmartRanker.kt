@@ -102,11 +102,14 @@ object StreamSmartRanker {
      */
     fun isMarkedUncached(stream: Stream): Boolean =
         stream.debridCacheStatus?.state == StreamDebridCacheState.NOT_CACHED ||
-            UNCACHED_REGEX.containsMatchIn(stream.searchableText())
+            UNCACHED_REGEX.containsMatchIn(stream.searchableText()) ||
+            // A debrid add-on's "downloading" or "failed" stand-in clip, not the title.
+            PlaceholderVideoDetector.isPlaceholderUrl(stream.getStreamUrl())
 
     /** 0 = plays instantly, 1 = probably fine, 2 = has to download first. */
     internal fun availabilityTier(stream: Stream, text: String): Int {
         if (UNCACHED_REGEX.containsMatchIn(text)) return 2
+        if (PlaceholderVideoDetector.isPlaceholderUrl(stream.getStreamUrl())) return 2
         if (stream.debridCacheStatus?.state == StreamDebridCacheState.NOT_CACHED) return 2
         if (stream.serverTarget != null) return 0
         if (stream.isDirectDebrid()) return 0

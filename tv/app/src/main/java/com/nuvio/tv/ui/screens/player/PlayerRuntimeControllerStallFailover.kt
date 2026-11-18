@@ -3,6 +3,7 @@ package com.nuvio.tv.ui.screens.player
 import android.util.Log
 import androidx.media3.common.Player
 import com.nuvio.tv.R
+import com.nuvio.tv.core.player.PlaceholderVideoDetector
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -19,10 +20,30 @@ internal fun PlayerRuntimeController.startPlaybackStallFailoverMonitor() {
     playbackStallFailoverJob = scope.launch {
         var stalledMs = 0L
         var lastPositionMs: Long? = null
+        var placeholderCheckDone = false
+        var placeholderWaitMs = 0L
         while (isActive) {
             delay(PlaybackStallFailoverPolicy.POLL_INTERVAL_MS)
             if (currentStreamUrl != url) return@launch
             val sample = playbackStallSample()
+            if (!placeholderCheckDone && sample != null && hasRenderedFirstFrame && !isTorrentStream &&
+                _uiState.value.error == null && sourceFallbackJob?.isActive != true
+            ) {
+                placeholderWaitMs += PlaybackStallFailoverPolicy.POLL_INTERVAL_MS
+                if (sample.durationMs > 0L || placeholderWaitMs >= PlaceholderVideoDetector.DURATION_WAIT_MS) {
+                    placeholderCheckDone = true
+                    if (isPlayingDebridPlaceholder(url, sample.durationMs)) {
+                        Log.w(
+                            PlayerRuntimeController.TAG,
+                            "Source is a debrid stand-in clip (${sample.durationMs / 1_000L}s), moving to the next best source"
+                        )
+                        if (tryFailoverToNextSource(context.getString(R.string.player_error_source_placeholder))) {
+                            return@launch
+                        }
+                        Log.w(PlayerRuntimeController.TAG, "No backup source for the stand-in clip")
+                    }
+                }
+            }
             val watching = sample != null && hasRenderedFirstFrame && !isInBackground && !isTorrentStream &&
                 _uiState.value.error == null &&
                 errorRetryJob?.isActive != true && sourceFallbackJob?.isActive != true
@@ -51,6 +72,28 @@ internal fun PlayerRuntimeController.startPlaybackStallFailoverMonitor() {
             return@launch
         }
     }
+}
+
+/**
+ * True when the video that just opened is a debrid add-on's "downloading" or "failed" clip
+ * instead of the title: its address is a known stand-in clip, or it is far shorter than the
+ * runtime from metadata. Trailers and titles without a long runtime are left alone.
+ */
+private fun PlayerRuntimeController.isPlayingDebridPlaceholder(url: String, durationMs: Long): Boolean {
+    if (_uiState.value.isLive) return false
+    val season = currentSeason
+    val episode = currentEpisode
+    val episodeRuntime = if (season != null && episode != null) {
+        metaVideos.firstOrNull { it.season == season && it.episode == episode }?.runtime
+    } else {
+        null
+    }
+    return PlaceholderVideoDetector.isPlaceholderPlayback(
+        url = url,
+        durationMs = durationMs,
+        expectedRuntimeMinutes = episodeRuntime?.takeIf { it > 0 } ?: metaRuntimeMinutes,
+        streamText = _uiState.value.currentStreamName,
+    )
 }
 
 private fun PlayerRuntimeController.playbackStallSample(): PlaybackStallFailoverPolicy.Sample? {

@@ -44,6 +44,7 @@ commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamSettings.kt
 commonMain/kotlin/com/nuvio/app/features/settings/SettingsBackupPlatform.kt
 commonMain/kotlin/com/nuvio/app/features/streams/DeadStreamRegistry.kt
+commonMain/kotlin/com/nuvio/app/features/streams/PlaceholderVideoDetector.kt
 commonMain/kotlin/com/nuvio/app/features/streams/PlaybackFailover.kt
 commonMain/kotlin/com/nuvio/app/features/streams/StreamAutoPlayModels.kt
 commonMain/kotlin/com/nuvio/app/features/streams/StreamAutoPlayPolicy.kt

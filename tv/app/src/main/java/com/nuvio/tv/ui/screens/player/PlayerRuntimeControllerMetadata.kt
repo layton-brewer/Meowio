@@ -61,6 +61,7 @@ internal fun PlayerRuntimeController.initializeCloudPlaybackSequence() {
 internal fun PlayerRuntimeController.applyMetaDetails(meta: Meta) {
     metaVideos = meta.videos
     metaGenres = meta.genres
+    metaRuntimeMinutes = com.nuvio.tv.core.player.PlaceholderVideoDetector.runtimeMinutes(meta.runtime)
     metaCountry = meta.country
     // Fill in content language from meta if not provided via navigation args.
     if (contentLanguage == null) {
