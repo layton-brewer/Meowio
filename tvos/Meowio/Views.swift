@@ -333,6 +333,32 @@ struct Shelf: View {
     }
 }
 
+/// Posters in a grid that wraps, for Library and search results (Android TV uses grids there, not rows).
+struct PosterGrid: View {
+    let title: String?
+    let items: [MetaItem]
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                if let title {
+                    Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: CardMetrics.posterWidth, maximum: CardMetrics.posterWidth),
+                                             spacing: CardMetrics.spacing, alignment: .top)],
+                          alignment: .leading, spacing: 36) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) { PosterCard(item: item) }
+                            .buttonStyle(.focusRing)
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .padding(.vertical, 12)
+            }
+        }
+    }
+}
+
 struct ContinueShelf: View {
     @EnvironmentObject var library: LibraryStore
     var onFocus: ((MetaItem) -> Void)? = nil
@@ -631,16 +657,19 @@ struct SearchView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     Button { showSurprise = true } label: {
-                        Label("Surprise Me", systemImage: "shuffle").padding(.horizontal, 20)
+                        Label("Surprise Me", systemImage: "shuffle")
                     }
-                    .padding(.horizontal, 60)
-                    if searching { ProgressView().padding(60) }
-                    Shelf(title: "Movies", items: results.filter { $0.type == "movie" })
-                    Shelf(title: "Series", items: results.filter { $0.type == "series" })
+                    .buttonStyle(ChipButtonStyle(selected: false))
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    if searching { ProgressView().padding(CardMetrics.rowInset) }
+                    // Results as a poster grid, like Android TV's search.
+                    PosterGrid(title: "Movies", items: results.filter { $0.type == "movie" })
+                    PosterGrid(title: "Series", items: results.filter { $0.type == "series" })
                     if !searching && results.isEmpty && query.count >= 2 {
-                        Text("Nothing found for \u{201C}\(query)\u{201D}.").padding(60)
+                        Text("Nothing found for \u{201C}\(query)\u{201D}.").padding(CardMetrics.rowInset)
                     }
                 }
+                .padding(.bottom, 80)
             }
             .background(settings.theme.background.ignoresSafeArea())
             .meowioDestinations()
@@ -669,6 +698,8 @@ struct LibraryView: View {
     @EnvironmentObject var mdblist: MDBListStore
     /// "all", "meowio", "trakt", "simkl" or "mdblist".
     @State private var showing = "all"
+    /// Android TV's library filter chips.
+    @State private var kind = "all"
 
     private struct Service: Identifiable {
         let id: String
@@ -701,7 +732,7 @@ struct LibraryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     HStack(spacing: 30) {
-                        Text("Library").font(.largeTitle.bold())
+                        Text("Library").font(.system(size: 52, weight: .bold))
                         Spacer()
                         if settings.debridReady, CloudLibrary.supports(settings.debridService) {
                             NavigationLink { CloudLibraryView() } label: {
@@ -737,17 +768,24 @@ struct LibraryView: View {
                             Label("Primary: \(name(library.primaryService))", systemImage: "star")
                         }
                     }
-                    .padding(.horizontal, 60)
-                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
-                        .font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
-                    if showing == "all" { ContinueShelf() }
-                    Shelf(title: "Saved Movies", items: visible.filter { $0.type == "movie" })
-                    Shelf(title: "Saved Series", items: visible.filter { $0.type != "movie" })
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.top, 40)
+                    HStack(spacing: 16) {
+                        ForEach([("all", "All"), ("movie", "Movies"), ("series", "Series")], id: \.0) { k, title in
+                            Button { kind = k } label: { Text(title) }
+                                .buttonStyle(ChipButtonStyle(selected: kind == k))
+                        }
+                    }
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    if showing == "all" && kind == "all" { ContinueShelf() }
+                    PosterGrid(title: nil, items: visible.filter { kind == "all" || (kind == "movie" ? $0.type == "movie" : $0.type != "movie") })
                     if visible.isEmpty && (showing != "all" || library.continueWatching.isEmpty) {
                         Text(showing == "all"
                              ? "Save titles from their detail page and they will show up here."
-                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(60)
+                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(CardMetrics.rowInset)
                     }
+                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
+                        .font(.callout).foregroundStyle(.secondary).padding(.horizontal, CardMetrics.rowInset)
                 }
             }
             .background(settings.theme.background.ignoresSafeArea())
