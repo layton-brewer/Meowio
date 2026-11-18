@@ -270,6 +270,11 @@ jobs:
           - **Apple TV: your add-ons' catalogs are on Home again**, rows appear as they load, and add-ons that send numbers where text is expected no longer drop out.
           - **Apple TV: Continue Watching shows every title**, including shows synced from your account or Trakt with only an id.
           - **Apple TV: Up always works on Home**, all the way back to Continue Watching.
+          - **Apple TV: remove or reorder Home catalogs.** Cinemeta is a normal add-on, and Settings > Content & Discovery > Home catalogs hides or moves any row.
+          - **Apple TV: See all** at the end of every row.
+          - **Apple TV: cast and director** on detail pages.
+          - **Apple TV: Home layout options** for the hero, Continue Watching, poster labels and hiding unreleased titles.
+          - **Apple TV: rows no longer cover the title text.**
 
           ## Download
 
