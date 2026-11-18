@@ -253,8 +253,8 @@ final class StreamStore: ObservableObject {
         let hashes = list.filter(\.isTorrentOnly).compactMap { $0.infoHash?.lowercased() }
         let unknown = Array(Set(hashes.filter { cacheAnswers[prefix + $0] == nil }))
         if !unknown.isEmpty {
-            if let hits = await Debrid.cached(unknown, service: service, key: key) {
-                for h in unknown { cacheAnswers[prefix + h] = hits.contains(h) }
+            if let answer = await Debrid.cached(unknown, service: service, key: key) {
+                for h in unknown where answer.checked.contains(h) { cacheAnswers[prefix + h] = answer.hits.contains(h) }
             }
         }
         return Set(hashes.filter { cacheAnswers[prefix + $0] == true })

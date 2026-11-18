@@ -153,7 +153,7 @@ struct SettingsView: View {
                 }
 
                 if !settings.addons.isEmpty {
-                    Section("Pinned sources (tried first)") {
+                    Section("Pinned sources (tried first at the same quality)") {
                         ForEach(Array(addonNames.values).sorted(), id: \.self) { name in
                             Toggle(name, isOn: Binding(
                                 get: { settings.pinnedSources.contains(name) },

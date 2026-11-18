@@ -3,6 +3,7 @@ package com.nuvio.app.features.debrid
 import com.nuvio.app.features.addons.RawHttpResponse
 import com.nuvio.app.features.addons.DefaultRawHttpResponseMaxBytes
 import com.nuvio.app.features.addons.httpRequestRaw
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
@@ -273,14 +274,48 @@ internal object TorboxApiClient {
         mapOf("Authorization" to "Bearer $apiKey")
 }
 
+/**
+ * A Real-Debrid credential is either a private API token (real-debrid.com/apitoken) or, after code
+ * sign-in, "rdoauth:<clientId>:<clientSecret>:<refreshToken>". The second form is swapped for a
+ * short-lived access token here and refreshed when it runs out.
+ */
+internal object RealDebridAuth {
+    const val OPEN_SOURCE_CLIENT_ID = "X245A4XAIBGVM"
+    private const val PREFIX = "rdoauth:"
+    private val mutex = kotlinx.coroutines.sync.Mutex()
+    private val tokens = mutableMapOf<String, Pair<String, Long>>()
+
+    fun encode(clientId: String, clientSecret: String, refreshToken: String): String =
+        "$PREFIX$clientId:$clientSecret:$refreshToken"
+
+    suspend fun bearer(credential: String): String {
+        val value = credential.trim()
+        if (!value.startsWith(PREFIX)) return value
+        val parts = value.removePrefix(PREFIX).split(':', limit = 3)
+        check(parts.size == 3) { "Real-Debrid sign-in is damaged. Sign in again." }
+        return mutex.withLock {
+            val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            tokens[value]?.takeIf { it.second > now }?.first ?: run {
+                val response = RealDebridApiClient.token(parts[0], parts[1], parts[2])
+                val token = response.body?.accessToken?.takeIf { response.isSuccessful && it.isNotBlank() }
+                    ?: throw IllegalStateException("Real-Debrid sign-in expired. Sign in again.")
+                val lifetimeMs = ((response.body.expiresIn ?: 3600L) - 60L).coerceAtLeast(60L) * 1000L
+                tokens[value] = token to (now + lifetimeMs)
+                token
+            }
+        }
+    }
+}
+
 internal object RealDebridApiClient {
     private const val BASE_URL = "https://api.real-debrid.com/rest/1.0"
+    private const val OAUTH_URL = "https://api.real-debrid.com/oauth/v2"
 
     suspend fun validateApiKey(apiKey: String): Boolean =
         httpRequestRaw(
             method = "GET",
             url = "$BASE_URL/user",
-            headers = authHeaders(apiKey.trim()),
+            headers = runCatching { authHeaders(apiKey.trim()) }.getOrElse { return false },
             body = "",
         ).status in 200..299
 
@@ -314,6 +349,52 @@ internal object RealDebridApiClient {
             apiKey = apiKey,
             fields = listOf("link" to link),
         )
+
+    /** Every torrent in the account, newest first (one page; RD allows up to 5000). */
+    suspend fun listTorrents(apiKey: String, limit: Int = 1000): DebridApiResponse<List<RealDebridTorrentInfoDto>> =
+        request(
+            method = "GET",
+            url = "$BASE_URL/torrents?${queryString("limit" to limit.toString())}",
+            apiKey = apiKey,
+        )
+
+    suspend fun startDeviceAuthorization(): DebridApiResponse<RealDebridDeviceCodeDto> =
+        oauthRequest(
+            "GET",
+            "$OAUTH_URL/device/code?${queryString("client_id" to RealDebridAuth.OPEN_SOURCE_CLIENT_ID, "new_credentials" to "yes")}",
+        )
+
+    suspend fun deviceCredentials(deviceCode: String): DebridApiResponse<RealDebridDeviceCredentialsDto> =
+        oauthRequest(
+            "GET",
+            "$OAUTH_URL/device/credentials?${queryString("client_id" to RealDebridAuth.OPEN_SOURCE_CLIENT_ID, "code" to deviceCode)}",
+        )
+
+    /** Exchanges a device code or a refresh token (both go in `code`) for an access token. */
+    suspend fun token(clientId: String, clientSecret: String, code: String): DebridApiResponse<RealDebridTokenDto> =
+        oauthRequest(
+            "POST",
+            "$OAUTH_URL/token",
+            listOf(
+                "client_id" to clientId,
+                "client_secret" to clientSecret,
+                "code" to code,
+                "grant_type" to "http://oauth.net/grant_type/device/1.0",
+            ).joinToString("&") { (key, value) -> "${encodeFormValue(key)}=${encodeFormValue(value)}" },
+        )
+
+    private suspend inline fun <reified T> oauthRequest(method: String, url: String, body: String = ""): DebridApiResponse<T> {
+        val response = httpRequestRaw(
+            method = method,
+            url = url,
+            headers = buildMap {
+                put("Accept", "application/json")
+                if (body.isNotEmpty()) put("Content-Type", "application/x-www-form-urlencoded")
+            },
+            body = body,
+        )
+        return DebridApiResponse(status = response.status, body = response.decodeBody<T>(), rawBody = response.body)
+    }
 
     suspend fun deleteTorrent(apiKey: String, id: String): DebridApiResponse<Unit> =
         request(
@@ -364,8 +445,8 @@ internal object RealDebridApiClient {
         )
     }
 
-    private fun authHeaders(apiKey: String): Map<String, String> =
-        mapOf("Authorization" to "Bearer $apiKey")
+    private suspend fun authHeaders(apiKey: String): Map<String, String> =
+        mapOf("Authorization" to "Bearer ${RealDebridAuth.bearer(apiKey)}")
 }
 
 internal object PremiumizeApiClient {

@@ -367,7 +367,11 @@ object NetworkModule {
     ): Retrofit =
         Retrofit.Builder()
             .baseUrl("https://api.real-debrid.com/rest/1.0/")
-            .client(okHttpClient)
+            .client(
+                okHttpClient.newBuilder()
+                    .addInterceptor(com.nuvio.tv.core.debrid.RealDebridAuth.Interceptor(okHttpClient))
+                    .build()
+            )
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
 

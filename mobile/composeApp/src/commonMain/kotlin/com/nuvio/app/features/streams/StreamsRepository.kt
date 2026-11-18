@@ -275,6 +275,11 @@ object StreamsRepository {
             val installedAddonIds = streamAddons.map { it.addonId }.toSet()
             var autoSelectTriggered = false
             var timeoutElapsed = false
+            // Smart mode: a link below the screen's resolution only plays before every add-on
+            // has answered once this has passed; until then a slower add-on may have better.
+            var smartPatienceElapsed = autoPlayMode != StreamAutoPlayMode.SMART
+            fun mayPlayEarly(stream: StreamItem): Boolean =
+                smartPatienceElapsed || StreamSmartRanker.coversScreen(stream)
             fun evaluateAutoPlay(bingeGroupOnly: Boolean = false): StreamAutoPlayEvaluation =
                 StreamAutoPlaySelector.evaluateAutoPlayStream(
                     streams = _uiState.value.groups.flatMap { it.streams },
@@ -362,7 +367,8 @@ object StreamsRepository {
                     persistedBingeGroup != null -> evaluateAutoPlay(bingeGroupOnly = true)
                     else -> null
                 }
-                if (earlyEvaluation?.stream != null) {
+                val earlyStream = earlyEvaluation?.stream
+                if (earlyStream != null && (!timeoutElapsed || mayPlayEarly(earlyStream))) {
                     settleAutoPlay(earlyEvaluation)
                     return
                 }
@@ -439,7 +445,11 @@ object StreamsRepository {
                             val allStreams = _uiState.value.groups.flatMap { it.streams }
                             if (allStreams.isNotEmpty()) {
                                 val evaluation = evaluateAutoPlay()
-                                if (evaluation.stream != null || !evaluation.hasPendingDebridCandidate) {
+                                val ready = evaluation.stream
+                                if (
+                                    (ready != null && mayPlayEarly(ready)) ||
+                                    (ready == null && !evaluation.hasPendingDebridCandidate)
+                                ) {
                                     settleAutoPlay(evaluation)
                                 }
                             }
@@ -448,6 +458,17 @@ object StreamsRepository {
                 }
             } else {
                 null
+            }
+
+            if (isDirectAutoPlayFlow && !smartPatienceElapsed) {
+                launch {
+                    delay(SMART_RESOLUTION_PATIENCE_MS)
+                    smartPatienceElapsed = true
+                    if (!autoSelectTriggered && timeoutElapsed) {
+                        val evaluation = evaluateAutoPlay()
+                        if (evaluation.stream != null) settleAutoPlay(evaluation)
+                    }
+                }
             }
 
             if (isDirectAutoPlayFlow && playerSettings.streamAutoPlayTimeoutSeconds != Int.MAX_VALUE) {
@@ -625,3 +646,6 @@ object StreamsRepository {
         _uiState.update { it.copy(showDirectAutoPlayOverlay = visible, overlayMessage = message) }
     }
 }
+
+/** How long Smart auto-play waits for slower add-ons when only lower-resolution links are ready. */
+private const val SMART_RESOLUTION_PATIENCE_MS = 10_000L

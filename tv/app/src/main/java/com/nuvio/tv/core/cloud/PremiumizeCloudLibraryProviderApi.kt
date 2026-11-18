@@ -140,7 +140,7 @@ private fun PremiumizeCloudFileDto.toPremiumizeCloudFile(): PremiumizeMappedClou
 private fun String.pathBasename(): String =
     substringAfterLast('/').substringAfterLast('\\')
 
-private fun isPlayablePremiumizeCloudFile(name: String, mimeType: String?): Boolean {
+internal fun isPlayablePremiumizeCloudFile(name: String, mimeType: String?): Boolean {
     val normalizedMime = mimeType?.lowercase().orEmpty()
     if (normalizedMime.startsWith("video/")) return true
     val extension = name.substringAfterLast('.', missingDelimiterValue = "")

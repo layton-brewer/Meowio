@@ -10,9 +10,9 @@ private extension String {
 /// Ranks streams for hands-off playback. This mirrors the Android "Smart" ranking, in order of importance:
 /// 1. availability: links that play at once come before anything that still has to download;
 /// 2. cam / telesync / screener copies go to the bottom;
-/// 3. sources the user pinned come next;
-/// 4. series only: full-season packs first, so every episode of a season comes from one release;
-/// 5. resolution fit: the screen's own resolution, then higher ones, then lower ones;
+/// 3. resolution fit, across every add-on: the screen's own resolution, then higher ones, then lower ones;
+/// 4. sources the user pinned come next;
+/// 5. series only: full-season packs first, so every episode of a season comes from one release;
 /// 6. source quality (remux > bluray > web-dl > webrip > hdtv);
 /// 7. the original order, which is the user's add-on order.
 enum SmartRanker {
@@ -39,11 +39,12 @@ enum SmartRanker {
         let ordered = scored.sorted { a, b in
             if a.score.availabilityTier != b.score.availabilityTier { return a.score.availabilityTier < b.score.availabilityTier }
             if a.score.isJunk != b.score.isJunk { return !a.score.isJunk }
+            // A lower resolution never wins while a better one that plays exists in any add-on.
+            if a.score.resolutionFit != b.score.resolutionFit { return a.score.resolutionFit > b.score.resolutionFit }
             let aPinned = pinned.contains(streams[a.index].addonName ?? "")
             let bPinned = pinned.contains(streams[b.index].addonName ?? "")
             if aPinned != bPinned { return aPinned }
             if a.score.isSeasonPack != b.score.isSeasonPack { return a.score.isSeasonPack }
-            if a.score.resolutionFit != b.score.resolutionFit { return a.score.resolutionFit > b.score.resolutionFit }
             if a.score.sourceQuality != b.score.sourceQuality { return a.score.sourceQuality > b.score.sourceQuality }
             return a.index < b.index
         }

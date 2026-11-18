@@ -1041,7 +1041,7 @@
     <string name="extended_sleep_timer_end_of_episode">Sleep at end of episode</string>
     <string name="extended_sleep_timer_paused">Sleep timer paused playback</string>
     <string name="extended_pinned_sources">Pinned sources</string>
-    <string name="extended_pinned_sources_sub">Sources you pin are tried first and listed first.</string>
+    <string name="extended_pinned_sources_sub">Sources you pin are tried first at the same quality and listed first.</string>
     <string name="extended_pinned_sources_none">None</string>
     <string name="autoplay_all_addons">All installed addons</string>
     <string name="autoplay_allowed_plugins">Allowed Plugins</string>

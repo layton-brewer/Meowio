@@ -49,3 +49,25 @@ data class RealDebridUnrestrictLinkDto(
     @Json(name = "streamable") val streamable: Int? = null,
     @Json(name = "type") val type: String? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class RealDebridDeviceCodeDto(
+    @Json(name = "device_code") val deviceCode: String? = null,
+    @Json(name = "user_code") val userCode: String? = null,
+    @Json(name = "interval") val interval: Int? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = null,
+    @Json(name = "verification_url") val verificationUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RealDebridDeviceCredentialsDto(
+    @Json(name = "client_id") val clientId: String? = null,
+    @Json(name = "client_secret") val clientSecret: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RealDebridTokenDto(
+    @Json(name = "access_token") val accessToken: String? = null,
+    @Json(name = "expires_in") val expiresIn: Long? = null,
+    @Json(name = "refresh_token") val refreshToken: String? = null
+)

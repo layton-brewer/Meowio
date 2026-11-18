@@ -35,8 +35,9 @@ class LocalDebridAvailabilityServiceTest {
         val localDebridService = mockk<LocalDebridService>()
         coEvery {
             localDebridService.checkCached(any(), any())
-        } returns mapOf(
-            "abc123" to LocalDebridCachedItem(name = "cached.mkv", size = 123L)
+        } returns LocalDebridCacheCheck(
+            cached = mapOf("abc123" to LocalDebridCachedItem(name = "cached.mkv", size = 123L)),
+            checked = setOf("abc123", "def456")
         )
         val service = service(localDebridService)
         val cached = stream(name = "Cached", infoHash = "ABC123")

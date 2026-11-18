@@ -191,13 +191,50 @@ internal class PremiumizeDebridProviderApi(
             ?: throw IllegalStateException("Premiumize sign-in is missing PREMIUMIZE_CLIENT_ID.")
 }
 
-private class RealDebridProviderApi(
+internal class RealDebridProviderApi(
     private val fileSelector: RealDebridFileSelector = RealDebridFileSelector(),
 ) : DebridProviderApi {
     override val provider: DebridProvider = DebridProviders.RealDebrid
 
     override suspend fun validateApiKey(apiKey: String): Boolean =
         RealDebridApiClient.validateApiKey(apiKey)
+
+    override suspend fun startDeviceAuthorization(appName: String): DebridDeviceAuthorization? {
+        val response = RealDebridApiClient.startDeviceAuthorization()
+        val data = response.body?.takeIf { response.isSuccessful } ?: return null
+        val verificationUrl = data.verificationUrl?.takeIf { it.isNotBlank() } ?: "https://real-debrid.com/device"
+        return DebridDeviceAuthorization(
+            providerId = provider.id,
+            deviceCode = data.deviceCode?.takeIf { it.isNotBlank() } ?: return null,
+            userCode = data.userCode?.takeIf { it.isNotBlank() } ?: return null,
+            verificationUrl = verificationUrl,
+            friendlyVerificationUrl = verificationUrl,
+            intervalSeconds = data.interval?.coerceAtLeast(1) ?: 5,
+            expiresAt = data.expiresIn?.takeIf { it > 0 }?.let { "${it}s" },
+        )
+    }
+
+    override suspend fun redeemDeviceAuthorization(deviceCode: String): DebridDeviceAuthorizationTokenResult {
+        val code = deviceCode.trim().takeIf { it.isNotBlank() }
+            ?: return DebridDeviceAuthorizationTokenResult.Failed(null)
+        // Until the person approves the code, this answers with an error; keep polling.
+        val credentials = RealDebridApiClient.deviceCredentials(code)
+        val clientId = credentials.body?.clientId?.takeIf { credentials.isSuccessful && it.isNotBlank() }
+        val clientSecret = credentials.body?.clientSecret?.takeIf { it.isNotBlank() }
+        if (clientId == null || clientSecret == null) {
+            return if (credentials.status in 500..599) {
+                DebridDeviceAuthorizationTokenResult.Failed(null)
+            } else {
+                DebridDeviceAuthorizationTokenResult.Pending
+            }
+        }
+        val token = RealDebridApiClient.token(clientId, clientSecret, code)
+        val refreshToken = token.body?.refreshToken?.takeIf { token.isSuccessful && it.isNotBlank() }
+            ?: return DebridDeviceAuthorizationTokenResult.Failed(token.rawBody.takeIf { it.isNotBlank() })
+        return DebridDeviceAuthorizationTokenResult.Authorized(
+            accessToken = RealDebridAuth.encode(clientId, clientSecret, refreshToken),
+        )
+    }
 
     override suspend fun resolveClientStream(
         stream: StreamItem,
@@ -236,6 +273,11 @@ private class RealDebridProviderApi(
                 val infoAfter = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
                 if (!infoAfter.isSuccessful) {
                     return DirectDebridResolveResult.Stale
+                }
+                // Real-Debrid has no cache lookup any more: a cached torrent is "downloaded" the
+                // moment its file is selected, anything else would have to download first.
+                if (!infoAfter.body?.status.equals("downloaded", ignoreCase = true)) {
+                    return DirectDebridResolveResult.NotCached
                 }
                 val link = infoAfter.body?.firstDownloadLink()
                     ?: return DirectDebridResolveResult.Stale
