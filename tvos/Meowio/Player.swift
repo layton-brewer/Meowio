@@ -112,11 +112,6 @@ final class PlaybackController: ObservableObject {
     private var ticker: Timer?
     private var resolved: [Int: URL] = [:]
     private var pendingSubtitle: SubtitleItem?
-    /// The file mpv is playing, for Automatic subtitle sync.
-    private var mpvSource: (url: URL, headers: [String: String])?
-    /// The add-on subtitle the current timing correction was worked out for.
-    private var syncedSubtitleURL: String?
-    private var subtitleSyncTask: Task<Void, Never>?
     private var upNextDismissed = false
     private var advancing = false
     private var wasPaused = true
@@ -204,7 +199,6 @@ final class PlaybackController: ObservableObject {
         player.pause()
         player.replaceCurrentItem(with: nil)
         mpv.stop()
-        subtitleSyncTask?.cancel()
         cancellables.removeAll()
     }
 
@@ -369,26 +363,6 @@ final class PlaybackController: ObservableObject {
         }
     }
 
-    /// Automatic subtitle sync (off by default): when the viewer's subtitle is an add-on file, line it
-    /// up with the video's built-in subtitle timing. Only timing changes; subtitles are never turned on.
-    private func subtitleChanged() {
-        guard usingMPV, let source = mpvSource else { return }
-        let selected = mpv.selectedExternalSubtitle()
-        guard selected?.url != syncedSubtitleURL else { return }
-        subtitleSyncTask?.cancel()
-        if syncedSubtitleURL != nil { mpv.setSubtitleTiming(delay: 0, speed: 1) }
-        syncedSubtitleURL = selected?.url
-        guard settings.autoSubtitleSync, let selected, let subtitleURL = URL(string: selected.url) else { return }
-        subtitleSyncTask = Task { [weak self] in
-            let result = await SubtitleAutoSync.sync(source: source.url, headers: source.headers,
-                                                     subtitle: subtitleURL, language: selected.lang)
-            guard let self, !Task.isCancelled, let result, self.usingMPV,
-                  self.mpvSource?.url == source.url, self.syncedSubtitleURL == selected.url,
-                  self.mpv.selectedExternalSubtitle()?.url == selected.url else { return }
-            self.mpv.setSubtitleTiming(delay: result.delaySeconds, speed: result.speed)
-        }
-    }
-
     private func load(at i: Int, keepPosition: Bool = true) {
         guard !stopped else { return }
         guard request.candidates.indices.contains(i) else {
@@ -453,14 +427,9 @@ final class PlaybackController: ObservableObject {
             }
             mpv.onFailed = { [weak self] in self?.failover() }
             mpv.onEnded = { [weak self] in self?.ended() }
-            mpv.onSubtitleChanged = { [weak self] in self?.subtitleChanged() }
-            mpvSource = (url, headers)
-            syncedSubtitleURL = nil
-            subtitleSyncTask?.cancel()
             mpv.setPreferences(audioLanguage: settings.audioLanguage, subtitleLanguage: settings.subtitleLanguage,
                                subtitlesOn: settings.subtitlesOn)
             mpv.setSubtitleStyle(settings.subtitleStyle)
-            mpv.setSubtitleTiming(delay: 0, speed: 1)
             mpv.load(url: url.absoluteString, headers: headers, start: pendingStart, proxy: proxy)
             armTimeout()
             return

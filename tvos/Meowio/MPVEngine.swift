@@ -16,8 +16,6 @@ final class MPVEngine: NSObject {
     var onLoaded: (() -> Void)?
     var onFailed: (() -> Void)?
     var onEnded: (() -> Void)?
-    /// The selected subtitle track changed (the viewer's choice or mpv's own pick).
-    var onSubtitleChanged: (() -> Void)?
 
     var position: Double { lastPosition }
     var duration: Double { lastDuration }
@@ -49,7 +47,6 @@ final class MPVEngine: NSObject {
         mpv_observe_property(mpv, 0, "time-pos", MPV_FORMAT_DOUBLE)
         mpv_observe_property(mpv, 0, "duration", MPV_FORMAT_DOUBLE)
         mpv_observe_property(mpv, 0, "eof-reached", MPV_FORMAT_FLAG)
-        mpv_observe_property(mpv, 0, "sid", MPV_FORMAT_NONE)
         mpv_set_wakeup_callback(mpv, { ctx in
             guard let ctx else { return }
             let engine = Unmanaged<MPVEngine>.fromOpaque(ctx).takeUnretainedValue()
@@ -194,24 +191,6 @@ final class MPVEngine: NSObject {
         mpv_set_property_string(mpv, track.type == "audio" ? "aid" : "sid", String(track.id))
     }
 
-    /// File address and language of the selected subtitle when it was added from outside the video.
-    func selectedExternalSubtitle() -> (url: String, lang: String?)? {
-        let count = Int(string("track-list/count") ?? "") ?? 0
-        for i in 0..<count where string("track-list/\(i)/type") == "sub" && string("track-list/\(i)/selected") == "yes" {
-            guard string("track-list/\(i)/external") == "yes",
-                  let file = string("track-list/\(i)/external-filename"), !file.isEmpty else { return nil }
-            return (file, string("track-list/\(i)/lang"))
-        }
-        return nil
-    }
-
-    /// Timing correction for external subtitles: shown time = subtitle time × speed + delay.
-    func setSubtitleTiming(delay: Double, speed: Double) {
-        guard let mpv else { return }
-        mpv_set_property_string(mpv, "sub-delay", String(format: "%.3f", delay))
-        mpv_set_property_string(mpv, "sub-speed", String(format: "%.6f", speed))
-    }
-
     func subtitlesOff() {
         guard let mpv else { return }
         mpv_set_property_string(mpv, "sid", "no")
@@ -263,8 +242,6 @@ final class MPVEngine: NSObject {
                         self.lastPosition = d.assumingMemoryBound(to: Double.self).pointee
                     } else if name == "duration", prop.format == MPV_FORMAT_DOUBLE, let d = prop.data {
                         self.lastDuration = d.assumingMemoryBound(to: Double.self).pointee
-                    } else if name == "sid" {
-                        DispatchQueue.main.async { self.onSubtitleChanged?() }
                     } else if name == "eof-reached", prop.format == MPV_FORMAT_FLAG, let d = prop.data,
                               d.assumingMemoryBound(to: Int32.self).pointee != 0 {
                         DispatchQueue.main.async { self.onEnded?() }

@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.48 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.49 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.48 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.49 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,11 +260,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.48"
+          tag="v0.2.49"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.48
+          ## What's new in 0.2.49
 
-          - **Auto-play recovers from dead links on its own.** If a source hangs before it starts, or stops and buffers forever in the middle of a show, Meowio quietly switches to the next best source at the same spot (same cached-first and resolution rules). Links that just failed are skipped for half an hour, and "not cached" links are never picked as a backup. Android TV, phone, iPhone/iPad, Mac, Windows and Apple TV.
+          - **Automatic subtitle sync (optional, off by default).** Turn it on in Settings > Playback/Subtitles. When you pick an add-on subtitle, its timing is lined up with the subtitles built into the video. On Android TV and phone, videos with no built-in subtitles are matched to the dialogue in the audio instead. Only confident matches are applied, and subtitles are never turned on for you. Android TV, phone, iPhone/iPad, Mac and Windows.
 
           ## Download
 

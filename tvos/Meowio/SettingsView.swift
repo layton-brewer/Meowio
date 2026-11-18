@@ -131,14 +131,6 @@ struct SettingsView: View {
                         Text("Apple TV language").tag("")
                         ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
                     }
-                    Toggle(isOn: $settings.autoSubtitleSync) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Automatic subtitle sync")
-                            Text("Off by default. When you turn on an add-on subtitle, its timing is lined up with the subtitles built into the video. Only confident matches are applied, and subtitles are never turned on for you.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                     NavigationLink("Subtitle style") { SubtitleStyleView() }
                 }
 
