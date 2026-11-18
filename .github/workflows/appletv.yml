@@ -2,6 +2,7 @@ name: Apple TV
 
 # Apple TV has its own release page, so a tvOS change builds only Meowio-tvos.ipa and never rebuilds the
 # Android, iPhone, Mac or Windows apps. Bump APPLETV_VERSION for every Apple TV release.
+# If the build is cancelled while it waits for a macOS runner, run it again from the Actions tab.
 on:
   push:
     branches: [main]
