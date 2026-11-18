@@ -440,6 +440,30 @@ internal object AutomaticSubtitleSync {
             }
 
             if (referenceTracks.isEmpty()) {
+                // No embedded subtitles to compare with: fall back to the dialogue in the audio,
+                // for the selected subtitle only, when the player is listening to this stream.
+                if (AutoSyncSpeechReference.isListening(sourceKey)) {
+                    val audioTarget = if (selectedResolved) {
+                        selected
+                    } else {
+                        selectedSubtitleDeferred.await().also {
+                            selected = it
+                            selectedResolved = true
+                        }
+                    }
+                    val audioTimeline = audioTarget?.cues?.let { cues ->
+                        AutoSyncSpeechReference.awaitAlignment(sourceKey, cues)
+                    }
+                    if (audioTarget != null && audioTimeline != null) {
+                        prefetchedAlternativeLoads.values.forEach { it.cancel() }
+                        return@supervisorScope AutoSyncResolvedTimeline(
+                            subtitleUrl = selectedSubtitleUrl,
+                            subtitleHeaders = selectedSubtitleHeaders,
+                            subtitleBody = audioTarget.rawBody,
+                            timeline = audioTimeline,
+                        )
+                    }
+                }
                 val noSubtitleTracks = indexedTimeline?.noSubtitleTracks == true
                 if (noSubtitleTracks) {
                     onNoSubtitleTracks()

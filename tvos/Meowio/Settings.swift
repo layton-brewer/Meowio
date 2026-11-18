@@ -156,6 +156,8 @@ final class SettingsStore: ObservableObject {
     @Published var audioLanguage: String { didSet { save() } }
     @Published var subtitleLanguage: String { didSet { save() } }
     @Published var subtitlesOn: Bool { didSet { save() } }
+    /// Automatic subtitle sync. Off by default; it never turns subtitles on, it only fixes their timing.
+    @Published var autoSubtitleSync: Bool { didSet { save() } }
     @Published var skipIntro: Bool { didSet { save() } }
     @Published var upNextCard: Bool { didSet { save() } }
     @Published var heroTrailers: Bool { didSet { save() } }
@@ -202,6 +204,7 @@ final class SettingsStore: ObservableObject {
         audioLanguage = d.string(forKey: "audioLanguage") ?? ""
         subtitleLanguage = d.string(forKey: "subtitleLanguage") ?? ""
         subtitlesOn = d.object(forKey: "subtitlesOn") as? Bool ?? false
+        autoSubtitleSync = d.object(forKey: "autoSubtitleSync") as? Bool ?? false
         skipIntro = d.object(forKey: "skipIntro") as? Bool ?? true
         upNextCard = d.object(forKey: "upNextCard") as? Bool ?? true
         heroTrailers = d.object(forKey: "heroTrailers") as? Bool ?? true
@@ -232,6 +235,7 @@ final class SettingsStore: ObservableObject {
         d.set(audioLanguage, forKey: "audioLanguage")
         d.set(subtitleLanguage, forKey: "subtitleLanguage")
         d.set(subtitlesOn, forKey: "subtitlesOn")
+        d.set(autoSubtitleSync, forKey: "autoSubtitleSync")
         d.set(skipIntro, forKey: "skipIntro")
         d.set(upNextCard, forKey: "upNextCard")
         d.set(heroTrailers, forKey: "heroTrailers")
