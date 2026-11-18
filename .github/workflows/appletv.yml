@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.47
+  APPLETV_VERSION: 0.2.48
 
 permissions:
   contents: write
@@ -106,9 +106,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
-          - **Real-Debrid like TorBox and Premiumize:** sign in with a code, links already in your Real-Debrid account and links that test as ready play first, and links Real-Debrid would have to download are skipped fast.
-          - **Real-Debrid cloud library:** your Real-Debrid torrents are listed in the cloud library, ready to play.
-          - **Smart auto-play keeps the best resolution:** a pinned add-on or season pack only wins at the same resolution, so a lower-quality link never plays while a better one from another add-on works.
+          - **Skip Intro works on regular shows and movies again:** skip intro, recap and credits timings now come from IntroDB, not just anime and chapter markers.
 
           ## Download
 
