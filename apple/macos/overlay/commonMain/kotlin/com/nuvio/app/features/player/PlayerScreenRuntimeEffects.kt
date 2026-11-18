@@ -181,9 +181,54 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         val startupTimeoutSeconds = playerSettingsUiState.streamAutoPlayFallbackStartupTimeoutSeconds
         delay(startupTimeoutSeconds * 1_000L)
         if (!initialLoadCompleted && errorMessage == null) {
-            tryFallbackToNextSourceAfterError(
-                getString(Res.string.player_error_source_startup_timeout, startupTimeoutSeconds),
+            val timeoutMessage = getString(Res.string.player_error_source_startup_timeout, startupTimeoutSeconds)
+            if (tryFallbackToNextSourceAfterError(timeoutMessage)) return@LaunchedEffect
+            // Smart auto-play: a link that hangs is as dead as one that errors. A peer-to-peer
+            // torrent is left alone, since finding peers can take longer and it reports its own errors.
+            if (activeTorrentInfoHash != null) return@LaunchedEffect
+            delay(PlaybackStallFailoverPolicy.EXTRA_STARTUP_WAIT_MS)
+            if (initialLoadCompleted || errorMessage != null) return@LaunchedEffect
+            if (credentialRefreshJob?.isActive == true || sourceFallbackJob?.isActive == true) return@LaunchedEffect
+            tryFailoverToNextSource(timeoutMessage)
+        }
+    }
+
+    // A source that stops mid-playback and does not recover (the host went away, a debrid link
+    // died) is replaced with the next best source at the same position, instead of buffering forever.
+    LaunchedEffect(activePlaybackKey, activeSourceUrl) {
+        var stalledMs = 0L
+        var lastPositionMs: Long? = null
+        while (true) {
+            delay(PlaybackStallFailoverPolicy.POLL_INTERVAL_MS)
+            val snapshot = playbackSnapshot
+            val watching = initialLoadCompleted && errorMessage == null && activeTorrentInfoHash == null &&
+                playbackSnapshotKey == activePlaybackKey &&
+                credentialRefreshJob?.isActive != true && sourceFallbackJob?.isActive != true
+            if (!watching) {
+                stalledMs = 0L
+                lastPositionMs = null
+                continue
+            }
+            val sample = PlaybackStallFailoverPolicy.Sample(
+                wantsToPlay = shouldPlay,
+                waitingForData = snapshot.isLoading && !snapshot.isPlaying,
+                positionMs = snapshot.positionMs.coerceAtLeast(0L),
+                durationMs = snapshot.durationMs,
             )
+            val previousPositionMs = lastPositionMs
+            stalledMs = PlaybackStallFailoverPolicy.nextStalledMs(
+                stalledMs = stalledMs,
+                lastPositionMs = previousPositionMs,
+                sample = sample,
+                elapsedMs = PlaybackStallFailoverPolicy.POLL_INTERVAL_MS,
+            )
+            // Keep the position where the stall began, so tiny nudges do not reset it.
+            if (stalledMs == 0L || previousPositionMs == null) lastPositionMs = sample.positionMs
+            if (!PlaybackStallFailoverPolicy.shouldFailover(stalledMs)) continue
+            val seconds = (PlaybackStallFailoverPolicy.STALL_FAILOVER_MS / 1_000L).toInt()
+            // With nothing left to try, the source keeps loading as it would anyway.
+            tryFailoverToNextSource(getString(Res.string.player_error_source_stalled, seconds))
+            return@LaunchedEffect
         }
     }
 

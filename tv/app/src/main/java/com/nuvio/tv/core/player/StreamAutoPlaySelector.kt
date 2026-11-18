@@ -146,6 +146,8 @@ object StreamAutoPlaySelector {
         bingeGroupOnly: Boolean = false,
         isSeries: Boolean = false
     ): List<Stream> {
+        // Links that just failed to play are skipped while anything else is left.
+        val streams = DeadStreamRegistry.withoutDead(streams)
         val first = selectFirstAutoPlayStream(
             streams = streams,
             mode = mode,

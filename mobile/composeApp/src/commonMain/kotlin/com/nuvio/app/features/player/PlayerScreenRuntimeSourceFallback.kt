@@ -6,7 +6,9 @@ import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
+import com.nuvio.app.features.streams.DeadStreamRegistry
 import com.nuvio.app.features.streams.StreamAutoPlaySelector
+import com.nuvio.app.features.streams.StreamSmartRanker
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.isIos
 import kotlinx.coroutines.delay
@@ -80,6 +82,8 @@ internal fun PlayerScreenRuntime.tryFallbackToNextSourceAfterError(message: Stri
     val videoId = activeVideoId ?: return false
 
     activeStream?.playerSourceIdentityKey()?.let(sourceFallbackTriedKeys::add)
+    activeStream?.let { DeadStreamRegistry.markDead(it, playedUrl = failedUrl) }
+        ?: DeadStreamRegistry.markDead(url = failedUrl)
     val failedInfoHash = activeStream?.p2pInfoHash ?: currentStreamInfoHash
     val failedAddonId = activeProviderAddonId
     val season = activeSeasonNumber
@@ -158,6 +162,8 @@ internal fun nextSourceFallbackCandidate(
     val untried = streams.filterNot { stream ->
         val key = stream.playerSourceIdentityKey()
         (key != null && key in triedKeys) ||
+            StreamSmartRanker.isMarkedUncached(stream) ||
+            DeadStreamRegistry.isDead(stream) ||
             (failedInfoHash != null && stream.addonId == failedAddonId &&
                 stream.p2pInfoHash.equals(failedInfoHash, ignoreCase = true))
     }

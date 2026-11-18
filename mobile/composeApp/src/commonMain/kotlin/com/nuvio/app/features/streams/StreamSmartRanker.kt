@@ -92,6 +92,15 @@ object StreamSmartRanker {
         add(clientResolve?.stream?.raw?.filename)
     }
 
+    /**
+     * True when the add-on or the debrid check says this link is not cached yet. Playing such a
+     * link starts a download (or a "downloading" placeholder video) instead of the title, so
+     * silent failover never moves to one.
+     */
+    fun isMarkedUncached(stream: StreamItem): Boolean =
+        stream.debridCacheStatus?.state == StreamDebridCacheState.NOT_CACHED ||
+            UNCACHED_REGEX.containsMatchIn(stream.searchableText())
+
     /** 0 = plays instantly, 1 = probably fine, 2 = has to download first. */
     internal fun availabilityTier(stream: StreamItem, text: String): Int {
         if (UNCACHED_REGEX.containsMatchIn(text)) return 2

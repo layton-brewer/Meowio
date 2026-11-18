@@ -789,6 +789,7 @@
     <string name="autoplay_fallback_startup_timeout_value">%1$ds</string>
     <string name="autoplay_fallback_next_source_blocked_by_engine_switch">Turn off auto-switch engine on startup error to use this.</string>
     <string name="player_error_source_startup_timeout">The source did not start within %1$d seconds.</string>
+    <string name="player_error_source_stalled">The source stopped loading for %1$d seconds.</string>
     <string name="playback_release_decoder_on_background">Release decoder in background</string>
     <string name="playback_release_decoder_on_background_sub">Free the video decoder when Meowio goes to the background. Turn on if playback fails with a decoder error after returning to the app. The player reloads on return, also after the screensaver</string>
     <string name="playback_external_forward_subtitles">Forward subtitles to external player</string>

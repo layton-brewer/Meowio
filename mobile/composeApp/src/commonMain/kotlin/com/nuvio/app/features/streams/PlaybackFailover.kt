@@ -38,6 +38,8 @@ object PlaybackFailover {
             if (candidate == failed) continue
             val url = candidate.playableDirectUrl
             if (url != null && url == failedUrl) continue
+            // A link that failed recently, or one that would start a download instead of the title.
+            if (DeadStreamRegistry.isDead(candidate) || StreamSmartRanker.isMarkedUncached(candidate)) continue
             attempts++
             return candidate
         }

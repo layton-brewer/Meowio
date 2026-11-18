@@ -75,6 +75,13 @@ final class PlaybackController: ObservableObject {
     let mpv = MPVEngine()
     @Published var usingMPV = false
     private var triedMPV = Set<Int>()
+    /// True from the moment a source shows its first picture until another source loads.
+    private var sourcePlaying = false
+    /// Seconds the playing source has been stuck at [stallPosition] while it should be playing.
+    private var stallSeconds = 0
+    private var stallPosition: Double = -1
+    /// Playing mid-playback stops this long without moving before the next source takes over.
+    private static let stallFailoverSeconds = 30
     @Published var failedAll = false {
         didSet { if failedAll, !oldValue { diagnoseLiveFailure() } }
     }
@@ -163,7 +170,9 @@ final class PlaybackController: ObservableObject {
         mpv.prepare()
         loadSubtitles()
         loadSkipSegments()
-        load(at: 0, keepPosition: false)
+        // A link that failed a moment ago is skipped while a fresh one is there.
+        let first = request.isLive ? 0 : (request.candidates.firstIndex { !DeadLinks.isDead($0) } ?? 0)
+        load(at: first, keepPosition: false)
     }
 
     private func loadSkipSegments() {
@@ -244,6 +253,7 @@ final class PlaybackController: ObservableObject {
             sleptMessage = true
         }
         guard !request.isLive else { return }
+        checkMidPlaybackStall()
         // Pause and resume for scrobbling.
         let paused = usingMPV ? mpv.isPaused : player.timeControlStatus == .paused
         if started, paused != wasPaused { emitScrobble(paused ? "pause" : "start", percent) }
@@ -273,6 +283,30 @@ final class PlaybackController: ObservableObject {
         } else if skipTarget != nil {
             skipTarget = nil
         }
+    }
+
+    /// A source that stops mid-playback and does not recover (the host went away, a debrid link died)
+    /// is replaced with the next source at the same position, instead of buffering forever.
+    private func checkMidPlaybackStall() {
+        guard sourcePlaying, !stopped, !failedAll, !advancing, lastDuration > 0 else { return }
+        let position = usingMPV ? mpv.position : player.currentTime().seconds
+        let wantsToPlay = usingMPV ? !mpv.isPaused : player.timeControlStatus != .paused
+        guard position.isFinite, wantsToPlay, position < lastDuration - 5 else {
+            stallSeconds = 0
+            stallPosition = -1
+            return
+        }
+        if stallPosition < 0 || abs(position - stallPosition) >= 0.75 {
+            stallPosition = position
+            stallSeconds = 0
+            return
+        }
+        stallSeconds += 1
+        guard stallSeconds >= Self.stallFailoverSeconds else { return }
+        stallSeconds = 0
+        sourcePlaying = false
+        // Retrying the same link in mpv will not bring a dead host back: move to the next source.
+        nextSource()
     }
 
     static func isIntro(_ title: String) -> Bool {
@@ -369,6 +403,9 @@ final class PlaybackController: ObservableObject {
     }
 
     private func open(url: URL, stream: StreamItem, at i: Int) {
+        sourcePlaying = false
+        stallSeconds = 0
+        stallPosition = -1
         pendingStart = request.isLive ? 0 : (lastSeconds > 5 ? lastSeconds : request.startAt)
         let headers = stream.headers(merging: request.headers)
         let hint = (stream.behaviorHints?.filename ?? url.lastPathComponent).lowercased()
@@ -451,6 +488,9 @@ final class PlaybackController: ObservableObject {
     }
 
     private func didStart() {
+        sourcePlaying = true
+        stallSeconds = 0
+        stallPosition = -1
         if request.isLive {
             liveProblem = nil
             request.onLiveResult?(nil)
@@ -528,12 +568,20 @@ final class PlaybackController: ObservableObject {
         guard settings.failoverEnabled, switches < settings.maxSwitches,
               request.candidates.indices.contains(index) else { failedAll = true; return }
         let failed = request.candidates[index]
+        if !request.isLive { DeadLinks.mark(failed, playedURL: resolved[index]) }
         var next = index + 1
-        while next < request.candidates.count, request.candidates[next].url == failed.url,
-              request.candidates[next].infoHash == failed.infoHash { next += 1 }
+        while next < request.candidates.count, shouldSkip(request.candidates[next], after: failed) { next += 1 }
         guard next < request.candidates.count else { failedAll = true; return }
         switches += 1
         load(at: next)
+    }
+
+    /// Copies of the source that just failed, links that failed recently, and links that would start a
+    /// download instead of the title are not worth a try.
+    private func shouldSkip(_ candidate: StreamItem, after failed: StreamItem) -> Bool {
+        if candidate.url == failed.url, candidate.infoHash == failed.infoHash { return true }
+        if request.isLive { return false }
+        return DeadLinks.isDead(candidate) || SmartRanker.isMarkedUncached(candidate)
     }
 
     private func ended() {
@@ -951,5 +999,34 @@ struct MPVPlayerLayer: View {
         let s = Int(seconds)
         return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
                          : String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+/// Links that just failed to play, remembered for half an hour so that failover and the next try of
+/// the same title do not pick them again. Memory only.
+@MainActor
+enum DeadLinks {
+    private static let ttl: TimeInterval = 30 * 60
+    private static var until: [String: Date] = [:]
+
+    static func mark(_ stream: StreamItem, playedURL: URL? = nil) {
+        let expiry = Date().addingTimeInterval(ttl)
+        for key in keys(stream) { until[key] = expiry }
+        if let playedURL { until["url:" + playedURL.absoluteString] = expiry }
+        if until.count > 500 { until = until.filter { $0.value > Date() } }
+    }
+
+    static func isDead(_ stream: StreamItem) -> Bool {
+        let now = Date()
+        return keys(stream).contains { (until[$0] ?? .distantPast) > now }
+    }
+
+    private static func keys(_ stream: StreamItem) -> [String] {
+        var out: [String] = []
+        if let url = stream.url, !url.isEmpty { out.append("url:" + url) }
+        if let hash = stream.infoHash?.lowercased(), !hash.isEmpty {
+            out.append("torrent:\(hash):\(stream.fileIdx.map(String.init) ?? "-")")
+        }
+        return out
     }
 }
