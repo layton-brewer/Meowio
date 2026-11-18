@@ -76,8 +76,6 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.CaptionStyleCompat
 import com.nuvio.app.features.autosync.AutoSyncExtractorsFactory
-import com.nuvio.app.features.autosync.AutoSyncSpeechReference
-import com.nuvio.app.features.autosync.AutoSyncSpeechTapAudioSink
 import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
 import com.nuvio.app.features.autosync.LIBMPV_AUTOSYNC_FILE_PREFIX
 import com.nuvio.app.features.autosync.rememberAutoSyncCoordinator
@@ -323,13 +321,8 @@ private fun ExoPlayerSurface(
             .let { factory -> // AutoSync hook: no observation while disabled.
                 AutoSyncPreferencesRepository.ensureLoaded()
                 if (AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) {
-                    // Audio fallback for videos without embedded subtitles.
-                    AutoSyncSpeechReference.beginSession(sourceUrl)
                     AutoSyncExtractorsFactory(factory, sourceUrl)
-                } else {
-                    AutoSyncSpeechReference.endSession()
-                    factory
-                }
+                } else factory
             }
     }
     val dataSourceFactory = remember(
@@ -2919,14 +2912,11 @@ private class SubtitleOffsetRenderersFactory(
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean,
     ): AudioSink {
-        // AutoSync hook: listens to decoded audio only while AutoSync needs it.
-        return AutoSyncSpeechTapAudioSink(
-            DefaultAudioSink.Builder(context)
-                .setEnableFloatOutput(enableFloatOutput)
-                .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                .setAudioProcessors(arrayOf(GainAudioProcessor(audioAmplificationDbProvider)))
-                .build(),
-        )
+        return DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(enableFloatOutput)
+            .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+            .setAudioProcessors(arrayOf(GainAudioProcessor(audioAmplificationDbProvider)))
+            .build()
     }
 
     override fun buildAudioRenderers(

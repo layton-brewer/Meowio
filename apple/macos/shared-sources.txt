@@ -65,5 +65,3 @@ commonMain/kotlin/com/nuvio/app/features/zap/ZapSourceStorage.kt
 commonMain/kotlin/com/nuvio/app/features/search/DiscoverCatalogSources.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktAuthRepository.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktModels.kt
-commonMain/kotlin/com/nuvio/app/features/autosync/AutoSyncPreferencesRepository.kt
-commonMain/composeResources/values/autosync_strings.xml

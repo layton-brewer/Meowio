@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="settings_playback_subtitle_auto_sync">Automatic subtitle sync</string>
-    <string name="settings_playback_subtitle_auto_sync_description">Off by default. When you turn on an add-on subtitle, its timing is lined up with the subtitles built into the video, or on Android with the dialogue in the audio when there are none. Only confident matches are applied, and subtitles are never turned on for you.</string>
+    <string name="settings_playback_subtitle_auto_sync">Auto Sync Subtitle</string>
+    <string name="settings_playback_subtitle_auto_sync_description">Match the selected add-on subtitle to the timing of the subtitles embedded in the video.</string>
     <string name="settings_playback_auto_sync_mode_aggressive">Auto Sync Search: Thorough</string>
     <string name="settings_playback_auto_sync_mode_aggressive_description">Keeps comparing other subtitles and embedded tracks for a closer match before syncing. Only confident matches are ever applied.</string>
     <string name="settings_playback_auto_sync_mode_passive">Auto Sync Search: Quick</string>
