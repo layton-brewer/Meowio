@@ -853,15 +853,21 @@ struct MPVPlayerLayer: View {
         ZStack(alignment: .bottom) {
             MPVSurface(engine: controller.mpv).ignoresSafeArea()
             if showBar || showMenu {
-                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                VStack(alignment: .leading, spacing: 18) {
-                    if showMenu { menuPanel }
-                    progressBar
+                // Android TV's player chrome: dark fades top and bottom, the title and episode bottom left,
+                // the progress bar, then a row of round control buttons.
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom).frame(height: 300)
+                    Spacer()
+                    LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom).frame(height: 520)
                 }
-                .padding(.horizontal, 80)
-                .padding(.bottom, 60)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                VStack(alignment: .leading, spacing: 24) {
+                    progressBar
+                    if showMenu { menuPanel }
+                }
+                .padding(.horizontal, 64)
+                .padding(.bottom, 48)
                 .transition(.opacity)
             }
             if !showMenu, let corner = cornerAction {
@@ -915,7 +921,15 @@ struct MPVPlayerLayer: View {
             let pos = controller.mpv.position
             let dur = controller.mpv.duration
             VStack(alignment: .leading, spacing: 12) {
-                Text(controller.request.title).font(.title3.bold()).lineLimit(1)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(controller.request.meta.type == "series" ? controller.request.meta.name : controller.request.title)
+                        .font(.system(size: 52, weight: .bold)).lineLimit(1)
+                    if let code = episodeCode {
+                        Text("\(code) • \(controller.request.title)").font(.system(size: 32, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9)).lineLimit(1)
+                    }
+                }
+                .padding(.bottom, 12)
                 if !controller.request.isLive, dur > 0 {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -940,8 +954,16 @@ struct MPVPlayerLayer: View {
         }
     }
 
+    /// "S1E4" for an episode, from its id (tt123:1:4).
+    private var episodeCode: String? {
+        guard controller.request.meta.type == "series", let vid = controller.request.videoId else { return nil }
+        let parts = vid.split(separator: ":")
+        guard parts.count >= 3, let s = Int(parts[parts.count - 2]), let e = Int(parts[parts.count - 1]) else { return nil }
+        return "S\(s)E\(e)"
+    }
+
     private var menuPanel: some View {
-        HStack(spacing: 30) {
+        HStack(spacing: 16) {
             if controller.request.candidates.count > 1 {
                 Menu {
                     ForEach(Array(controller.request.candidates.prefix(25).enumerated()), id: \.offset) { i, s in
@@ -997,12 +1019,12 @@ struct MPVPlayerLayer: View {
                     Button("End of episode") { SleepTimer.shared.endOfEpisode() }
                 } label: { Label(sleep.label, systemImage: "moon.zzz") }
                 PartyMenuButton(party: party, controller: controller)
-                Button { controller.mpv.seek(by: -30) } label: { Label("30s", systemImage: "gobackward.30") }
-                Button { controller.mpv.seek(by: 30) } label: { Label("30s", systemImage: "goforward.30") }
+                Button { controller.mpv.seek(by: -30) } label: { Label("Back 30 seconds", systemImage: "gobackward.30") }
+                Button { controller.mpv.seek(by: 30) } label: { Label("Forward 30 seconds", systemImage: "goforward.30") }
             }
         }
-        .padding(24)
-        .glass()
+        .buttonStyle(CircleIconButtonStyle())
+        .labelStyle(.iconOnly)
     }
 
     private func openMenu() {
