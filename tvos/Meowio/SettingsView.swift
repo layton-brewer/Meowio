@@ -136,10 +136,24 @@ struct SettingsView: View {
             }
             Toggle("Show Live TV", isOn: $settings.liveTabVisible)
         }
+        Section {
+            Picker("Start after", selection: $settings.ambientMinutes) {
+                Text("Off").tag(0)
+                ForEach([1, 3, 5, 10, 15], id: \.self) { Text("\($0) min").tag($0) }
+            }
+        } header: {
+            Text("Ambient mode")
+        } footer: {
+            Text("When Home is left alone, Meowio shows a slideshow of backdrops from your catalogs. Any button brings you back.")
+        }
     }
 
     @ViewBuilder private var layoutSection: some View {
         Section("Home layout") {
+            Picker("Layout", selection: $settings.homeLayout) {
+                ForEach(HomeLayout.allCases) { Text($0.title).tag($0) }
+            }
+            Toggle("Landscape posters", isOn: $settings.landscapePosters)
             Toggle("Show hero section", isOn: $settings.showHero)
             Toggle("Show Continue Watching", isOn: $settings.showContinueWatching)
             Toggle("Show poster labels", isOn: $settings.posterLabels)

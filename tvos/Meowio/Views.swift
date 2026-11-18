@@ -15,6 +15,7 @@ extension View {
             .navigationDestination(for: AutoPlayRoute.self) { DetailView(item: $0.item, autoplay: true) }
             .navigationDestination(for: FolderRoute.self) { FolderView(route: $0) }
             .navigationDestination(for: AddonClient.AddonCatalog.self) { CatalogSeeAllView(catalog: $0) }
+            .navigationDestination(for: CastRoute.self) { CastView(route: $0) }
     }
 }
 
@@ -122,12 +123,16 @@ struct PosterCard: View {
     var onFocus: ((MetaItem) -> Void)? = nil
     /// Show Poster Labels: the name and year under the poster.
     var showLabel = true
+    /// Landscape Poster Mode: the title's backdrop in a wide card.
+    var landscape = false
     @Environment(\.isFocused) private var focused
+
+    private var width: CGFloat { landscape ? CardMetrics.wideWidth : CardMetrics.posterWidth }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Artwork(url: item.posterURL, placeholder: item.name)
-                .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+            Artwork(url: landscape ? item.backgroundURL : item.posterURL, placeholder: item.name)
+                .frame(width: width, height: landscape ? CardMetrics.wideHeight : CardMetrics.posterHeight)
                 .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
             if showLabel {
             VStack(alignment: .leading, spacing: 4) {
@@ -139,7 +144,7 @@ struct PosterCard: View {
                     Text(year).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
-            .frame(width: CardMetrics.posterWidth, alignment: .leading)
+            .frame(width: width, alignment: .leading)
             }
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
@@ -348,11 +353,12 @@ struct Shelf: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
-                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus, showLabel: settings.posterLabels) }
+                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus, showLabel: settings.posterLabels,
+                                                                  landscape: settings.landscapePosters) }
                                 .buttonStyle(.focusRing)
                         }
                         if let catalog {
-                            NavigationLink(value: catalog) { SeeAllCard() }
+                            NavigationLink(value: catalog) { SeeAllCard(landscape: settings.landscapePosters) }
                                 .buttonStyle(.focusRing)
                         }
                     }
@@ -497,7 +503,7 @@ struct HeroHeader: View {
 }
 
 /// The title's logo art, or its name in large type when there is no logo.
-private struct HeroTitle: View {
+struct HeroTitle: View {
     let item: MetaItem
     @State private var logoFailed = false
 
@@ -586,6 +592,7 @@ struct HomeView: View {
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
+    @State private var ambientOn = false
 
     private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? addonRows.first?.items.first }
     /// What the header shows: the focused card, or a featured title before anything is focused.
@@ -605,48 +612,80 @@ struct HomeView: View {
         }
     }
 
+    /// The rows shared by every layout; Grid shows each catalog as a wrapping grid instead of a row.
+    @ViewBuilder private var rowsContent: some View {
+        notices
+        ContinueShelf(onFocus: focus)
+        ForEach(serverShelves) { shelf in
+            Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
+        }
+        ForEach(collections.ordered) { collection in
+            CollectionShelf(collection: collection)
+        }
+        ForEach(addonRows) { row in
+            if settings.homeLayout == .grid {
+                GridSection(row: row, onFocus: focus)
+            } else {
+                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
+            }
+        }
+        if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
+            Text("No catalogs to show. Check your connection, or turn catalogs on in Settings > Content & Discovery > Home catalogs.")
+                .padding(CardMetrics.rowInset)
+        }
+    }
+
+    /// Modern: the focused title's header on top, the rows in the lower half.
+    @ViewBuilder private func modernLayout(_ geo: GeometryProxy) -> some View {
+        if !settings.showHero {
+            EmptyView()
+        } else if let heroShown {
+            HeroHeader(item: heroShown)
+                .padding(.leading, CardMetrics.rowInset)
+                .padding(.top, 56)
+        } else {
+            Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
+                .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
+        }
+        // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
+        ScrollView {
+            // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
+            VStack(alignment: .leading, spacing: 12) {
+                rowsContent
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 80)
+        }
+        // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
+        .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
+        .frame(maxHeight: .infinity, alignment: .bottom)
+    }
+
+    /// Classic and Grid: one full-height scroll with an optional featured banner on top; the backdrop follows focus.
+    @ViewBuilder private func scrollingLayout(_ geo: GeometryProxy) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if settings.showHero, let featured {
+                    FeaturedBanner(item: featured)
+                        .frame(minHeight: geo.size.height * 0.62, alignment: .bottomLeading)
+                }
+                rowsContent
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 80)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
                 ZStack(alignment: .topLeading) {
                     HeroBackdrop(url: heroShown?.backgroundURL, background: settings.theme.background,
                                  trailerFor: settings.heroTrailers ? heroShown : nil)
-                    if !settings.showHero {
-                        EmptyView()
-                    } else if let heroShown {
-                        HeroHeader(item: heroShown)
-                            .padding(.leading, CardMetrics.rowInset)
-                            .padding(.top, 56)
-                    } else {
-                        Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
-                            .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
+                    switch settings.homeLayout {
+                    case .modern: modernLayout(geo)
+                    case .classic, .grid: scrollingLayout(geo)
                     }
-                    // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
-                    ScrollView {
-                        // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
-                        VStack(alignment: .leading, spacing: 12) {
-                            notices
-                            ContinueShelf(onFocus: focus)
-                            ForEach(serverShelves) { shelf in
-                                Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
-                            }
-                            ForEach(collections.ordered) { collection in
-                                CollectionShelf(collection: collection)
-                            }
-                            ForEach(addonRows) { row in
-                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
-                            }
-                            if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
-                                Text("No catalogs to show. Check your connection, or turn catalogs on in Settings > Content & Discovery > Home catalogs.")
-                                    .padding(CardMetrics.rowInset)
-                            }
-                        }
-                        .padding(.top, 16)
-                        .padding(.bottom, 80)
-                    }
-                    // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
-                    .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
-                    .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }
             .ignoresSafeArea(edges: .bottom)
@@ -672,6 +711,15 @@ struct HomeView: View {
             .padding(80)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.85).ignoresSafeArea())
+        }
+        // Ambient mode: restarts its countdown on every focus move, so it only starts when Home is left alone.
+        .task(id: AmbientKey(minutes: settings.ambientMinutes, focus: focusedItem?.id, on: ambientOn)) {
+            guard settings.ambientMinutes > 0, !ambientOn, updatePrompt == nil else { return }
+            try? await Task.sleep(for: .seconds(settings.ambientMinutes * 60))
+            if !Task.isCancelled, !ambientItems.isEmpty { ambientOn = true }
+        }
+        .fullScreenCover(isPresented: $ambientOn) {
+            AmbientView(items: ambientItems) { ambientOn = false }
         }
         .task(id: servers.connections) {
             serverShelves = await servers.shelves()
@@ -700,6 +748,12 @@ struct HomeView: View {
 
     private func focus(_ item: MetaItem) {
         focusedItem = item
+    }
+
+    /// Titles with a backdrop for ambient mode, from every Home row.
+    private var ambientItems: [MetaItem] {
+        var seen = Set<String>()
+        return addonRows.flatMap(\.items).filter { $0.background != nil && seen.insert($0.id).inserted }.prefix(60).map { $0 }
     }
 }
 
@@ -1026,18 +1080,23 @@ struct DetailView: View {
         }
     }
 
-    /// Starring and director, like the cast line on Android TV's detail page.
+    /// Cast and directors, like Android TV's cast row: each name opens that person's page.
     @ViewBuilder private var creditsLine: some View {
-        let cast = (meta.cast ?? []).prefix(4).joined(separator: ", ")
-        let director = (meta.director ?? []).prefix(2).joined(separator: ", ")
-        if !cast.isEmpty || !director.isEmpty {
-            HStack(spacing: 28) {
-                if !cast.isEmpty { Text("Starring ").foregroundStyle(.tertiary) + Text(cast) }
-                if !director.isEmpty { Text("Director ").foregroundStyle(.tertiary) + Text(director) }
+        let people = Array((meta.director ?? []).prefix(2).map { ($0, "Director") } + (meta.cast ?? []).prefix(8).map { ($0, "") })
+        if !people.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(Array(people.enumerated()), id: \.offset) { _, person in
+                        NavigationLink(value: CastRoute(name: person.0)) {
+                            Text(person.1.isEmpty ? person.0 : "\(person.0) · \(person.1)")
+                        }
+                        .buttonStyle(ChipButtonStyle(selected: false))
+                    }
+                }
+                .padding(.vertical, 12)
             }
-            .font(.system(size: 22, weight: .medium))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+            .scrollClipDisabled()
+            .focusSection()
         }
     }
 
@@ -1293,6 +1352,7 @@ private struct SourceCard: View {
 
 /// The last card of a catalog row: opens the whole catalog.
 struct SeeAllCard: View {
+    var landscape = false
     @Environment(\.isFocused) private var focused
 
     var body: some View {
@@ -1300,7 +1360,8 @@ struct SeeAllCard: View {
             Image(systemName: "square.grid.2x2").font(.system(size: 48, weight: .semibold))
             Text("See all").font(.system(size: 26, weight: .semibold))
         }
-        .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+        .frame(width: landscape ? CardMetrics.wideWidth : CardMetrics.posterWidth,
+               height: landscape ? CardMetrics.wideHeight : CardMetrics.posterHeight)
         .background(.white.opacity(focused ? 0.18 : 0.08), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
         .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
     }
@@ -1346,5 +1407,166 @@ struct CatalogSeeAllView: View {
         items.append(contentsOf: fresh)
         if fresh.isEmpty { finished = true }
         loading = false
+    }
+}
+
+/// The featured title at the top of the Classic and Grid layouts, with a button to open it.
+struct FeaturedBanner: View {
+    let item: MetaItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            HeroHeader(item: item)
+            NavigationLink(value: item) {
+                Label("Details", systemImage: "info.circle")
+            }
+            .buttonStyle(PillButtonStyle())
+        }
+        .padding(.leading, CardMetrics.rowInset)
+        .padding(.bottom, 24)
+        .focusSection()
+    }
+}
+
+/// Grid layout: one catalog as a titled grid of its first titles, ending with See all.
+struct GridSection: View {
+    let row: AddonRow
+    var onFocus: ((MetaItem) -> Void)? = nil
+    @EnvironmentObject var settings: SettingsStore
+
+    var body: some View {
+        let items = Array(settings.visible(row.items).prefix(settings.landscapePosters ? 11 : 13))
+        let width = settings.landscapePosters ? CardMetrics.wideWidth : CardMetrics.posterWidth
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(row.catalog.title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: width, maximum: width), spacing: CardMetrics.spacing, alignment: .top)],
+                          alignment: .leading, spacing: 36) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) {
+                            PosterCard(item: item, onFocus: onFocus, showLabel: settings.posterLabels, landscape: settings.landscapePosters)
+                        }
+                        .buttonStyle(.focusRing)
+                    }
+                    NavigationLink(value: row.catalog) { SeeAllCard(landscape: settings.landscapePosters) }
+                        .buttonStyle(.focusRing)
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+            }
+            .padding(.vertical, 20)
+            .focusSection()
+        }
+    }
+}
+
+
+struct CastRoute: Hashable {
+    var name: String
+}
+
+/// Android TV's cast page: the person's photo and biography, and the films and shows they are known for (from TMDB).
+struct CastView: View {
+    let route: CastRoute
+    @State private var photo: URL?
+    @State private var biography = ""
+    @State private var knownFor: [MetaItem] = []
+    @State private var loading = true
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 40) {
+                HStack(alignment: .top, spacing: 48) {
+                    Artwork(url: photo, placeholder: route.name)
+                        .frame(width: 300, height: 450)
+                        .clipShape(RoundedRectangle(cornerRadius: CardMetrics.radius))
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(route.name).font(.system(size: 56, weight: .bold))
+                        if !TMDB.available {
+                            Text("Cast pages need a TMDB key. Add one in Settings > Layout.").foregroundStyle(.secondary)
+                        } else if !biography.isEmpty {
+                            Text(biography).font(.system(size: 24)).foregroundStyle(.secondary).lineLimit(9)
+                        }
+                    }
+                    .frame(maxWidth: 1100, alignment: .leading)
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .focusable(knownFor.isEmpty)
+                if loading && TMDB.available {
+                    ProgressView().padding(.leading, CardMetrics.rowInset)
+                }
+                PosterGrid(title: "Known for", items: knownFor)
+            }
+            .padding(.vertical, 60)
+        }
+        .task {
+            guard TMDB.available else { loading = false; return }
+            guard let person = (await TMDB.get("/search/person", ["query": route.name]))?["results"] as? [[String: Any]],
+                  let first = person.first, let id = first["id"] as? Int else { loading = false; return }
+            photo = TMDB.imageURL(first["profile_path"] as? String, size: "w500").flatMap(URL.init(string:))
+            async let details = TMDB.get("/person/\(id)")
+            async let credits = TMDB.get("/person/\(id)/combined_credits")
+            biography = (await details)?["biography"] as? String ?? ""
+            let cast = (await credits)?["cast"] as? [[String: Any]] ?? []
+            var seen = Set<Int>()
+            let ranked = cast.sorted { ($0["popularity"] as? Double ?? 0) > ($1["popularity"] as? Double ?? 0) }
+                .filter { row in
+                    guard let id = row["id"] as? Int, !seen.contains(id) else { return false }
+                    seen.insert(id)
+                    return true
+                }
+            knownFor = await CollectionsStore.withImdbIds(Array(ranked.prefix(40)), defaultMedia: "movie")
+            loading = false
+        }
+    }
+}
+
+
+struct AmbientKey: Hashable {
+    var minutes: Int
+    var focus: String?
+    var on: Bool
+}
+
+/// Android TV's ambient mode: backdrops from the user's catalogs, slowly zooming, with the title in the corner.
+struct AmbientView: View {
+    let items: [MetaItem]
+    let onExit: () -> Void
+    @State private var index = 0
+    @State private var zoom = false
+
+    var body: some View {
+        let item = items.isEmpty ? nil : items[index % items.count]
+        ZStack(alignment: .bottomLeading) {
+            Color.black.ignoresSafeArea()
+            if let item {
+                Artwork(url: item.backgroundURL)
+                    .scaleEffect(zoom ? 1.12 : 1.0)
+                    .animation(.linear(duration: 12), value: zoom)
+                    .ignoresSafeArea()
+                    .id(item.id)
+                    .transition(.opacity)
+                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom).ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 8) {
+                    HeroTitle(item: item)
+                    if let year = item.releaseInfo { Text(year).font(.system(size: 26)).foregroundStyle(.secondary) }
+                }
+                .padding(80)
+            }
+            // Any press on the remote closes the slideshow.
+            Button(action: onExit) { Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity) }
+                .buttonStyle(.plain)
+                .opacity(0.02)
+        }
+        .onExitCommand(perform: onExit)
+        .task {
+            zoom = true
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(12))
+                withAnimation(.easeInOut(duration: 1.2)) { index += 1 }
+                zoom = false
+                try? await Task.sleep(for: .milliseconds(50))
+                zoom = true
+            }
+        }
     }
 }

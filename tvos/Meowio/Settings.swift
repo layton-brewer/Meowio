@@ -89,6 +89,19 @@ struct SubtitleStyle: Codable, Equatable {
 }
 
 /// Colour themes. Every one of them matches a base theme of the Android apps (Meowio is their Violet).
+/// Android TV's three Home layouts.
+enum HomeLayout: String, Codable, CaseIterable, Identifiable {
+    case modern, classic, grid
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .modern: return "Modern"
+        case .classic: return "Classic"
+        case .grid: return "Grid"
+        }
+    }
+}
+
 enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
     case meowio, ocean, emerald, amber, rose, crimson, sunset, aurora, midnight, white
     var id: String { rawValue }
@@ -172,6 +185,11 @@ final class SettingsStore: ObservableObject {
     @Published var showContinueWatching: Bool { didSet { save() } }
     @Published var posterLabels: Bool { didSet { save() } }
     @Published var hideUnreleased: Bool { didSet { save() } }
+    @Published var homeLayout: HomeLayout { didSet { save() } }
+    /// Landscape Poster Mode: wide backdrop cards instead of portrait posters.
+    @Published var landscapePosters: Bool { didSet { save() } }
+    /// Ambient mode: minutes of no remote use on Home before a backdrop slideshow starts. 0 is off.
+    @Published var ambientMinutes: Int { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -231,6 +249,9 @@ final class SettingsStore: ObservableObject {
         showContinueWatching = d.object(forKey: "showContinueWatching") as? Bool ?? true
         posterLabels = d.object(forKey: "posterLabels") as? Bool ?? true
         hideUnreleased = d.object(forKey: "hideUnreleased") as? Bool ?? false
+        homeLayout = HomeLayout(rawValue: d.string(forKey: "homeLayout") ?? "") ?? .modern
+        landscapePosters = d.object(forKey: "landscapePosters") as? Bool ?? false
+        ambientMinutes = d.object(forKey: "ambientMinutes") as? Int ?? 0
     }
 
     private func save() {
@@ -268,6 +289,9 @@ final class SettingsStore: ObservableObject {
         d.set(showContinueWatching, forKey: "showContinueWatching")
         d.set(posterLabels, forKey: "posterLabels")
         d.set(hideUnreleased, forKey: "hideUnreleased")
+        d.set(homeLayout.rawValue, forKey: "homeLayout")
+        d.set(landscapePosters, forKey: "landscapePosters")
+        d.set(ambientMinutes, forKey: "ambientMinutes")
     }
 
     /// Hide Unreleased Content: titles whose year is still to come.
