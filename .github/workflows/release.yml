@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.50 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.53 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.50 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.53 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.50"
+          tag="v0.2.53"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.50
+          ## What's new in 0.2.53
 
-          - **Skips debrid "downloading" clips.** When an add-on plays a stand-in clip such as "Torrent is being downloaded to debrid..." instead of the title, Meowio notices (by the clip's link, or because it is far shorter than the episode or movie) and quietly switches to the next cached source. Short titles and trailers are left alone. Android TV, phone, iPhone/iPad, Mac and Windows.
+          - **Apple TV is back on the main release.** Every app, Apple TV included, is now on this one page for each version.
+          - **Skips debrid "downloading" clips.** When an add-on plays a stand-in clip such as "Torrent is being downloaded to debrid..." instead of the title, Meowio notices (by the clip's link, or because it is far shorter than the episode or movie) and quietly switches to the next cached source. Short titles and trailers are left alone. Every app.
           - **Guest mode on phone goes straight to Home.** "Continue Without Account" now creates a local Profile 1 instead of showing an empty "Who's watching?" screen.
+          - **Apple TV: your add-ons' catalogs are on Home again**, rows appear as they load, and add-ons that send numbers where text is expected no longer drop out.
+          - **Apple TV: Continue Watching shows every title**, including shows synced from your account or Trakt with only an id.
+          - **Apple TV: Up always works on Home**, all the way back to Continue Watching.
 
           ## Download
 
@@ -277,14 +281,14 @@ jobs:
           | Android phone or tablet | [Meowio-mobile.apk](https://github.com/REPO/releases/download/TAG/Meowio-mobile.apk) |
           | iPhone / iPad | [Meowio-ios.ipa](https://github.com/REPO/releases/download/TAG/Meowio-ios.ipa) |
           | Mac, Apple Silicon | [Meowio-macos-arm64.dmg](https://github.com/REPO/releases/download/TAG/Meowio-macos-arm64.dmg) |
-          | Apple TV | [Apple TV releases](https://github.com/REPO/releases?q=appletv&expanded=true) (its own page) |
+          | Apple TV | [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa) |
           | Windows 10/11 (64-bit) | [Meowio-windows-x64.exe](https://github.com/REPO/releases/download/TAG/Meowio-windows-x64.exe) |
 
           ## Installation
 
           See the [installation guide](https://github.com/REPO#readme) for your device.
 
-          iPhone, Mac and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
+          iPhone, Apple TV, Mac and Windows downloads are uploaded separately after Android. While builds finish, some files may still be from the previous release.
 
           NOTES
           sed -i 's/^          //' notes.md
@@ -295,13 +299,13 @@ jobs:
             --title "Meowio $tag" \
             --notes-file notes.md \
             --latest
-          # Carry the most recent Apple builds over so this page always offers every platform.
+          # Carry the most recent Apple and Windows builds over so this page always offers every platform.
           mkdir -p apple
           for t in $(gh release list --repo "${{ github.repository }}" --limit 30 --json tagName -q '.[].tagName' | grep -vx "$tag"); do
             gh release download "$t" --repo "${{ github.repository }}" --dir apple --skip-existing \
-              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-macos-arm64.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
+              --pattern 'Meowio-ios.ipa' --pattern 'Meowio-tvos.ipa' --pattern 'Meowio-macos-arm64.dmg' --pattern 'Meowio-windows-x64.exe' --pattern 'altstore.json' || true
           done
-          # Never overwrite a file the Apple or Windows build already attached to this page, and never fail
+          # Never overwrite a file the Apple, Apple TV or Windows build already attached to this page, and never fail
           # the release over a carried-over file (those builds attach their own copy anyway).
           existing="$(gh release view "$tag" --repo "${{ github.repository }}" --json assets -q '.assets[].name' || true)"
           for f in apple/*; do

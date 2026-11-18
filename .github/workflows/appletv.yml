@@ -1,7 +1,7 @@
 name: Apple TV
 
-# Apple TV has its own release page, so a tvOS change builds only Meowio-tvos.ipa and never rebuilds the
-# Android, iPhone, Mac or Windows apps. Bump APPLETV_VERSION for every Apple TV release.
+# Builds Meowio-tvos.ipa and attaches it to the same "Meowio vX.Y.Z" release page as every other app.
+# A tvOS-only change builds only this. Bump MEOWIO_TAG together with release.yml, apple.yml and windows.yml.
 # If the build is cancelled while it waits for a macOS runner, run it again from the Actions tab.
 on:
   push:
@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.52
+  MEOWIO_TAG: v0.2.53
 
 permissions:
   contents: write
@@ -77,7 +77,7 @@ jobs:
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
             -sdk appletvos -destination 'generic/platform=tvOS' \
             -derivedDataPath build \
-            MARKETING_VERSION=$APPLETV_VERSION CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=${MEOWIO_TAG#v} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
 
       - name: Package IPA
@@ -90,13 +90,14 @@ jobs:
           shasum -a 256 Meowio-tvos.ipa
 
       # The same app, with the same keys, built for the Apple TV Simulator on an Apple Silicon Mac,
-      # so the release itself can be tried without an Apple TV (test-apple-tv.command installs it).
+      # so the release can be tried without an Apple TV. It is kept as a private workflow artifact only
+      # (never on the release page); test-apple-tv.command on the Mac fetches it with gh.
       - name: Build for the Apple TV Simulator
         run: |
           xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
             -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' \
             -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
-            MARKETING_VERSION=$APPLETV_VERSION CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=${MEOWIO_TAG#v} CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
           app="build-sim/Build/Products/Release-appletvsimulator/Meowio.app"
           test -d "$app"
@@ -106,41 +107,34 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Meowio-tvos
-          path: |
-            tvos/Meowio-tvos.ipa
-            tvos/Meowio-tvos-simulator.zip
+          path: tvos/Meowio-tvos.ipa
           retention-days: 14
 
-      - name: Publish the Apple TV release
-        # Only main publishes. Its own page, never marked latest, so the main Meowio release stays on top.
-        if: github.ref == 'refs/heads/main'
-        working-directory: ${{ github.workspace }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meowio-tvos-simulator
+          path: tvos/Meowio-tvos-simulator.zip
+          retention-days: 30
+
+  attach:
+    name: Attach to this version's Meowio release
+    needs: [tvos]
+    # Only main publishes. Other branches keep their build as a workflow artifact.
+    # Waits on a cheap Linux runner instead of the Mac.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Meowio-tvos
+      - name: Attach Meowio-tvos.ipa
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          tag="appletv-v$APPLETV_VERSION"
-          cat > notes.md <<'NOTES'
-          ## What's new
-
-          - **Your add-ons' catalogs are on Home again:** every browsable catalog from your add-ons gets a row, in add-on order, and rows appear as they load. Add-ons that send numbers where text is expected (ratings, years) no longer drop out.
-          - **Continue Watching shows every title:** shows synced from your account or Trakt with only an id now get their name and artwork.
-          - **Debrid "downloading" clips are skipped:** when a debrid add-on answers with a short placeholder clip instead of the film, Meowio marks that link as not cached and plays the next source.
-          - **Up always works on Home:** each row is its own focus area, so pressing Up from any row goes back to the row above, all the way to Continue Watching.
-
-          ## Download
-
-          [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa). Sideload it over your current version; settings and library stay.
-
-          No Apple TV? [Meowio-tvos-simulator.zip](https://github.com/REPO/releases/download/TAG/Meowio-tvos-simulator.zip) is this same release for the Apple TV Simulator on an Apple Silicon Mac.
-
-          The other apps are on the [main Meowio release](https://github.com/REPO/releases/latest).
-          NOTES
-          sed -i '' 's/^          //' notes.md
-          sed -i '' "s|REPO|$GH_REPO|g; s|TAG|$tag|g" notes.md
-          if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --target "${{ github.sha }}" --title "Meowio for Apple TV $APPLETV_VERSION" \
-              --notes-file notes.md --latest=false
-          fi
-          for i in 1 2 3 4; do gh release upload "$tag" tvos/Meowio-tvos.ipa tvos/Meowio-tvos-simulator.zip --clobber && exit 0; sleep 30; done
+          # Wait for this version's release page (the Android build creates it), then attach.
+          for i in $(seq 1 80); do gh release view "$MEOWIO_TAG" >/dev/null 2>&1 && break; sleep 60; done
+          for i in 1 2 3 4; do gh release upload "$MEOWIO_TAG" Meowio-tvos.ipa --clobber && exit 0; sleep 30; done
+          echo "::error::No $MEOWIO_TAG release page to attach to. Bump MEOWIO_TAG together with release.yml."
           exit 1
