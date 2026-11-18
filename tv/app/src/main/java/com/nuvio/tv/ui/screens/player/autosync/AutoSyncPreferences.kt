@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Kept outside PlayerSettingsDataStore on purpose: upstream NuvioTV settings architecture does not
  * need new fields, migrations, or constructor wiring just for this fork feature.
  */
+/** Off by default: AutoSync never turns subtitles on, it only retimes one the viewer picked. */
 internal object AutoSyncPreferences {
     private const val PREFS_NAME = "nuvio_tv_autosync"
     private const val KEY_ENABLED = "automatic_subtitle_sync_enabled"
@@ -24,11 +25,11 @@ internal object AutoSyncPreferences {
     private var lastStartupSessionKey: Int? = null
     private var lastStartupPlaybackKey: String? = null
 
-    private val _enabled = MutableStateFlow(true)
+    private val _enabled = MutableStateFlow(false)
     val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
 
     /** [enabled] as Compose state, so the settings list can show the dependent rows only when on. */
-    private val _enabledState = mutableStateOf(true)
+    private val _enabledState = mutableStateOf(false)
     val enabledState: State<Boolean> get() = _enabledState
 
     /** Thorough search: stop only on a stronger match; the applied match is gated the same. */
@@ -45,7 +46,7 @@ internal object AutoSyncPreferences {
         synchronized(lock) {
             if (initialized) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            _enabled.value = prefs.getBoolean(KEY_ENABLED, true)
+            _enabled.value = prefs.getBoolean(KEY_ENABLED, false)
             _enabledState.value = _enabled.value
             _aggressiveMode.value = prefs.getBoolean(KEY_AGGRESSIVE_MODE, true)
             _syncToleranceMs.value = prefs.getInt(KEY_SYNC_TOLERANCE_MS, 0)

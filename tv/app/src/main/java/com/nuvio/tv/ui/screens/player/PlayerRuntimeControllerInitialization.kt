@@ -2281,7 +2281,8 @@ private class SubtitleOffsetRenderersFactory(
             .setEnableFloatOutput(enableFloatOutput)
             .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
             .setAudioProcessors(arrayOf(gainAudioProcessor, nightModeAudioProcessor))
-        val baseAudioSink = builder.build()
+        // AutoSync hook: listens to decoded audio only while AutoSync needs it.
+        val baseAudioSink = com.nuvio.tv.ui.screens.player.autosync.AutoSyncSpeechTapAudioSink(builder.build())
         val playbackSpeedAwareAudioSink = PlaybackSpeedAwareAudioSink(
             sink = baseAudioSink,
             initialForcePcm = initialForcePcm,
