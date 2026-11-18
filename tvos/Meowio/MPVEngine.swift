@@ -153,6 +153,20 @@ final class MPVEngine: NSObject {
         mpv_set_property_string(mpv, "subs-match-os-language", subtitlesOn && subtitleLanguage.isEmpty ? "yes" : "no")
     }
 
+    /// Size, colours, outline and position for text subtitles, from the Subtitle style settings.
+    func setSubtitleStyle(_ style: SubtitleStyle) {
+        start()
+        guard let mpv else { return }
+        mpv_set_property_string(mpv, "sub-scale", String(format: "%.2f", Double(style.size) / 100))
+        mpv_set_property_string(mpv, "sub-bold", style.bold ? "yes" : "no")
+        mpv_set_property_string(mpv, "sub-color", SubtitleStyle.hex(style.textColor))
+        mpv_set_property_string(mpv, "sub-back-color", SubtitleStyle.hex(style.backgroundColor))
+        mpv_set_property_string(mpv, "sub-border-size", style.outline ? "3" : "0")
+        mpv_set_property_string(mpv, "sub-border-color", SubtitleStyle.hex(style.outlineColor))
+        // mpv's default bottom margin is 22 (on a 720 line scale); the Android default offset is 5.
+        mpv_set_property_string(mpv, "sub-margin-y", String(max(0, min(300, 22 + (style.verticalOffset - 5) * 6))))
+    }
+
     var speed: Double { Double(string("speed") ?? "") ?? 1 }
 
     func setSpeed(_ value: Double) {

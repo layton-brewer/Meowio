@@ -392,10 +392,20 @@ final class MDBListStore: ObservableObject {
         pending = nil
     }
 
+    /// Uses the MDBList API key saved on the Nuvio account (from the phone or Android TV) while not signed in here.
+    func useAccountKey(_ key: String) async {
+        guard accessToken == nil, !key.isEmpty, key != apiKey, key != store.string(forKey: "mdblistDeclinedKey") else { return }
+        apiKey = key
+        store.set(key, forKey: "mdblistKey")
+        await loadUser()
+    }
+
     func signOut() {
         if let token = refreshToken {
             Task { _ = await oauth("/oauth/revoke_token/", ["token": token, "token_type_hint": "refresh_token"]) }
         }
+        // Signing out here keeps the account's key from coming straight back on the next sync.
+        if let apiKey { store.set(apiKey, forKey: "mdblistDeclinedKey") }
         apiKey = nil
         accessToken = nil
         refreshToken = nil

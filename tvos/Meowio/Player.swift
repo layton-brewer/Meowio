@@ -107,6 +107,8 @@ final class PlaybackController: ObservableObject {
     private var advancing = false
     private var wasPaused = true
     private var started = false
+    /// Set once the player screen closes, so a link that arrives late never starts playing in the background.
+    private var stopped = false
     private(set) var lastSeconds: Double = 0
     private(set) var lastDuration: Double = 0
     var onProgress: ((PlayRequest, Double, Double, Bool) -> Void)?
@@ -174,6 +176,7 @@ final class PlaybackController: ObservableObject {
     }
 
     func stop() {
+        stopped = true
         finishRecording(completed: false)
         if started { emitScrobble("stop", percent) }
         started = false
@@ -324,6 +327,7 @@ final class PlaybackController: ObservableObject {
     }
 
     private func load(at i: Int, keepPosition: Bool = true) {
+        guard !stopped else { return }
         guard request.candidates.indices.contains(i) else {
             failedAll = true
             return
@@ -350,7 +354,7 @@ final class PlaybackController: ObservableObject {
         let key = settings.debridKey
         Task { [weak self] in
             let url = try? await Debrid.resolve(stream, season: ref?.season, episode: ref?.episode, service: service, key: key)
-            guard let self, self.index == i else { return }
+            guard let self, self.index == i, !self.stopped else { return }
             self.status = nil
             if let url {
                 self.resolved[i] = url
@@ -385,6 +389,7 @@ final class PlaybackController: ObservableObject {
             mpv.onEnded = { [weak self] in self?.ended() }
             mpv.setPreferences(audioLanguage: settings.audioLanguage, subtitleLanguage: settings.subtitleLanguage,
                                subtitlesOn: settings.subtitlesOn)
+            mpv.setSubtitleStyle(settings.subtitleStyle)
             mpv.load(url: url.absoluteString, headers: headers, start: pendingStart, proxy: proxy)
             armTimeout()
             return
@@ -400,6 +405,7 @@ final class PlaybackController: ObservableObject {
             asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
         let item = AVPlayerItem(asset: asset)
+        item.textStyleRules = Self.textStyle(settings.subtitleStyle)
         item.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] status in
@@ -454,6 +460,23 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// The Subtitle style settings for subtitles the system player draws.
+    static func textStyle(_ style: SubtitleStyle) -> [AVTextStyleRule] {
+        func argb(_ v: UInt32) -> [Double] {
+            [Double((v >> 24) & 0xFF) / 255, Double((v >> 16) & 0xFF) / 255, Double((v >> 8) & 0xFF) / 255, Double(v & 0xFF) / 255]
+        }
+        var attributes: [String: Any] = [
+            kCMTextMarkupAttribute_RelativeFontSize as String: Double(style.size),
+            kCMTextMarkupAttribute_ForegroundColorARGB as String: argb(style.textColor),
+            kCMTextMarkupAttribute_CharacterBackgroundColorARGB as String: argb(style.backgroundColor),
+            kCMTextMarkupAttribute_BoldStyle as String: style.bold
+        ]
+        if style.outline {
+            attributes[kCMTextMarkupAttribute_CharacterEdgeStyle as String] = kCMTextMarkupCharacterEdgeStyle_Uniform as String
+        }
+        return AVTextStyleRule(textMarkupAttributes: attributes).map { [$0] } ?? []
+    }
+
     /// Picks the preferred audio and subtitle languages in files AVPlayer opens.
     private func applyLanguages(to item: AVPlayerItem) {
         let audio = settings.audioLanguage
@@ -483,7 +506,7 @@ final class PlaybackController: ObservableObject {
         timeout = Task { [weak self] in
             try? await Task.sleep(nanoseconds: seconds)
             if Task.isCancelled { return }
-            await MainActor.run { self?.failover() }
+            await MainActor.run { if self?.stopped == false { self?.failover() } }
         }
     }
 
@@ -533,7 +556,7 @@ final class PlaybackController: ObservableObject {
             let next = await provider()
             status = nil
             advancing = false
-            guard let next else { return }
+            guard let next, !stopped else { return }
             replaceRequest(next)
         }
     }
@@ -648,6 +671,8 @@ struct PlayerScreen: View {
     @Environment(\.dismiss) private var dismiss
     private let settings: SettingsStore
     @State private var bridge: PartyPlayerBridge?
+    /// A message with buttons is showing over the picture.
+    private var blocked: Bool { controller.failedAll || controller.sleptMessage }
 
     init(request: PlayRequest, settings: SettingsStore) {
         self.settings = settings
@@ -658,8 +683,9 @@ struct PlayerScreen: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if controller.usingMPV {
-                MPVPlayerLayer(controller: controller, sleep: sleep, party: party)
-            } else {
+                MPVPlayerLayer(controller: controller, sleep: sleep, party: party, interactive: !blocked)
+            } else if !blocked {
+                // The system player keeps the remote's focus, so it steps aside while a message needs a button press.
                 PlayerViewControllerRepresentable(player: controller.player, controller: controller, sleep: sleep, party: party)
                     .ignoresSafeArea()
             }
@@ -734,6 +760,8 @@ struct MPVPlayerLayer: View {
     @ObservedObject var controller: PlaybackController
     @ObservedObject var sleep: SleepTimer
     @ObservedObject var party: PartyRepository
+    /// False while a message with its own buttons covers the player, so the remote reaches those buttons.
+    var interactive = true
     @State private var showMenu = false
     @State private var showBar = true
     @State private var tracks: [MPVEngine.Track] = []
@@ -773,7 +801,7 @@ struct MPVPlayerLayer: View {
         }
         .animation(.easeInOut(duration: 0.2), value: showBar)
         .animation(.easeInOut(duration: 0.2), value: showMenu)
-        .focusable(!showMenu)
+        .focusable(!showMenu && interactive)
         .onPlayPauseCommand { controller.mpv.togglePause(); poke() }
         .onTapGesture {
             if controller.skipTarget != nil { controller.skipIntro() }
@@ -790,7 +818,7 @@ struct MPVPlayerLayer: View {
             @unknown default: break
             }
         }
-        .onExitCommand(perform: showMenu ? { showMenu = false; poke() } : nil)
+        .onExitCommand(perform: showMenu && interactive ? { showMenu = false; poke() } : nil)
         .onAppear { poke() }
     }
 

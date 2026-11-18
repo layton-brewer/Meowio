@@ -124,6 +124,7 @@ struct SettingsView: View {
                         Text("Apple TV language").tag("")
                         ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
                     }
+                    NavigationLink("Subtitle style") { SubtitleStyleView() }
                 }
 
                 Section {
@@ -494,5 +495,55 @@ struct DebridSignInView: View {
         }
         code = nil
         failed = true
+    }
+}
+
+/// Size, colours, outline and position of subtitles, like the Android TV player's subtitle settings.
+struct SubtitleStyleView: View {
+    @EnvironmentObject var settings: SettingsStore
+
+    var body: some View {
+        Form {
+            Section {
+                Text("The quick brown fox")
+                    .font(.system(size: 34 * CGFloat(settings.subtitleStyle.size) / 100,
+                                  weight: settings.subtitleStyle.bold ? .bold : .regular))
+                    .foregroundStyle(color(settings.subtitleStyle.textColor))
+                    .padding(.horizontal, 12).padding(.vertical, 4)
+                    .background(color(settings.subtitleStyle.backgroundColor))
+                    .shadow(color: settings.subtitleStyle.outline ? color(settings.subtitleStyle.outlineColor) : .clear, radius: 2)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+            }
+            Section {
+                Picker("Size", selection: $settings.subtitleStyle.size) {
+                    ForEach([50, 75, 100, 125, 150, 175, 200], id: \.self) { Text("\($0)%").tag($0) }
+                }
+                Picker("Position", selection: $settings.subtitleStyle.verticalOffset) {
+                    ForEach([-20, -10, 0, 5, 10, 20, 30, 40, 50], id: \.self) { Text($0 == 5 ? "Default" : "\($0)").tag($0) }
+                }
+                Toggle("Bold", isOn: $settings.subtitleStyle.bold)
+                colorPicker("Text colour", $settings.subtitleStyle.textColor)
+                colorPicker("Background", $settings.subtitleStyle.backgroundColor)
+                Toggle("Outline", isOn: $settings.subtitleStyle.outline)
+                if settings.subtitleStyle.outline { colorPicker("Outline colour", $settings.subtitleStyle.outlineColor) }
+                Button("Reset to default") { settings.subtitleStyle = SubtitleStyle() }
+            }
+        }
+        .navigationTitle("Subtitle style")
+    }
+
+    private func colorPicker(_ title: String, _ value: Binding<UInt32>) -> some View {
+        Picker(title, selection: value) {
+            ForEach(SubtitleStyle.colors, id: \.argb) { Text($0.name).tag($0.argb) }
+            if !SubtitleStyle.colors.contains(where: { $0.argb == value.wrappedValue }) {
+                Text(SubtitleStyle.hex(value.wrappedValue)).tag(value.wrappedValue)
+            }
+        }
+    }
+
+    private func color(_ argb: UInt32) -> Color {
+        Color(red: Double((argb >> 16) & 0xFF) / 255, green: Double((argb >> 8) & 0xFF) / 255,
+              blue: Double(argb & 0xFF) / 255, opacity: Double((argb >> 24) & 0xFF) / 255)
     }
 }

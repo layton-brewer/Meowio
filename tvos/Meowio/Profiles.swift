@@ -12,6 +12,13 @@ struct Profile: Codable, Identifiable, Hashable {
     var usesPrimaryAddons: Bool = false
     /// A PIN is set for this profile on the account; it is checked by the account server.
     var accountLocked: Bool? = nil
+    /// Picture chosen for this profile on the phone or Android TV.
+    var avatarURL: String? = nil
+    /// Account fields this app does not edit, sent back unchanged so pushing never clears them.
+    var avatarId: String? = nil
+    var backgroundId: String? = nil
+    var backgroundURL: String? = nil
+    var usesPrimaryPlugins: Bool? = nil
 
     var isLocked: Bool { pin != nil || accountLocked == true }
 
@@ -34,7 +41,8 @@ enum ProfileScope {
 @MainActor
 final class ProfileStore: ObservableObject {
     static let palette = ["#8E5CF0", "#1E88E5", "#26A69A", "#F4B400", "#EF5350", "#EC407A", "#7E57C2", "#FF7043"]
-    static let maxProfiles = 8
+    /// The account allows six, like the Android apps.
+    static let maxProfiles = 6
 
     @Published private(set) var profiles: [Profile]
     /// The profile in use, or nil while the "Who's watching?" screen is up.
@@ -145,8 +153,12 @@ struct ProfileAvatar: View {
         ZStack {
             Circle().fill(profile.color.gradient)
             Text(profile.initial).font(.system(size: size * 0.45, weight: .bold)).foregroundStyle(.white)
+            if let url = profile.avatarURL.flatMap(URL.init(string:)) {
+                AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: { Color.clear }
+            }
         }
         .frame(width: size, height: size)
+        .clipShape(Circle())
         .overlay(alignment: .bottomTrailing) {
             if profile.isLocked {
                 Image(systemName: "lock.fill").font(.system(size: size * 0.16)).padding(size * 0.06)
@@ -249,6 +261,7 @@ struct PinEntryView: View {
 /// Create or edit a profile: name, colour, PIN and whether it shares the main profile's add-ons.
 struct ProfileEditView: View {
     @EnvironmentObject var profiles: ProfileStore
+    @EnvironmentObject var account: AccountStore
     @Environment(\.dismiss) private var dismiss
     let profile: Profile?
     @State private var name = ""
@@ -256,6 +269,7 @@ struct ProfileEditView: View {
     @State private var pin = ""
     @State private var sharesAddons = false
     @State private var confirmDelete = false
+    @State private var pinMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -275,8 +289,14 @@ struct ProfileEditView: View {
                         .padding(20)
                     }
                 }
-                Section("PIN (four digits, leave empty for none)") {
+                Section(profile?.accountLocked == true
+                        ? "PIN (set on your Nuvio account; type a new one to change it)"
+                        : "PIN (four digits, leave empty for none)") {
                     SecureField("PIN", text: $pin).keyboardType(.numberPad)
+                    if let p = profile, p.accountLocked == true, account.signedIn {
+                        Button("Remove PIN (type the current PIN above first)") { Task { await removeAccountPin(p) } }
+                    }
+                    if let pinMessage { Text(pinMessage).foregroundStyle(.orange) }
                 }
                 if profile?.id != 1 {
                     Section {
@@ -284,7 +304,7 @@ struct ProfileEditView: View {
                     }
                 }
                 Section {
-                    Button(profile == nil ? "Create profile" : "Save") { save() }
+                    Button(profile == nil ? "Create profile" : "Save") { Task { await save() } }
                     if let p = profile, p.id != 1 {
                         Button("Delete profile", role: .destructive) { confirmDelete = true }
                     }
@@ -302,27 +322,67 @@ struct ProfileEditView: View {
         }
         .confirmationDialog("Delete this profile and everything saved in it?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) {
-                if let p = profile { profiles.remove(p.id) }
+                if let p = profile {
+                    profiles.remove(p.id)
+                    let left = profiles.profiles
+                    Task {
+                        await account.deleteProfileData(p.id)
+                        await account.pushProfiles(left)
+                    }
+                }
                 dismiss()
             }
         }
     }
 
-    private func save() {
+    private func save() async {
         let digits = pin.filter(\.isNumber)
         let cleanPin: String? = digits.count == 4 ? digits : nil
+        var saved: Profile?
         if var p = profile {
             p.name = name.trimmingCharacters(in: .whitespaces).isEmpty ? p.name : name.trimmingCharacters(in: .whitespaces)
             p.colorHex = color
-            p.pin = cleanPin
+            // An empty box keeps a PIN set on the account; only this device's own PIN is cleared by it.
+            p.pin = p.accountLocked == true && cleanPin == nil ? nil : cleanPin
             p.usesPrimaryAddons = p.id != 1 && sharesAddons
-            profiles.update(p)
+            saved = p
         } else if var p = profiles.add(name: name, colorHex: color) {
             p.pin = cleanPin
             p.usesPrimaryAddons = sharesAddons
-            profiles.update(p)
+            saved = p
+        }
+        guard var p = saved else { dismiss(); return }
+        profiles.update(p)
+        if account.signedIn {
+            await account.pushProfiles(profiles.profiles)
+            // Like the Android apps, a PIN lives on the account so every device asks for it.
+            if let cleanPin, cleanPin != profile?.pin {
+                let result = await account.setPin(profileId: p.id, pin: cleanPin, currentPin: nil)
+                if result == .ok {
+                    p.pin = nil
+                    p.accountLocked = true
+                    profiles.update(p)
+                } else if result == .currentPinRequired {
+                    pinMessage = "This profile already has a PIN on your account. Remove it first, then set a new one."
+                    return
+                }
+            }
         }
         dismiss()
+    }
+
+    private func removeAccountPin(_ p: Profile) async {
+        let current = pin.filter(\.isNumber)
+        if await account.clearPin(profileId: p.id, currentPin: current.isEmpty ? nil : current) {
+            var updated = p
+            updated.accountLocked = false
+            updated.pin = nil
+            profiles.update(updated)
+            pin = ""
+            pinMessage = "PIN removed."
+        } else {
+            pinMessage = "That PIN is not right."
+        }
     }
 }
 
