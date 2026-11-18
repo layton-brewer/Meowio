@@ -91,6 +91,7 @@ struct ProfileRoot: View {
     private func syncAll() async {
         if account.signedIn {
             await account.sync(profile: profile, settings: settings, library: library)
+            if let key = account.mdblistKey { await mdblist.useAccountKey(key) }
         }
         if trakt.connected { await trakt.sync(into: library) }
         if simkl.connected { await simkl.sync(into: library) }

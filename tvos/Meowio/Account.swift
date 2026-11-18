@@ -9,6 +9,8 @@ final class AccountStore: ObservableObject {
     @Published private(set) var busy = false
     @Published private(set) var lastSync: Date?
     @Published var message: String?
+    /// MDBList API key saved on the account by the phone or Android TV, picked up when this profile has no sign-in.
+    private(set) var mdblistKey: String?
 
     private var accessToken: String?
     private var refreshToken: String?
@@ -278,11 +280,22 @@ final class AccountStore: ObservableObject {
         guard signedIn else { return }
         let r = await rpc("sync_pull_profiles")
         guard let rows = r.json as? [[String: Any]] else { return }
+        func text(_ value: Any?) -> String? { (value as? String).flatMap { $0.isEmpty ? nil : $0 } }
+        var catalog: [String: String] = [:]
+        if rows.contains(where: { text($0["avatar_url"]) == nil && text($0["avatar_id"]) != nil }) {
+            catalog = await avatarCatalog()
+        }
         let remote = rows.compactMap { row -> Profile? in
             guard let index = row["profile_index"] as? Int else { return nil }
-            let name = (row["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? (index == 1 ? "Main" : "Profile \(index)")
-            return Profile(id: index, name: name, colorHex: row["avatar_color_hex"] as? String ?? "#1E88E5",
-                           usesPrimaryAddons: row["uses_primary_addons"] as? Bool ?? false)
+            let name = text(row["name"]) ?? (index == 1 ? "Main" : "Profile \(index)")
+            var p = Profile(id: index, name: name, colorHex: row["avatar_color_hex"] as? String ?? "#1E88E5",
+                            usesPrimaryAddons: row["uses_primary_addons"] as? Bool ?? false)
+            p.avatarId = text(row["avatar_id"])
+            p.avatarURL = text(row["avatar_url"]) ?? p.avatarId.flatMap { catalog[$0] }
+            p.backgroundId = text(row["profile_background_id"])
+            p.backgroundURL = text(row["profile_background_url"])
+            p.usesPrimaryPlugins = row["uses_primary_plugins"] as? Bool
+            return p
         }
         // PINs set on the account (from the phone or Android TV) lock the profile here too.
         let locks = (await rpc("sync_pull_profile_locks").json as? [[String: Any]]) ?? []
@@ -290,13 +303,55 @@ final class AccountStore: ObservableObject {
         profiles.adopt(remote: remote.map { var p = $0; p.accountLocked = locked.contains(p.id); return p })
     }
 
-    /// Profiles made on this Apple TV go up to the account so other devices see them.
+    /// Picture addresses for the account's standard avatars, by id.
+    private func avatarCatalog() async -> [String: String] {
+        let rows = (await rpc("get_avatar_catalog").json as? [[String: Any]]) ?? []
+        var map: [String: String] = [:]
+        for row in rows {
+            guard let id = row["id"] as? String, let path = row["storage_path"] as? String, !path.isEmpty else { continue }
+            map[id] = path.hasPrefix("http") ? path : "\(Self.serverURL)/storage/v1/object/public/avatars/\(path)"
+        }
+        return map
+    }
+
+    /// Profiles made or changed on this Apple TV go up to the account so other devices see them.
+    /// Sends the whole list with every account field, like the Android apps, so nothing set elsewhere is lost.
     func pushProfiles(_ profiles: [Profile]) async {
         guard signedIn else { return }
-        let rows: [[String: Any]] = profiles.map {
-            ["profile_index": $0.id, "name": $0.name, "avatar_color_hex": $0.colorHex, "uses_primary_addons": $0.usesPrimaryAddons]
+        func value(_ s: String?) -> Any { s.flatMap { $0.isEmpty ? nil : $0 } ?? NSNull() }
+        let rows: [[String: Any]] = profiles.prefix(ProfileStore.maxProfiles).map { p in
+            let ownPicture = p.avatarURL.flatMap { $0.hasPrefix(Self.serverURL + "/storage/v1/object/public/avatars/") ? nil : $0 }
+            return ["profile_index": p.id, "name": p.name, "avatar_color_hex": p.colorHex,
+                    "uses_primary_addons": p.usesPrimaryAddons, "uses_primary_plugins": p.usesPrimaryPlugins ?? false,
+                    "avatar_id": ownPicture == nil ? value(p.avatarId) : NSNull(), "avatar_url": value(ownPicture),
+                    "profile_background_id": value(p.backgroundId), "profile_background_url": value(p.backgroundURL)]
         }
-        _ = await rpc("sync_push_profiles", ["p_profiles": rows])
+        _ = await rpc("sync_push_profiles", ["p_profiles": rows, "p_client_max_profiles": ProfileStore.maxProfiles,
+                                             "p_origin_client_id": clientId])
+    }
+
+    /// Clears a removed profile's add-ons, library and progress on the account.
+    func deleteProfileData(_ profileId: Int) async {
+        guard signedIn, profileId != 1 else { return }
+        _ = await rpc("sync_delete_profile_data", ["p_profile_id": profileId])
+    }
+
+    enum PinResult { case ok, currentPinRequired, failed }
+
+    /// Sets a profile PIN on the account, so the phone and Android TV ask for it too.
+    func setPin(profileId: Int, pin: String, currentPin: String?) async -> PinResult {
+        var params: [String: Any] = ["p_profile_id": profileId, "p_pin": pin]
+        if let currentPin { params["p_current_pin"] = currentPin }
+        let r = await rpc("set_profile_pin", params)
+        if r.status < 300 { return .ok }
+        let text = String(describing: r.json ?? "").lowercased()
+        return text.contains("current pin is required") ? .currentPinRequired : .failed
+    }
+
+    func clearPin(profileId: Int, currentPin: String?) async -> Bool {
+        var params: [String: Any] = ["p_profile_id": profileId]
+        if let currentPin { params["p_current_pin"] = currentPin }
+        return await rpc("clear_profile_pin", params).status < 300
     }
 
     /// Checks a PIN set on the account. True when it opens the profile.
@@ -304,6 +359,79 @@ final class AccountStore: ObservableObject {
         let r = await rpc("verify_profile_pin", ["p_profile_id": profileId, "p_pin": pin])
         let row = (r.json as? [[String: Any]])?.first ?? (r.json as? [String: Any])
         return row?["unlocked"] as? Bool ?? false
+    }
+
+    // MARK: Settings made on Android TV
+
+    /// Takes the playback settings this profile uses on Android TV (autoplay, failover, languages, Skip Intro, theme,
+    /// subtitle look) whenever they change there. A change made here stays until Android TV changes them again.
+    func pullTVSettings(profileId: Int, settings: SettingsStore) async {
+        let r = await rpc("sync_pull_profile_settings_blob", ["p_profile_id": profileId, "p_platform": "tv"])
+        let row = (r.json as? [[String: Any]])?.first ?? (r.json as? [String: Any])
+        guard r.status < 300, let features = (row?["settings_json"] as? [String: Any])?["features"] as? [String: Any] else { return }
+        let player = features["player_settings"] as? [String: Any] ?? [:]
+        let theme = features["theme_settings"] as? [String: Any] ?? [:]
+        func value(_ group: [String: Any], _ key: String) -> Any? { (group[key] as? [String: Any])?["value"] }
+        func bool(_ key: String) -> Bool? { value(player, key) as? Bool }
+        func int(_ key: String) -> Int? { (value(player, key) as? NSNumber)?.intValue }
+        func string(_ key: String) -> String? { value(player, key) as? String }
+
+        // Only what Android TV actually stored, so a fingerprint tells when it changed there.
+        let keys = ["stream_auto_play_mode", "stream_auto_play_next_episode_enabled", "stream_auto_play_fallback_on_failure",
+                    "stream_auto_play_fallback_max_sources", "stream_auto_play_fallback_startup_timeout_seconds",
+                    "stream_auto_play_reuse_binge_group", "preload_next_episode_sources", "stream_pinned_sources",
+                    "skip_intro_enabled", "preferred_audio_language", "subtitle_preferred_language", "subtitle_size",
+                    "subtitle_vertical_offset", "subtitle_bold", "subtitle_text_color", "subtitle_background_color",
+                    "subtitle_outline_enabled", "subtitle_outline_color"]
+        let picked = keys.compactMap { k in value(player, k).map { "\(k)=\($0)" } } + [String(describing: value(theme, "selected_theme") ?? "")]
+        let fingerprint = picked.joined(separator: "|")
+        let store = ProfileScope.defaults(for: profileId)
+        guard fingerprint != store.string(forKey: "tvSettingsFingerprint") else { return }
+        store.set(fingerprint, forKey: "tvSettingsFingerprint")
+
+        if let mode = string("stream_auto_play_mode") { settings.streamMode = mode == "MANUAL_USER" ? .manual : .smart }
+        if let v = bool("stream_auto_play_next_episode_enabled") { settings.autoNext = v }
+        if let v = bool("stream_auto_play_fallback_on_failure") { settings.failoverEnabled = v }
+        if let v = int("stream_auto_play_fallback_max_sources"), v > 0 { settings.maxSwitches = v }
+        if let v = int("stream_auto_play_fallback_startup_timeout_seconds"), v > 0 { settings.startupTimeout = v }
+        if let v = bool("stream_auto_play_reuse_binge_group") { settings.sameRelease = v }
+        if let v = bool("preload_next_episode_sources") { settings.preloadNext = v }
+        if let v = value(player, "stream_pinned_sources") as? [String] { settings.pinnedSources = v }
+        if let v = bool("skip_intro_enabled") { settings.skipIntro = v }
+        let device = Locale.current.language.languageCode?.identifier ?? ""
+        func code(_ raw: String) -> String {
+            let c = raw.lowercased()
+            if let hit = Languages.all.first(where: { $0.code == c || $0.alt.contains(c) }) { return hit.code }
+            return String(c.prefix(2))
+        }
+        if let audio = string("preferred_audio_language") {
+            switch audio {
+            case "default", "original", "": settings.audioLanguage = ""
+            case "device": settings.audioLanguage = code(device)
+            default: settings.audioLanguage = code(audio)
+            }
+        }
+        if let sub = string("subtitle_preferred_language") {
+            switch sub {
+            case "none": settings.subtitlesOn = false
+            case "forced": break
+            case "device", "": settings.subtitlesOn = true; settings.subtitleLanguage = ""
+            default: settings.subtitlesOn = true; settings.subtitleLanguage = code(sub)
+            }
+        }
+        var style = settings.subtitleStyle
+        if let v = int("subtitle_size") { style.size = min(200, max(50, v)) }
+        if let v = int("subtitle_vertical_offset") { style.verticalOffset = min(50, max(-20, v)) }
+        if let v = bool("subtitle_bold") { style.bold = v }
+        if let v = int("subtitle_text_color") { style.textColor = UInt32(truncatingIfNeeded: v) }
+        if let v = int("subtitle_background_color") { style.backgroundColor = UInt32(truncatingIfNeeded: v) }
+        if let v = bool("subtitle_outline_enabled") { style.outline = v }
+        if let v = int("subtitle_outline_color") { style.outlineColor = UInt32(truncatingIfNeeded: v) }
+        if style != settings.subtitleStyle { settings.subtitleStyle = style }
+        let themes: [String: MeowioTheme] = ["VIOLET": .meowio, "OCEAN": .ocean, "EMERALD": .emerald, "AMBER": .amber,
+                                             "ROSE": .rose, "CRIMSON": .crimson, "SUNSET": .sunset, "AURORA": .aurora,
+                                             "MIDNIGHT": .midnight, "WHITE": .white]
+        if let name = value(theme, "selected_theme") as? String, let t = themes[name] { settings.theme = t }
     }
 
     // MARK: Debrid keys (the account's provider credentials, shared with the phone and Android TV)
@@ -327,6 +455,7 @@ final class AccountStore: ObservableObject {
         for row in rows {
             if let id = row["provider"] as? String { remote[id] = row["credential_json"] as? [String: Any] ?? [:] }
         }
+        mdblistKey = (remote["mdblist"]?["api_key"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         func key(_ s: DebridService) -> String {
             guard let id = Self.credentialId(s) else { return "" }
             return (remote[id]?["api_key"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -361,6 +490,7 @@ final class AccountStore: ObservableObject {
         defer { busy = false; lastSync = Date() }
         await syncAddons(profile: profile, settings: settings)
         await syncCredentials(profileId: profile.id, settings: settings)
+        await pullTVSettings(profileId: profile.id, settings: settings)
         await syncLibrary(profileId: profile.id, library: library)
         await syncProgress(profileId: profile.id, library: library)
         await syncWatched(profileId: profile.id, library: library)

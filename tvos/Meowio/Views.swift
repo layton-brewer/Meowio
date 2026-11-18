@@ -481,6 +481,11 @@ struct LibraryView: View {
                     HStack(spacing: 30) {
                         Text("Library").font(.largeTitle.bold())
                         Spacer()
+                        if settings.debridReady, CloudLibrary.supports(settings.debridService) {
+                            NavigationLink { CloudLibraryView() } label: {
+                                Label("\(settings.debridService.title) cloud", systemImage: "icloud")
+                            }
+                        }
                         NavigationLink { DiscoverListsView() } label: {
                             Label("Popular lists", systemImage: "list.star")
                         }

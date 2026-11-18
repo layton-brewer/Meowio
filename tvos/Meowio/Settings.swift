@@ -68,9 +68,29 @@ struct LiveSource: Codable, Hashable, Identifiable {
     }
 }
 
-/// Colour themes. The first five match the Android apps' base themes, the last three are Meowio's own.
+/// How subtitles look. Same ranges and defaults as the Android TV player settings.
+struct SubtitleStyle: Codable, Equatable {
+    var size = 100            // 50...200 percent
+    var verticalOffset = 5    // -20...50
+    var bold = false
+    var textColor: UInt32 = 0xFFFFFFFF
+    var backgroundColor: UInt32 = 0x00000000
+    var outline = true
+    var outlineColor: UInt32 = 0xFF000000
+
+    /// mpv's #AARRGGBB form.
+    static func hex(_ argb: UInt32) -> String { String(format: "#%08X", argb) }
+
+    /// Colour choices offered in Settings, as ARGB.
+    static let colors: [(name: String, argb: UInt32)] = [
+        ("White", 0xFFFFFFFF), ("Yellow", 0xFFFFEB3B), ("Cyan", 0xFF00E5FF), ("Green", 0xFF76FF03),
+        ("Black", 0xFF000000), ("None", 0x00000000), ("Dim black", 0x99000000)
+    ]
+}
+
+/// Colour themes. Every one of them matches a base theme of the Android apps (Meowio is their Violet).
 enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
-    case meowio, ocean, emerald, amber, rose, sunset, aurora, midnight
+    case meowio, ocean, emerald, amber, rose, crimson, sunset, aurora, midnight, white
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
 
@@ -84,6 +104,8 @@ enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
         case .sunset: return Color(red: 1.0, green: 0.42, blue: 0.37)
         case .aurora: return Color(red: 0.22, green: 0.72, blue: 0.91)
         case .midnight: return Color(red: 0.33, green: 0.41, blue: 1.0)
+        case .crimson: return Color(red: 0.90, green: 0.22, blue: 0.21)
+        case .white: return Color(red: 0.96, green: 0.96, blue: 0.96)
         }
     }
 
@@ -97,6 +119,8 @@ enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
         case .sunset: return Color(red: 0.063, green: 0.043, blue: 0.043)
         case .aurora: return Color(red: 0.035, green: 0.055, blue: 0.063)
         case .midnight: return Color(red: 0.027, green: 0.031, blue: 0.059)
+        case .crimson: return Color(red: 0.09, green: 0.05, blue: 0.05)
+        case .white: return Color(red: 0.05, green: 0.05, blue: 0.05)
         }
     }
 }
@@ -135,6 +159,8 @@ final class SettingsStore: ObservableObject {
     @Published var skipIntro: Bool { didSet { save() } }
     @Published var upNextCard: Bool { didSet { save() } }
     @Published var heroTrailers: Bool { didSet { save() } }
+    /// Subtitle look, the same options as the Android TV player (size in percent, colours as ARGB).
+    @Published var subtitleStyle: SubtitleStyle { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -179,6 +205,7 @@ final class SettingsStore: ObservableObject {
         skipIntro = d.object(forKey: "skipIntro") as? Bool ?? true
         upNextCard = d.object(forKey: "upNextCard") as? Bool ?? true
         heroTrailers = d.object(forKey: "heroTrailers") as? Bool ?? true
+        subtitleStyle = d.data(forKey: "subtitleStyle").flatMap { try? JSONDecoder().decode(SubtitleStyle.self, from: $0) } ?? SubtitleStyle()
     }
 
     private func save() {
@@ -208,6 +235,7 @@ final class SettingsStore: ObservableObject {
         d.set(skipIntro, forKey: "skipIntro")
         d.set(upNextCard, forKey: "upNextCard")
         d.set(heroTrailers, forKey: "heroTrailers")
+        if let data = try? JSONEncoder().encode(subtitleStyle) { d.set(data, forKey: "subtitleStyle") }
     }
 
     func addAddon(_ raw: String) {
