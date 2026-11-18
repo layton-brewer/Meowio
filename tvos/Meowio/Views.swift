@@ -462,8 +462,8 @@ struct HeroBackdrop: View {
                         Artwork(url: url).id(url).transition(.opacity)
                     }
                     if let trailerFor { HeroTrailerLayer(item: trailerFor).id(trailerFor.id) }
-                    LinearGradient(stops: [.init(color: background, location: 0), .init(color: background.opacity(0.6), location: 0.25),
-                                           .init(color: .clear, location: 0.6)],
+                    LinearGradient(stops: [.init(color: background, location: 0), .init(color: background.opacity(0.8), location: 0.2),
+                                           .init(color: background.opacity(0.3), location: 0.45), .init(color: .clear, location: 0.7)],
                                    startPoint: .leading, endPoint: .trailing)
                     LinearGradient(stops: [.init(color: .clear, location: 0.45), .init(color: background.opacity(0.75), location: 0.8),
                                            .init(color: background, location: 1)],

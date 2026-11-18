@@ -23,12 +23,14 @@ struct SettingsView: View {
             // Android TV's settings: a rail of categories on the left, that category's settings on the right.
             HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Settings").font(.system(size: 44, weight: .bold)).padding(.leading, 24).padding(.bottom, 24)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 6) {
                             ForEach(SettingsCategory.allCases) { c in
                                 Button { category = c } label: {
-                                    Label(c.title, systemImage: c.icon)
+                                    HStack(spacing: 20) {
+                                        Image(systemName: c.icon).frame(width: 40)
+                                        Text(c.title)
+                                    }
                                 }
                                 .buttonStyle(RailButtonStyle(selected: c == category))
                                 .focused($railFocus, equals: c)
@@ -42,7 +44,7 @@ struct SettingsView: View {
                 // Moving along the rail opens each category, like Android TV.
                 .onChange(of: railFocus) { _, c in if let c { category = c } }
                 .padding(.leading, 80)
-                .padding(.top, 60)
+                .padding(.top, 110)
                 List {
                     switch category {
                     case .account: accountSection
@@ -58,7 +60,9 @@ struct SettingsView: View {
                     case .about: aboutSection
                     }
                 }
-                .padding(.top, 60)
+                // Each choice reads as a row with its current value, like Android TV, rather than a segmented bar.
+                .pickerStyle(.navigationLink)
+                .padding(.top, 110)
                 .padding(.trailing, 60)
             }
         }
