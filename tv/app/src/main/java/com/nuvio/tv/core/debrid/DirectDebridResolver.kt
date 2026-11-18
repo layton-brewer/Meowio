@@ -216,7 +216,9 @@ class DirectDebridResolver @Inject constructor(
         if (
             !hash.isNullOrBlank() &&
             stream.debridCacheStatus?.state != StreamDebridCacheState.CACHED &&
-            account.provider.supports(DebridProviderCapability.LocalTorrentCacheCheck)
+            account.provider.supports(DebridProviderCapability.LocalTorrentCacheCheck) &&
+            // Real-Debrid's check is a full add-and-look; the resolve below does exactly that.
+            account.provider.id != DebridProviders.REAL_DEBRID_ID
         ) {
             when (localDebridService.isCached(account, hash)) {
                 false -> return DirectDebridResolveResult.NotCached
@@ -252,6 +254,7 @@ class DirectDebridResolver @Inject constructor(
         return when (account.provider.id) {
             DebridProviders.TORBOX_ID -> torboxResolver.resolve(resolveStream, season, episode)
             DebridProviders.PREMIUMIZE_ID -> premiumizeResolver.resolve(resolveStream, season, episode)
+            DebridProviders.REAL_DEBRID_ID -> realDebridResolver.resolve(resolveStream, season, episode)
             else -> DirectDebridResolveResult.Error
         }
     }

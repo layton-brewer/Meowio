@@ -76,13 +76,13 @@ class StreamSmartRankerTest {
     }
 
     @Test
-    fun `series prefer season packs over single episodes`() {
+    fun `series prefer season packs over single episodes at the same resolution`() {
         val single = stream("1080p", description = "Show.S01E03.1080p.WEB-DL.mkv")
-        val pack = stream("720p", description = "Show.S01.720p.BluRay\nShow.S01E03.720p.BluRay.mkv")
-        val ranked = StreamSmartRanker.rank(listOf(single, pack), isSeries = true, maxVideoHeight = 1080)
-        assertEquals(pack, ranked.first())
-        // The same list for a movie ignores packs and goes by resolution.
-        assertEquals(single, StreamSmartRanker.rank(listOf(single, pack), isSeries = false, maxVideoHeight = 1080).first())
+        val pack = stream("1080p", description = "Show.S01.1080p.WEB-DL\nShow.S01E03.1080p.WEB-DL.mkv")
+        assertEquals(pack, StreamSmartRanker.rank(listOf(single, pack), isSeries = true, maxVideoHeight = 1080).first())
+        // A lower-resolution pack never beats a better single episode.
+        val lowPack = stream("720p", description = "Show.S01.720p.BluRay\nShow.S01E03.720p.BluRay.mkv")
+        assertEquals(single, StreamSmartRanker.rank(listOf(lowPack, single), isSeries = true, maxVideoHeight = 1080).first())
     }
 
     @Test
@@ -124,8 +124,8 @@ class StreamSmartRankerTest {
     }
 
     @Test
-    fun `pinned source wins over a better looking stream from another source`() {
-        val pinned = stream("720p WEB-DL").copy(addonName = "Favorite")
+    fun `pinned source wins at the same resolution but never over a higher one`() {
+        val pinned = stream("1080p WEB-DL").copy(addonName = "Favorite")
         val other = stream("1080p BluRay REMUX")
         val ranked = StreamSmartRanker.rank(
             streams = listOf(other, pinned),
@@ -134,6 +134,19 @@ class StreamSmartRankerTest {
             pinned = setOf("Favorite"),
         )
         assertEquals(listOf(pinned, other), ranked)
+        val lowPinned = stream("720p WEB-DL").copy(addonName = "Favorite")
+        assertEquals(
+            listOf(other, lowPinned),
+            StreamSmartRanker.rank(listOf(lowPinned, other), isSeries = false, maxVideoHeight = 1080, pinned = setOf("Favorite")),
+        )
+    }
+
+    @Test
+    fun `covers screen only at or above the device resolution`() {
+        assertTrue(StreamSmartRanker.coversScreen(stream("1080p"), maxVideoHeight = 1080))
+        assertTrue(StreamSmartRanker.coversScreen(stream("4K"), maxVideoHeight = 1080))
+        assertFalse(StreamSmartRanker.coversScreen(stream("720p"), maxVideoHeight = 1080))
+        assertFalse(StreamSmartRanker.coversScreen(stream("no resolution"), maxVideoHeight = 1080))
     }
 
     @Test

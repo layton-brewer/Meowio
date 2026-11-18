@@ -71,7 +71,7 @@ class RealDebridDirectDebridResolverTest {
     }
 
     @Test
-    fun `resolve deletes transient torrent when cached listing is stale`() = runTest {
+    fun `resolve deletes transient torrent and reports not cached when it would have to download`() = runTest {
         val api = FakeRealDebridApi(
             addResponse = Response.success(201, RealDebridAddTorrentDto(id = "rd_torrent")),
             infoResponses = mutableListOf(
@@ -96,7 +96,7 @@ class RealDebridDirectDebridResolverTest {
 
         val result = resolver.resolve(stream(fileIdx = 7), season = null, episode = null)
 
-        assertTrue(result is DirectDebridResolveResult.Stale)
+        assertTrue(result is DirectDebridResolveResult.NotCached)
         assertEquals(1, api.deleteCalls)
         assertEquals(0, api.unrestrictCalls)
     }
@@ -166,6 +166,18 @@ class RealDebridDirectDebridResolverTest {
         override suspend fun getUser(authorization: String): Response<ResponseBody> {
             return Response.success("{}".toResponseBody())
         }
+
+        override suspend fun listTorrents(authorization: String, limit: Int) =
+            Response.success(emptyList<RealDebridTorrentInfoDto>())
+
+        override suspend fun startDeviceAuthorization(clientId: String, newCredentials: String) =
+            Response.success(com.nuvio.tv.data.remote.dto.RealDebridDeviceCodeDto())
+
+        override suspend fun deviceCredentials(deviceCode: String, clientId: String) =
+            Response.success(com.nuvio.tv.data.remote.dto.RealDebridDeviceCredentialsDto())
+
+        override suspend fun token(clientId: String, clientSecret: String, code: String, grantType: String) =
+            Response.success(com.nuvio.tv.data.remote.dto.RealDebridTokenDto())
 
         override suspend fun addMagnet(
             authorization: String,

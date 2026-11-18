@@ -57,31 +57,21 @@ object LocalDebridAvailabilityService {
             .distinct()
         if (hashes.isEmpty()) return groups
 
-        val cached = LocalDebridService.checkCached(account = account, hashes = hashes)
-            ?: return groups.updateAvailabilityStatus(eligibleGroupIds) { stream ->
-                val hash = stream.localAvailabilityHash()
-                if (hash == null) {
-                    stream
-                } else {
-                    stream.copy(
-                        debridCacheStatus = StreamDebridCacheStatus(
-                            providerId = account.provider.id,
-                            providerName = account.provider.displayName,
-                            state = StreamDebridCacheState.UNKNOWN,
-                        ),
-                    )
-                }
-            }
+        val check = LocalDebridService.checkCached(account = account, hashes = hashes)
 
         return groups.updateAvailabilityStatus(eligibleGroupIds) { stream ->
             val hash = stream.localAvailabilityHash() ?: return@updateAvailabilityStatus stream
             if (stream.debridCacheStatus?.state in FINAL_CACHE_STATES) return@updateAvailabilityStatus stream
-            val cachedItem = cached[hash]
+            val cachedItem = check?.cached?.get(hash)
             stream.copy(
                 debridCacheStatus = StreamDebridCacheStatus(
                     providerId = account.provider.id,
                     providerName = account.provider.displayName,
-                    state = if (cachedItem == null) StreamDebridCacheState.NOT_CACHED else StreamDebridCacheState.CACHED,
+                    state = when {
+                        check == null || hash !in check.checked -> StreamDebridCacheState.UNKNOWN
+                        cachedItem == null -> StreamDebridCacheState.NOT_CACHED
+                        else -> StreamDebridCacheState.CACHED
+                    },
                     cachedName = cachedItem?.name,
                     cachedSize = cachedItem?.size,
                 ),

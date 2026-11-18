@@ -110,7 +110,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.45 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.46 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -215,7 +215,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.45 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.46 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -258,11 +258,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.45"
+          tag="v0.2.46"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.45
+          ## What's new in 0.2.46
 
-          - **Credits now say "Made with ❤️ by Meowio team"** on the About screen in every app (phone, Android TV, iPhone/iPad, Mac and Windows), and in AltStore. No other changes.
+          - **Real-Debrid works like TorBox and Premiumize.** Sign in with a code in Settings → Debrid on every app (or keep using an API key). Auto-play now tries Real-Debrid links that play at once first.
+          - **Real-Debrid cloud library.** Your Real-Debrid torrents show up in the cloud library, ready to play, on phone, Android TV, iPhone/iPad, Mac, Windows and Apple TV.
+          - **Smart auto-play never settles for lower quality.** If any add-on has a better resolution that plays on your screen, Meowio picks it, waiting a few extra seconds for slower add-ons when needed. Lower resolutions are only used when the better ones fail.
+
+          About Real-Debrid's cache check: Real-Debrid removed its "is this cached?" lookup in 2024. Meowio checks the torrents already in your account, then tests a few top links by adding and removing them, so the first link played is one that starts at once. Links further down are tried in order and skipped quickly if Real-Debrid would have to download them.
 
           ## Download
 

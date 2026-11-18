@@ -77,6 +77,8 @@ import javax.inject.Inject
 
 private const val TAG = "StreamScreenViewModel"
 private const val DIRECT_AUTOPLAY_HARD_TIMEOUT_MS = 60_000L
+/** How long Smart auto-play waits for slower add-ons when only lower-resolution links are ready. */
+private const val SMART_RESOLUTION_PATIENCE_MS = 10_000L
 private const val STREAM_FILTER_PAGE_SIZE = 100
 private const val MAX_AUTO_PLAY_RESOLVE_ATTEMPTS = 6
 
@@ -546,6 +548,12 @@ class StreamScreenViewModel @Inject constructor(
                 contentId?.let { bingeGroupCacheDataStore.getInfoHash(it) }
             } else null
 
+            // Smart mode: a link below the screen's resolution only plays before every add-on has
+            // answered once this patience has run out; until then a slower add-on may have better.
+            var everyAddonAnswered = false
+            var smartPatienceElapsed = playerSettings.streamAutoPlayMode != StreamAutoPlayMode.SMART
+            var waitingForBetterResolution = false
+
             fun applySuccess(addonStreamGroups: List<AddonStreams>, isAllLoaded: Boolean) {
                 val orderedAddonStreams = StreamAutoPlaySelector.orderAddonStreams(
                     addonStreamGroups,
@@ -641,7 +649,7 @@ class StreamScreenViewModel @Inject constructor(
                 // chance to return higher-quality streams before the selector
                 // picks from whatever is available.
                 val shouldAutoSelect = !autoPlayHandledForSession && !resolvedAutoPlayTarget && isAllLoaded
-                val selectedAutoPlayStream = if (earlyBingeGroupMatch != null) {
+                val rankedAutoPlayStream = if (earlyBingeGroupMatch != null) {
                     earlyBingeGroupMatch
                 } else if (!shouldAutoSelect) {
                     null
@@ -659,8 +667,15 @@ class StreamScreenViewModel @Inject constructor(
                         isSeries = season != null && episode != null
                     )
                 }
+                waitingForBetterResolution = rankedAutoPlayStream != null &&
+                    rankedAutoPlayStream !== earlyBingeGroupMatch &&
+                    !everyAddonAnswered &&
+                    !smartPatienceElapsed &&
+                    !StreamSmartRanker.coversScreen(rankedAutoPlayStream)
+                val selectedAutoPlayStream = rankedAutoPlayStream.takeUnless { waitingForBetterResolution }
                 if (selectedAutoPlayStream != null) {
                     resolvedAutoPlayTarget = true
+                    waitingForBetterResolution = false
                 }
 
                 val currentFilter = _uiState.value.selectedAddonFilter
@@ -830,7 +845,7 @@ class StreamScreenViewModel @Inject constructor(
                                             s.isTorrent() && s.debridCacheStatus?.state == com.nuvio.tv.domain.model.StreamDebridCacheState.CHECKING
                                         }
                                     }
-                                    if (!hasCheckingTorrents) {
+                                    if (!hasCheckingTorrents && !waitingForBetterResolution) {
                                         autoPlayHandledForSession = true
                                         directAutoPlayFlowEnabledForSession = false
                                         updateUiStateIfChanged {
@@ -905,6 +920,8 @@ class StreamScreenViewModel @Inject constructor(
                     }
                 }
                 // All addons finished — run auto-select if not yet triggered
+                everyAddonAnswered = true
+                waitingForBetterResolution = false
                 if (!autoSelectTriggered) {
                     autoSelectTriggered = true
                     lastSuccessData?.let { applySuccess(it, isAllLoaded = true) }
@@ -924,6 +941,17 @@ class StreamScreenViewModel @Inject constructor(
                         )
                     }
                     externalPlaybackTracker.releaseAutoNextOverlay(forceRelease = true)
+                }
+            }
+
+            if (!smartPatienceElapsed && directFlowActive) {
+                launch {
+                    delay(SMART_RESOLUTION_PATIENCE_MS)
+                    smartPatienceElapsed = true
+                    if (!waitingForBetterResolution || autoSelectTriggered || resolvedAutoPlayTarget) return@launch
+                    waitingForBetterResolution = false
+                    lastSuccessData?.let { applySuccess(it, isAllLoaded = true) }
+                    if (resolvedAutoPlayTarget) autoSelectTriggered = true
                 }
             }
 
@@ -962,7 +990,7 @@ class StreamScreenViewModel @Inject constructor(
                         s.isTorrent() && s.debridCacheStatus?.state == com.nuvio.tv.domain.model.StreamDebridCacheState.CHECKING
                     }
                 } == true
-                if (!hasCheckingTorrents) {
+                if (!hasCheckingTorrents && !waitingForBetterResolution) {
                     autoPlayHandledForSession = true
                     directAutoPlayFlowEnabledForSession = false
                     updateUiStateIfChanged {

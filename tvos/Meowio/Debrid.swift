@@ -14,13 +14,13 @@ enum Debrid {
         let magnet = "magnet:?xt=urn:btih:\(hash)"
         switch service {
         case .none: throw Failure.badKey
-        case .realDebrid: return try await realDebrid(magnet: magnet, stream: stream, season: season, episode: episode, key: token)
+        case .realDebrid: return try await realDebrid(magnet: magnet, stream: stream, season: season, episode: episode, key: try await rdBearer(token))
         case .torbox: return try await torbox(hash: hash, magnet: magnet, stream: stream, season: season, episode: episode, key: token)
         case .premiumize: return try await premiumize(magnet: magnet, stream: stream, season: season, episode: episode, key: token)
         }
     }
 
-    // MARK: Code sign-in (TorBox and Premiumize, like the Android TV app)
+    // MARK: Code sign-in (TorBox, Premiumize and Real-Debrid, like the Android TV app)
 
     struct DeviceCode: Equatable {
         var deviceCode: String
@@ -31,7 +31,7 @@ enum Debrid {
     }
 
     static func canSignIn(_ service: DebridService) -> Bool {
-        service == .torbox || (service == .premiumize && !BuildSecrets.premiumizeClientId.isEmpty)
+        service == .torbox || service == .realDebrid || (service == .premiumize && !BuildSecrets.premiumizeClientId.isEmpty)
     }
 
     static func startSignIn(_ service: DebridService) async -> DeviceCode? {
@@ -50,6 +50,12 @@ enum Debrid {
             return DeviceCode(deviceCode: code, userCode: d["user_code"] as? String ?? "",
                               url: d["verification_uri"] as? String ?? "https://www.premiumize.me/device",
                               interval: max(3, d["interval"] as? Int ?? 5), qrURL: d["verification_uri_complete"] as? String)
+        case .realDebrid:
+            guard let (obj, _) = try? await send(get("\(rdOAuth)/device/code?client_id=\(rdClientId)&new_credentials=yes")),
+                  let d = obj as? [String: Any], let code = d["device_code"] as? String else { return nil }
+            return DeviceCode(deviceCode: code, userCode: d["user_code"] as? String ?? "",
+                              url: d["verification_url"] as? String ?? "https://real-debrid.com/device",
+                              interval: max(3, d["interval"] as? Int ?? 5))
         default:
             return nil
         }
@@ -73,6 +79,14 @@ enum Debrid {
             if let token = d?["access_token"] as? String { return token }
             if let err = d?["error"] as? String, err != "authorization_pending", err != "slow_down" { throw Failure.badKey }
             return nil
+        case .realDebrid:
+            // Answers with an error until the person approves the code; keep waiting.
+            let (obj, _) = (try? await send(get("\(rdOAuth)/device/credentials?client_id=\(rdClientId)&code=\(code.deviceCode)"))) ?? (nil, 0)
+            guard let d = obj as? [String: Any], let id = d["client_id"] as? String, let secret = d["client_secret"] as? String else { return nil }
+            let (tok, _) = try await send(form("\(rdOAuth)/token", ["client_id": id, "client_secret": secret, "code": code.deviceCode,
+                                                                   "grant_type": "http://oauth.net/grant_type/device/1.0"]))
+            guard let refresh = (tok as? [String: Any])?["refresh_token"] as? String else { throw Failure.badKey }
+            return "\(rdPrefix)\(id):\(secret):\(refresh)"
         default:
             throw Failure.badKey
         }
@@ -81,10 +95,11 @@ enum Debrid {
     // MARK: Cache check
 
     /// Which of [hashes] the service already has, so cached torrents can be tried first (like Android TV).
-    /// Real-Debrid has no cache check, so nothing is reported for it.
+    /// `checked` are the hashes actually looked at; Real-Debrid only gets a few per call (see rdCached).
     /// Nil when the check could not be made.
-    static func cached(_ hashes: [String], service: DebridService, key: String) async -> Set<String>? {
+    static func cached(_ hashes: [String], service: DebridService, key: String) async -> (hits: Set<String>, checked: Set<String>)? {
         let token = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        if service == .realDebrid { return await rdCached(hashes, key: token) }
         var hits: Set<String> = []
         for start in stride(from: 0, to: hashes.count, by: 100) {
             let chunk = Array(hashes[start..<min(start + 100, hashes.count)])
@@ -109,7 +124,7 @@ enum Debrid {
                 return nil
             }
         }
-        return hits
+        return (hits, Set(hashes))
     }
 
     // MARK: File choice
@@ -182,6 +197,65 @@ enum Debrid {
     // MARK: Real-Debrid
 
     private static let rd = "https://api.real-debrid.com/rest/1.0"
+    private static let rdOAuth = "https://api.real-debrid.com/oauth/v2"
+    private static let rdClientId = "X245A4XAIBGVM"
+    /// After code sign-in the stored key is "rdoauth:<clientId>:<clientSecret>:<refreshToken>" (same as Android);
+    /// a plain key is a private API token from real-debrid.com/apitoken.
+    private static let rdPrefix = "rdoauth:"
+
+    private actor RDTokens {
+        var tokens: [String: (String, Date)] = [:]
+        func get(_ k: String) -> String? { tokens[k].flatMap { $0.1 > Date() ? $0.0 : nil } }
+        func set(_ k: String, _ token: String, until: Date) { tokens[k] = (token, until) }
+    }
+    private static let rdTokens = RDTokens()
+
+    /// The bearer token for a Real-Debrid key, refreshing the short-lived access token of a code sign-in.
+    static func rdBearer(_ key: String) async throws -> String {
+        guard key.hasPrefix(rdPrefix) else { return key }
+        if let hit = await rdTokens.get(key) { return hit }
+        let parts = key.dropFirst(rdPrefix.count).split(separator: ":", maxSplits: 2).map(String.init)
+        guard parts.count == 3 else { throw Failure.badKey }
+        let (obj, _) = try await send(form("\(rdOAuth)/token", ["client_id": parts[0], "client_secret": parts[1], "code": parts[2],
+                                                               "grant_type": "http://oauth.net/grant_type/device/1.0"]))
+        guard let d = obj as? [String: Any], let token = d["access_token"] as? String else { throw Failure.badKey }
+        let life = max(60, ((d["expires_in"] as? NSNumber)?.doubleValue ?? 3600) - 60)
+        await rdTokens.set(key, token, until: Date().addingTimeInterval(life))
+        return token
+    }
+
+    /// Real-Debrid turned off its cache lookup in late 2024. What can still be known: torrents already finished
+    /// in the account play at once, and for a few more hashes adding the magnet and selecting its files shows
+    /// "downloaded" straight away when cached. Probe torrents are always deleted again.
+    private static func rdCached(_ hashes: [String], key: String) async -> (hits: Set<String>, checked: Set<String>)? {
+        guard let bearer = try? await rdBearer(key),
+              let (list, status) = try? await send(get("\(rd)/torrents?limit=1000", bearer: bearer)), status < 300 else { return nil }
+        let owned = Set((list as? [[String: Any]] ?? []).filter { ($0["status"] as? String) == "downloaded" }
+            .compactMap { ($0["hash"] as? String)?.lowercased() })
+        var hits = Set(hashes.filter { owned.contains($0) })
+        var checked = hits
+        // Fixed budget per call keeps us far under Real-Debrid's 250 requests a minute.
+        let toProbe = Array(hashes.filter { !owned.contains($0) }.prefix(8))
+        await withTaskGroup(of: (String, Bool?).self) { group in
+            for h in toProbe { group.addTask { (h, await rdProbe(h, bearer: bearer)) } }
+            for await (h, cached) in group {
+                guard let cached else { continue }
+                checked.insert(h)
+                if cached { hits.insert(h) }
+            }
+        }
+        return (hits, checked)
+    }
+
+    /// True when cached, false when it would have to download, nil when it could not tell.
+    private static func rdProbe(_ hash: String, bearer: String) async -> Bool? {
+        guard let (added, _) = try? await send(form("\(rd)/torrents/addMagnet", ["magnet": "magnet:?xt=urn:btih:\(hash)"], bearer: bearer)),
+              let id = (added as? [String: Any])?["id"] as? String else { return nil }
+        defer { Task { _ = try? await send(get("\(rd)/torrents/delete/\(id)", bearer: bearer).with(method: "DELETE")) } }
+        guard (try? await send(form("\(rd)/torrents/selectFiles/\(id)", ["files": "all"], bearer: bearer))) != nil,
+              let (info, _) = try? await send(get("\(rd)/torrents/info/\(id)", bearer: bearer)) else { return nil }
+        return ((info as? [String: Any])?["status"] as? String) == "downloaded"
+    }
 
     private static func realDebrid(magnet: String, stream: StreamItem, season: Int?, episode: Int?, key: String) async throws -> URL {
         let (added, _) = try await send(form("\(rd)/torrents/addMagnet", ["magnet": magnet], bearer: key))

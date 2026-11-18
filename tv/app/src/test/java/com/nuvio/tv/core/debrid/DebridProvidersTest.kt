@@ -2,13 +2,12 @@ package com.nuvio.tv.core.debrid
 
 import com.nuvio.tv.domain.model.DebridSettings
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DebridProvidersTest {
     @Test
-    fun `configured services only include visible providers`() {
+    fun `configured services include every connected provider`() {
         val settings = DebridSettings(
             enabled = true,
             torboxApiKey = "tb",
@@ -17,8 +16,8 @@ class DebridProvidersTest {
 
         val services = DebridProviders.configuredServices(settings)
 
-        assertEquals(listOf(DebridProviders.Torbox), services.map { it.provider })
+        assertEquals(listOf(DebridProviders.Torbox, DebridProviders.RealDebrid), services.map { it.provider })
         assertTrue(DebridProviders.isVisible(DebridProviders.TORBOX_ID))
-        assertFalse(DebridProviders.isVisible(DebridProviders.REAL_DEBRID_ID))
+        assertTrue(DebridProviders.isVisible(DebridProviders.REAL_DEBRID_ID))
     }
 }

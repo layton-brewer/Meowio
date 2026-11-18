@@ -12,24 +12,36 @@ data class LocalDebridCachedItem(
     val size: Long?
 )
 
+/** [cached] holds the hashes that play at once; hashes outside [checked] were not looked at. */
+data class LocalDebridCacheCheck(
+    val cached: Map<String, LocalDebridCachedItem>,
+    val checked: Set<String>
+)
+
 @Singleton
 class LocalDebridService @Inject constructor(
     private val torboxApi: TorboxApi,
-    private val premiumizeApi: PremiumizeApi
+    private val premiumizeApi: PremiumizeApi,
+    private val realDebridProbe: RealDebridCacheProbe
 ) {
     suspend fun checkCached(
         account: DebridServiceCredential,
         hashes: List<String>
-    ): Map<String, LocalDebridCachedItem>? =
+    ): LocalDebridCacheCheck? =
         when (account.provider.id) {
             DebridProviders.TORBOX_ID -> checkTorboxCached(account.apiKey, hashes)
+                ?.let { LocalDebridCacheCheck(it, hashes.normalizedHashes().toSet()) }
             DebridProviders.PREMIUMIZE_ID -> checkPremiumizeCached(account.apiKey, hashes)
+                ?.let { LocalDebridCacheCheck(it, hashes.normalizedHashes().toSet()) }
+            DebridProviders.REAL_DEBRID_ID -> realDebridProbe.check(account.apiKey, hashes)
             else -> null
         }
 
     suspend fun isCached(account: DebridServiceCredential, hash: String): Boolean? {
         val normalizedHash = hash.trim().lowercase().takeIf { it.isNotBlank() } ?: return null
-        return checkCached(account, listOf(normalizedHash))?.containsKey(normalizedHash)
+        val check = checkCached(account, listOf(normalizedHash)) ?: return null
+        if (normalizedHash !in check.checked) return null
+        return check.cached.containsKey(normalizedHash)
     }
 
     private suspend fun checkTorboxCached(

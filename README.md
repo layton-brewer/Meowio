@@ -13,7 +13,7 @@
 
 A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**, with **one-tap Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
 
-🆕 Current release: **v0.2.45** · Apple TV ships on its own `appletv-vX` release.
+🆕 Current release: **v0.2.46** · Apple TV ships on its own `appletv-vX` release.
 
 [⬇️ Download](#-download-and-install) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
 

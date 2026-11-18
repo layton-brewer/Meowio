@@ -55,6 +55,11 @@ class RealDebridDirectDebridResolver @Inject constructor(
 
                 val infoAfter = api.getTorrentInfo(authorization, torrentId)
                 if (!infoAfter.isSuccessful) return DirectDebridResolveResult.Stale
+                // Real-Debrid has no cache lookup any more: a cached torrent is "downloaded" the
+                // moment its file is selected, anything else would have to download first.
+                if (!infoAfter.body()?.status.equals("downloaded", ignoreCase = true)) {
+                    return DirectDebridResolveResult.NotCached
+                }
                 val link = infoAfter.body()?.firstDownloadLink()
                     ?: return DirectDebridResolveResult.Stale
                 val unrestrict = api.unrestrictLink(authorization, link)

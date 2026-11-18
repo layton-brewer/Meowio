@@ -48,7 +48,8 @@ class DebridSettingsViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val dataStore: DebridSettingsDataStore,
     private val torboxApi: TorboxApi,
-    private val premiumizeApi: PremiumizeApi
+    private val premiumizeApi: PremiumizeApi,
+    private val realDebridApi: com.nuvio.tv.data.remote.api.RealDebridApi
 ) : ViewModel() {
     private var formatterServer: DebridFormatterConfigServer? = null
     private val logoBytes: ByteArray? by lazy { context.readAppLogoBytes() }
@@ -234,6 +235,12 @@ class DebridSettingsViewModel @Inject constructor(
                     response.errorBody()?.close()
                     response.isSuccessful && !response.body()?.status.equals("error", ignoreCase = true)
                 }
+                DebridProviders.REAL_DEBRID_ID -> {
+                    val response = realDebridApi.getUser("Bearer $apiKey")
+                    response.body()?.close()
+                    response.errorBody()?.close()
+                    response.isSuccessful
+                }
                 else -> false
             }
         } catch (error: Exception) {
@@ -277,6 +284,20 @@ class DebridSettingsViewModel @Inject constructor(
                     expiresAt = data.expiresIn?.takeIf { it > 0 }?.let { "${it}s" }
                 )
             }
+            DebridProviders.REAL_DEBRID_ID -> {
+                val response = realDebridApi.startDeviceAuthorization()
+                val data = response.body()?.takeIf { response.isSuccessful } ?: return null
+                val verificationUrl = data.verificationUrl?.takeIf { it.isNotBlank() } ?: "https://real-debrid.com/device"
+                DebridDeviceAuthorization(
+                    providerId = DebridProviders.REAL_DEBRID_ID,
+                    deviceCode = data.deviceCode?.takeIf { it.isNotBlank() } ?: return null,
+                    userCode = data.userCode?.takeIf { it.isNotBlank() } ?: return null,
+                    verificationUrl = verificationUrl,
+                    friendlyVerificationUrl = verificationUrl,
+                    intervalSeconds = data.interval?.coerceAtLeast(1) ?: 5,
+                    expiresAt = data.expiresIn?.takeIf { it > 0 }?.let { "${it}s" }
+                )
+            }
             else -> null
         }
     }
@@ -297,8 +318,30 @@ class DebridSettingsViewModel @Inject constructor(
                 )
                 premiumizeDeviceAuthorizationTokenResult(response)
             }
+            DebridProviders.REAL_DEBRID_ID -> redeemRealDebrid(normalized)
             else -> DebridDeviceAuthorizationTokenResult.Unsupported
         }
+    }
+
+    private suspend fun redeemRealDebrid(deviceCode: String): DebridDeviceAuthorizationTokenResult {
+        // Until the person approves the code, this answers with an error; keep polling.
+        val credentials = realDebridApi.deviceCredentials(deviceCode)
+        credentials.errorBody()?.close()
+        val clientId = credentials.body()?.clientId?.takeIf { credentials.isSuccessful && it.isNotBlank() }
+        val clientSecret = credentials.body()?.clientSecret?.takeIf { it.isNotBlank() }
+        if (clientId == null || clientSecret == null) {
+            return if (credentials.code() in 500..599) {
+                DebridDeviceAuthorizationTokenResult.Failed(null)
+            } else {
+                DebridDeviceAuthorizationTokenResult.Pending
+            }
+        }
+        val token = realDebridApi.token(clientId, clientSecret, deviceCode)
+        val refreshToken = token.body()?.refreshToken?.takeIf { token.isSuccessful && it.isNotBlank() }
+            ?: return DebridDeviceAuthorizationTokenResult.Failed(token.errorBody()?.string())
+        return DebridDeviceAuthorizationTokenResult.Authorized(
+            com.nuvio.tv.core.debrid.RealDebridAuth.encode(clientId, clientSecret, refreshToken)
+        )
     }
 
     private fun premiumizeClientIdOrThrow(): String =

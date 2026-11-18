@@ -223,7 +223,9 @@ private class LocalDebridAddonStreamResolver(
         if (
             !hash.isNullOrBlank() &&
             stream.debridCacheStatus?.state != StreamDebridCacheState.CACHED &&
-            account.provider.supports(DebridProviderCapability.LocalTorrentCacheCheck)
+            account.provider.supports(DebridProviderCapability.LocalTorrentCacheCheck) &&
+            // Real-Debrid's check is a full add-and-look; the resolve below does exactly that.
+            account.provider.id != DebridProviders.REAL_DEBRID_ID
         ) {
             when (LocalDebridService.isCached(account, hash)) {
                 false -> return DirectDebridResolveResult.NotCached
@@ -246,6 +248,12 @@ private class LocalDebridAddonStreamResolver(
                 fallbackFilename = stream.behaviorHints.filename,
                 fallbackSize = stream.behaviorHints.videoSize,
                 fileSelector = premiumizeFileSelector,
+            )
+            DebridProviders.REAL_DEBRID_ID -> RealDebridProviderApi().resolveClientStream(
+                stream = stream.copy(clientResolve = resolve.copy(magnetUri = magnet)),
+                apiKey = apiKey,
+                season = season,
+                episode = episode,
             )
             else -> DirectDebridResolveResult.Error
         }

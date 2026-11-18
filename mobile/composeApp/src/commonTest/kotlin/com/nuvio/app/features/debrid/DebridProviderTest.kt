@@ -25,12 +25,12 @@ class DebridProviderTest {
     }
 
     @Test
-    fun `real debrid stays hidden from local addon capability paths`() {
-        assertTrue(DebridProviders.RealDebrid.authMethod == DebridProviderAuthMethod.ApiKey)
-        assertFalse(DebridProviders.RealDebrid.visibleInUi)
+    fun `real debrid signs in with a code and supports the same paths as torbox`() {
+        assertTrue(DebridProviders.RealDebrid.authMethod == DebridProviderAuthMethod.DeviceCode)
+        assertTrue(DebridProviders.RealDebrid.visibleInUi)
         assertTrue(DebridProviders.RealDebrid.supports(DebridProviderCapability.ClientResolve))
-        assertFalse(DebridProviders.RealDebrid.supports(DebridProviderCapability.LocalTorrentCacheCheck))
-        assertFalse(DebridProviders.RealDebrid.supports(DebridProviderCapability.LocalTorrentResolve))
-        assertFalse(DebridProviders.RealDebrid.supports(DebridProviderCapability.CloudLibrary))
+        assertTrue(DebridProviders.RealDebrid.supports(DebridProviderCapability.LocalTorrentCacheCheck))
+        assertTrue(DebridProviders.RealDebrid.supports(DebridProviderCapability.LocalTorrentResolve))
+        assertTrue(DebridProviders.RealDebrid.supports(DebridProviderCapability.CloudLibrary))
     }
 }

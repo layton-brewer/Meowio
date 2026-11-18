@@ -127,6 +127,28 @@ internal data class RealDebridTorrentInfoDto(
 )
 
 @Serializable
+internal data class RealDebridDeviceCodeDto(
+    @SerialName("device_code") val deviceCode: String? = null,
+    @SerialName("user_code") val userCode: String? = null,
+    val interval: Int? = null,
+    @SerialName("expires_in") val expiresIn: Int? = null,
+    @SerialName("verification_url") val verificationUrl: String? = null,
+)
+
+@Serializable
+internal data class RealDebridDeviceCredentialsDto(
+    @SerialName("client_id") val clientId: String? = null,
+    @SerialName("client_secret") val clientSecret: String? = null,
+)
+
+@Serializable
+internal data class RealDebridTokenDto(
+    @SerialName("access_token") val accessToken: String? = null,
+    @SerialName("expires_in") val expiresIn: Long? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+)
+
+@Serializable
 internal data class RealDebridTorrentFileDto(
     val id: Int? = null,
     val path: String? = null,

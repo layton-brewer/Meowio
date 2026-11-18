@@ -1204,7 +1204,7 @@
     <string name="community_month_dec">Dec</string>
     <string name="community_date_format">%1$s %2$s, %3$s</string>
     <string name="extended_pinned_sources">Pinned sources</string>
-    <string name="extended_pinned_sources_description">Sources you pin are tried first and listed first.</string>
+    <string name="extended_pinned_sources_description">Sources you pin are tried first at the same quality and listed first.</string>
     <string name="extended_pinned_sources_none">None</string>
     <string name="extended_sleep_timer">Sleep timer</string>
     <string name="extended_sleep_timer_off">Sleep timer off</string>
