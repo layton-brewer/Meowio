@@ -2,6 +2,7 @@ import Foundation
 
 enum AddonClient {
     static let cinemeta = "https://v3-cinemeta.strem.io"
+    static let openSubtitles = "https://opensubtitles-v3.strem.io"
 
     static func fetch<T: Decodable>(_ type: T.Type, from urlString: String) async -> T? {
         guard let url = URL(string: urlString) else { return nil }
@@ -160,7 +161,9 @@ enum AddonClient {
                 case "series": kind = "Series"
                 default: kind = c.type.capitalized
                 }
-                let title = c.name.map { "\($0) · \(kind)" } ?? "\(addon) · \(kind)"
+                let base = c.name ?? addon
+                // "Popular Movies", but not "Movies Movies".
+                let title = base.lowercased().contains(kind.lowercased()) || base.lowercased().contains(c.type) ? base : "\(base) \(kind)"
                 out.append(AddonCatalog(base: base, type: c.type, id: c.id, title: title))
             }
         }
@@ -238,6 +241,8 @@ enum AddonClient {
         await withTaskGroup(of: (Int, [StreamItem]).self) { group in
             for (index, base) in addons.enumerated() {
                 group.addTask {
+                    // Catalog-only add-ons such as Cinemeta have no streams to ask for.
+                    if let man = await manifest(for: base), !man.has("stream") { return (index, []) }
                     let name = await addonName(for: base)
                     var list = await fetch(StreamResponse.self, from: "\(base)/stream/\(type)/\(encoded).json")?.streams ?? []
                     for i in list.indices { list[i].addonName = name }

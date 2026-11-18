@@ -139,6 +139,12 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var layoutSection: some View {
+        Section("Home layout") {
+            Toggle("Show hero section", isOn: $settings.showHero)
+            Toggle("Show Continue Watching", isOn: $settings.showContinueWatching)
+            Toggle("Show poster labels", isOn: $settings.posterLabels)
+            Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
+        }
         Section {
             NavigationLink("Edit collections") { CollectionEditorView() }
         }
@@ -153,7 +159,17 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var contentSection: some View {
-        Section("Stream add-ons") {
+        Section("Home") {
+            NavigationLink { HomeCatalogsView() } label: {
+                HStack {
+                    Text("Home catalogs")
+                    Spacer()
+                    Text(settings.disabledHomeCatalogs.isEmpty ? "All shown" : "\(settings.disabledHomeCatalogs.count) hidden")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        Section("Add-ons") {
             ForEach(settings.addons, id: \.self) { base in
                 HStack {
                     VStack(alignment: .leading) {
@@ -753,5 +769,77 @@ struct SubtitleStyleView: View {
     private func color(_ argb: UInt32) -> Color {
         Color(red: Double((argb >> 16) & 0xFF) / 255, green: Double((argb >> 8) & 0xFF) / 255,
               blue: Double(argb & 0xFF) / 255, opacity: Double((argb >> 24) & 0xFF) / 255)
+    }
+}
+
+
+/// Android TV's Catalog order screen: every Home catalog from the user's add-ons, with Up, Down and Show or Hide.
+struct HomeCatalogsView: View {
+    @EnvironmentObject var settings: SettingsStore
+    @State private var catalogs: [AddonClient.AddonCatalog] = []
+    @State private var names: [String: String] = [:]
+    @State private var loading = true
+
+    private var ordered: [AddonClient.AddonCatalog] { settings.orderedHomeCatalogs(catalogs) }
+
+    var body: some View {
+        List {
+            Section {
+                Text("Choose which catalogs show on Home and in what order. Remove an add-on under Add-ons to drop all of its catalogs.")
+                    .font(.callout).foregroundStyle(.secondary)
+                if !settings.homeCatalogOrder.isEmpty {
+                    Button("Follow the add-on order") { settings.homeCatalogOrder = [] }
+                }
+            }
+            Section("Catalogs") {
+                if loading {
+                    ProgressView()
+                } else if catalogs.isEmpty {
+                    Text("Your add-ons have no catalogs to show on Home.").foregroundStyle(.secondary)
+                }
+                ForEach(Array(ordered.enumerated()), id: \.element.rowId) { index, catalog in
+                    let hidden = settings.disabledHomeCatalogs.contains(catalog.rowId)
+                    HStack(spacing: 24) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(catalog.title).opacity(hidden ? 0.5 : 1)
+                            Text(hidden ? "\(names[catalog.base] ?? catalog.base) · Hidden on Home" : (names[catalog.base] ?? catalog.base))
+                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer()
+                        Button { move(catalog, by: -1) } label: { Image(systemName: "chevron.up") }
+                            .disabled(index == 0)
+                        Button { move(catalog, by: 1) } label: { Image(systemName: "chevron.down") }
+                            .disabled(index == ordered.count - 1)
+                        Button(hidden ? "Show" : "Hide") { toggle(catalog) }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Home catalogs")
+        .task(id: settings.addons) {
+            loading = true
+            catalogs = await AddonClient.addonCatalogs(settings.addons)
+            var map: [String: String] = [:]
+            for base in settings.addons { map[base] = await AddonClient.addonName(for: base) }
+            names = map
+            loading = false
+        }
+    }
+
+    private func move(_ catalog: AddonClient.AddonCatalog, by step: Int) {
+        var keys = ordered.map(\.rowId)
+        guard let i = keys.firstIndex(of: catalog.rowId) else { return }
+        let j = i + step
+        guard keys.indices.contains(j) else { return }
+        keys.swapAt(i, j)
+        settings.homeCatalogOrder = keys
+    }
+
+    private func toggle(_ catalog: AddonClient.AddonCatalog) {
+        if let i = settings.disabledHomeCatalogs.firstIndex(of: catalog.rowId) {
+            settings.disabledHomeCatalogs.remove(at: i)
+        } else {
+            settings.disabledHomeCatalogs.append(catalog.rowId)
+        }
     }
 }

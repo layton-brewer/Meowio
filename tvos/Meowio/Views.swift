@@ -14,6 +14,7 @@ extension View {
             .navigationDestination(for: MetaItem.self) { DetailView(item: $0) }
             .navigationDestination(for: AutoPlayRoute.self) { DetailView(item: $0.item, autoplay: true) }
             .navigationDestination(for: FolderRoute.self) { FolderView(route: $0) }
+            .navigationDestination(for: AddonClient.AddonCatalog.self) { CatalogSeeAllView(catalog: $0) }
     }
 }
 
@@ -119,6 +120,8 @@ enum CardMetrics {
 struct PosterCard: View {
     let item: MetaItem
     var onFocus: ((MetaItem) -> Void)? = nil
+    /// Show Poster Labels: the name and year under the poster.
+    var showLabel = true
     @Environment(\.isFocused) private var focused
 
     var body: some View {
@@ -126,6 +129,7 @@ struct PosterCard: View {
             Artwork(url: item.posterURL, placeholder: item.name)
                 .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
                 .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+            if showLabel {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
                     .font(.system(size: 26, weight: .medium))
@@ -136,6 +140,7 @@ struct PosterCard: View {
                 }
             }
             .frame(width: CardMetrics.posterWidth, alignment: .leading)
+            }
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
     }
@@ -331,15 +336,23 @@ struct Shelf: View {
     let title: String
     let items: [MetaItem]
     var onFocus: ((MetaItem) -> Void)? = nil
+    /// The add-on catalog behind this row; when set, the row ends with a See all card, like Android TV.
+    var catalog: AddonClient.AddonCatalog? = nil
+    @EnvironmentObject var settings: SettingsStore
 
     var body: some View {
+        let items = settings.visible(self.items)
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
-                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus) }
+                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus, showLabel: settings.posterLabels) }
+                                .buttonStyle(.focusRing)
+                        }
+                        if let catalog {
+                            NavigationLink(value: catalog) { SeeAllCard() }
                                 .buttonStyle(.focusRing)
                         }
                     }
@@ -387,7 +400,7 @@ struct ContinueShelf: View {
     var onFocus: ((MetaItem) -> Void)? = nil
 
     var body: some View {
-        if !library.continueWatching.isEmpty {
+        if !library.continueWatching.isEmpty && settings.showContinueWatching {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Continue Watching").font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -548,6 +561,12 @@ struct UpdatePrompt: Identifiable {
     var id: String { tag }
 }
 
+struct HomeCatalogKey: Hashable {
+    var addons: [String]
+    var order: [String]
+    var hidden: [String]
+}
+
 struct AddonRow: Identifiable {
     var catalog: AddonClient.AddonCatalog
     var items: [MetaItem]
@@ -561,8 +580,6 @@ struct HomeView: View {
     @EnvironmentObject var servers: MediaServerStore
     @EnvironmentObject var party: PartyRepository
     @State private var serverShelves: [ServerShelf] = []
-    @State private var movies: [MetaItem] = []
-    @State private var series: [MetaItem] = []
     @State private var addonRows: [AddonRow] = []
     @State private var loaded = false
     @State private var focusedItem: MetaItem?
@@ -570,7 +587,7 @@ struct HomeView: View {
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
 
-    private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? movies.first ?? series.first }
+    private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? addonRows.first?.items.first }
     /// What the header shows: the focused card, or a featured title before anything is focused.
     private var heroShown: MetaItem? { focusedItem ?? featured }
 
@@ -594,7 +611,9 @@ struct HomeView: View {
                 ZStack(alignment: .topLeading) {
                     HeroBackdrop(url: heroShown?.backgroundURL, background: settings.theme.background,
                                  trailerFor: settings.heroTrailers ? heroShown : nil)
-                    if let heroShown {
+                    if !settings.showHero {
+                        EmptyView()
+                    } else if let heroShown {
                         HeroHeader(item: heroShown)
                             .padding(.leading, CardMetrics.rowInset)
                             .padding(.top, 56)
@@ -614,19 +633,19 @@ struct HomeView: View {
                             ForEach(collections.ordered) { collection in
                                 CollectionShelf(collection: collection)
                             }
-                            Shelf(title: "Popular Movies", items: movies, onFocus: focus)
-                            Shelf(title: "Popular Series", items: series, onFocus: focus)
                             ForEach(addonRows) { row in
-                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
+                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
                             }
-                            if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
-                                Text("Couldn't load the catalog. Check your connection.").padding(CardMetrics.rowInset)
+                            if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
+                                Text("No catalogs to show. Check your connection, or turn catalogs on in Settings > Content & Discovery > Home catalogs.")
+                                    .padding(CardMetrics.rowInset)
                             }
                         }
+                        .padding(.top, 16)
                         .padding(.bottom, 80)
                     }
-                    .scrollClipDisabled()
-                    .frame(height: geo.size.height * 0.5)
+                    // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
+                    .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }
@@ -654,22 +673,14 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.85).ignoresSafeArea())
         }
-        .task {
-            guard !loaded else { return }
-            async let m = AddonClient.catalog(type: "movie")
-            async let s = AddonClient.catalog(type: "series")
-            movies = await m
-            series = await s
-            heroItem = movies.prefix(5).randomElement()
-            loaded = true
-        }
         .task(id: servers.connections) {
             serverShelves = await servers.shelves()
         }
-        .task(id: settings.addons) {
-            // Cinemeta's lists are the Popular rows above; every other add-on's catalogs follow in add-on order.
-            let catalogs = Array(await AddonClient.addonCatalogs(settings.addons)
-                .filter { $0.base != AddonClient.cinemeta }.prefix(40))
+        .task(id: HomeCatalogKey(addons: settings.addons, order: settings.homeCatalogOrder, hidden: settings.disabledHomeCatalogs)) {
+            // Every add-on's catalogs, Cinemeta's included, in the order set in Home catalogs, minus the hidden ones.
+            let hidden = Set(settings.disabledHomeCatalogs)
+            let catalogs = Array(settings.orderedHomeCatalogs(await AddonClient.addonCatalogs(settings.addons))
+                .filter { !hidden.contains($0.rowId) }.prefix(40))
             var found: [Int: AddonRow] = [:]
             await withTaskGroup(of: (Int, [MetaItem]).self) { group in
                 for (index, catalog) in catalogs.enumerated() {
@@ -682,6 +693,8 @@ struct HomeView: View {
                 }
             }
             if found.isEmpty { addonRows = [] }
+            if heroItem == nil { heroItem = addonRows.first?.items.prefix(5).randomElement() }
+            loaded = true
         }
     }
 
@@ -1009,6 +1022,22 @@ struct DetailView: View {
                     .padding(.bottom, 24)
             }
             metaInfoRow
+            creditsLine
+        }
+    }
+
+    /// Starring and director, like the cast line on Android TV's detail page.
+    @ViewBuilder private var creditsLine: some View {
+        let cast = (meta.cast ?? []).prefix(4).joined(separator: ", ")
+        let director = (meta.director ?? []).prefix(2).joined(separator: ", ")
+        if !cast.isEmpty || !director.isEmpty {
+            HStack(spacing: 28) {
+                if !cast.isEmpty { Text("Starring ").foregroundStyle(.tertiary) + Text(cast) }
+                if !director.isEmpty { Text("Director ").foregroundStyle(.tertiary) + Text(director) }
+            }
+            .font(.system(size: 22, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
     }
 
@@ -1258,5 +1287,64 @@ private struct SourceCard: View {
         .frame(width: 1060, alignment: .leading)
         .background(.white.opacity(focused ? 0.16 : 0.07), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
         .overlay(RoundedRectangle(cornerRadius: CardMetrics.radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
+    }
+}
+
+
+/// The last card of a catalog row: opens the whole catalog.
+struct SeeAllCard: View {
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "square.grid.2x2").font(.system(size: 48, weight: .semibold))
+            Text("See all").font(.system(size: 26, weight: .semibold))
+        }
+        .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+        .background(.white.opacity(focused ? 0.18 : 0.08), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+    }
+}
+
+/// Android TV's See all screen: the whole catalog as a poster grid, loading more pages as you scroll down.
+struct CatalogSeeAllView: View {
+    let catalog: AddonClient.AddonCatalog
+    @State private var items: [MetaItem] = []
+    @State private var loading = false
+    @State private var finished = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text(catalog.title).font(.system(size: 44, weight: .bold)).padding(.leading, CardMetrics.rowInset)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: CardMetrics.posterWidth, maximum: CardMetrics.posterWidth),
+                                             spacing: CardMetrics.spacing, alignment: .top)],
+                          alignment: .leading, spacing: 36) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) { PosterCard(item: item) }
+                            .buttonStyle(.focusRing)
+                            .onAppear { if item.id == items.last?.id { Task { await loadMore() } } }
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                if loading { ProgressView().frame(maxWidth: .infinity) }
+                if finished && items.isEmpty {
+                    Text("This catalog is empty.").foregroundStyle(.secondary).padding(.leading, CardMetrics.rowInset)
+                }
+            }
+            .padding(.vertical, 40)
+        }
+        .task { if items.isEmpty { await loadMore() } }
+    }
+
+    private func loadMore() async {
+        guard !loading, !finished else { return }
+        loading = true
+        let page = await AddonClient.page(base: catalog.base, type: catalog.type, catalogId: catalog.id, extra: [:], skip: items.count)
+        let known = Set(items.map(\.id))
+        let fresh = page.filter { !known.contains($0.id) }
+        items.append(contentsOf: fresh)
+        if fresh.isEmpty { finished = true }
+        loading = false
     }
 }

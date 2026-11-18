@@ -19,6 +19,9 @@ struct MetaItem: Identifiable, Codable, Hashable {
     /// Title logo art and running time, when the metadata source lists them (Cinemeta does).
     var logo: String?
     var runtime: String?
+    /// Cast and directors when the metadata source lists them (Cinemeta does).
+    var cast: [String]? = nil
+    var director: [String]? = nil
 
     var logoURL: URL? { logo.flatMap(URL.init(string:)) }
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
@@ -48,7 +51,7 @@ struct Video: Identifiable, Codable, Hashable {
 extension MetaItem {
     enum CodingKeys: String, CodingKey {
         case id, type, name, poster, background, description, releaseInfo, imdbRating, genres, videos, addonBase
-        case trailers, trailerStreams, logo, runtime
+        case trailers, trailerStreams, logo, runtime, cast, director
     }
 
     init(from decoder: Decoder) throws {
@@ -71,6 +74,8 @@ extension MetaItem {
         trailerStreams = c.lossy(TrailerRef.self, .trailerStreams)
         logo = c.flexString(.logo)
         runtime = c.flexString(.runtime)
+        cast = c.lossy(String.self, .cast)
+        director = c.lossy(String.self, .director)
     }
 }
 
