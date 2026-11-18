@@ -1258,7 +1258,7 @@
     <string name="community_month_dec">Dec</string>
     <string name="community_date_format">%1$s %2$s, %3$s</string>
     <string name="extended_pinned_sources">Pinned sources</string>
-    <string name="extended_pinned_sources_description">Sources you pin are tried first and listed first.</string>
+    <string name="extended_pinned_sources_description">Sources you pin are tried first at the same quality and listed first.</string>
     <string name="extended_pinned_sources_none">None</string>
     <string name="extended_sleep_timer">Sleep timer</string>
     <string name="extended_sleep_timer_off">Sleep timer off</string>
@@ -1918,6 +1918,7 @@
     <string name="profile_use_primary_addons">Use Primary Addons</string>
     <string name="profile_use_primary_addons_description">Share the main profile's addon setup instead of managing a separate list.</string>
     <string name="profile_who_is_watching">Who&apos;s watching?</string>
+    <string name="profile_default_name">Profile %1$d</string>
     <string name="profile_already_active">You&apos;re already on &quot;%1$s&quot;</string>
     <string name="provider_downloaded">Downloaded</string>
     <string name="resume_prompt_action">Resume</string>
@@ -2059,12 +2060,12 @@
     <string name="source_embedded">Embedded</string>
     <string name="trakt_authorization_denied">Authorization denied</string>
     <string name="trakt_authorization_expired_reconnect">Your Trakt authorization is no longer valid. Reconnect your Trakt account.</string>
-    <string name="trakt_complete_sign_in_browser">Complete Trakt sign in in your browser</string>
-    <string name="trakt_connected">Connected to Trakt</string>
     <string name="trakt_device_authorization_expired">Trakt authorization expired. Try again.</string>
     <string name="trakt_device_authorization_failed">Could not start Trakt device authorization.</string>
     <string name="trakt_device_authorization_starting">Starting Trakt sign in...</string>
     <string name="trakt_device_authorization_waiting">Waiting for Trakt approval...</string>
+    <string name="trakt_complete_sign_in_browser">Complete Trakt sign in in your browser</string>
+    <string name="trakt_connected">Connected to Trakt</string>
     <string name="trakt_disconnected">Disconnected from Trakt</string>
     <string name="trakt_invalid_callback">Invalid Trakt callback</string>
     <string name="trakt_invalid_callback_state">Invalid Trakt callback state</string>
