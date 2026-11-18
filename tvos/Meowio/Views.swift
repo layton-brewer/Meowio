@@ -246,8 +246,8 @@ struct EpisodeCard: View {
 /// Android TV's detail-page buttons: a white pill for Play and round glass buttons for the rest,
 /// with a white ring when focused.
 struct PillButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration) }
-    private struct Body: View {
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration) }
+    private struct StyledBody: View {
         let configuration: ButtonStyleConfiguration
         @Environment(\.isFocused) private var focused
         @Environment(\.isEnabled) private var enabled
@@ -267,8 +267,8 @@ struct PillButtonStyle: ButtonStyle {
 
 struct CircleIconButtonStyle: ButtonStyle {
     var selected = false
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, selected: selected) }
-    private struct Body: View {
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    private struct StyledBody: View {
         let configuration: ButtonStyleConfiguration
         let selected: Bool
         @Environment(\.isFocused) private var focused
@@ -289,8 +289,8 @@ struct CircleIconButtonStyle: ButtonStyle {
 /// Season picker chips: the chosen season filled white, like Android TV's season tabs.
 struct ChipButtonStyle: ButtonStyle {
     var selected: Bool
-    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, selected: selected) }
-    private struct Body: View {
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    private struct StyledBody: View {
         let configuration: ButtonStyleConfiguration
         let selected: Bool
         @Environment(\.isFocused) private var focused
