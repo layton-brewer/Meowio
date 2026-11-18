@@ -585,6 +585,8 @@ struct HomeView: View {
                 }
             }
             .padding(80)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.opacity(0.85).ignoresSafeArea())
         }
         .task {
             guard !loaded else { return }
