@@ -1452,6 +1452,7 @@
     <string name="settings_playback_fallback_startup_timeout">Time for a source to start</string>
     <string name="settings_playback_fallback_next_source_blocked_by_engine_switch">Turn off auto-switch engine on playback error to use this.</string>
     <string name="player_error_source_startup_timeout">The source did not start within %1$d seconds.</string>
+    <string name="player_error_source_stalled">The source stopped loading for %1$d seconds.</string>
     <string name="settings_playback_threshold_minutes">Threshold Minutes</string>
     <string name="settings_playback_threshold_mode">Next Episode Threshold Mode</string>
     <string name="settings_playback_threshold_mode_minutes_before_end">Minutes before end</string>
