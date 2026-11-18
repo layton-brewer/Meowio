@@ -53,21 +53,28 @@ final class AccountStore: ObservableObject {
         message = nil
         defer { busy = false }
         let path = create ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password"
-        let r = await call(path, body: ["email": email.trimmingCharacters(in: .whitespaces), "password": password], authed: false)
+        // The tvOS keyboard capitalises the first letter and can autocorrect; the account server stores
+        // emails in lower case, so "Name@…" was rejected as wrong credentials.
+        let email = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let r = await call(path, body: ["email": email, "password": password], authed: false)
         guard let obj = r.json as? [String: Any] else {
             message = "Could not reach the account server."
             return
         }
         if obj["access_token"] != nil {
             save(obj)
-            self.email = email.trimmingCharacters(in: .whitespaces)
+            self.email = email
             UserDefaults.standard.set(self.email, forKey: "accountEmail")
             message = nil
         } else if create, r.status < 300 {
             message = "Check your email to confirm the account, then sign in."
         } else {
             let text = (obj["error_description"] as? String) ?? (obj["msg"] as? String) ?? (obj["message"] as? String)
-            message = text ?? "Sign-in failed. Check the email and password."
+            if r.status == 400, !create {
+                message = "Wrong email or password. If you signed up with Google or Apple, use \"Sign in with a code\" instead."
+            } else {
+                message = text ?? "Sign-in failed. Check the email and password."
+            }
         }
     }
 
@@ -770,8 +777,12 @@ struct AccountSettingsView: View {
                     TextField("Email", text: $email)
                         .textContentType(.username)
                         .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     SecureField("Password", text: $password)
                         .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     Button(account.busy ? "Signing in…" : "Sign in") {
                         Task { await signedIn(create: false) }
                     }
