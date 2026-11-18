@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.49
+  APPLETV_VERSION: 0.2.50
 
 permissions:
   contents: write
@@ -122,7 +122,8 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
-          - **Auto-play recovers from dead links:** a source that hangs at start or stops mid-show switches to the next source at the same spot, recently failed links are skipped, and "not cached" links are never used as a backup.
+          - **Email sign-in fixed:** the email is sent in lower case with autocorrect off, so a correct password is no longer rejected. Accounts made with Google or Apple sign in with "Sign in with a code".
+          - **Sign-in comes first:** a fresh install opens on the sign-in screen, like Android TV, so your profiles, add-ons and library arrive before Home. "Continue without signing in" skips it.
 
           ## Download
 

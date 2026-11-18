@@ -19,17 +19,25 @@ struct MeowioApp: App {
 struct AppRoot: View {
     @EnvironmentObject var profiles: ProfileStore
     @EnvironmentObject var account: AccountStore
+    /// A fresh install opens on sign-in first, like Android TV. Skipping or signing in clears it for good.
+    @AppStorage("hasSeenFirstLaunchSignIn") private var hasSeenFirstLaunchSignIn = false
 
     var body: some View {
         Group {
-            if let profile = profiles.active {
+            if !hasSeenFirstLaunchSignIn && AccountStore.available && !account.signedIn {
+                FirstLaunchSignInView { hasSeenFirstLaunchSignIn = true }
+            } else if let profile = profiles.active {
                 // A new identity per profile, so every store below is made fresh from that profile's storage.
                 ProfileRoot(profile: profile).id(profile.id)
             } else {
                 ProfilePickerView()
             }
         }
-        .task { await account.pullProfiles(into: profiles) }
+        .task {
+            // Already signed in (an update, or a restored backup) counts as having seen the sign-in screen.
+            if account.signedIn { hasSeenFirstLaunchSignIn = true }
+            await account.pullProfiles(into: profiles)
+        }
     }
 }
 
