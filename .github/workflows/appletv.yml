@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.51
+  APPLETV_VERSION: 0.2.52
 
 permissions:
   contents: write
@@ -123,14 +123,10 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
-          - **Looks like Android TV:** a side menu on the left instead of tabs across the top; Home shows the focused title's logo, details and description above the rows; posters get Android TV's white focus ring.
-          - **Detail pages:** a white Play button with round Library, Watched, Trailer, Shuffle and Sources buttons, season chips, and big episode cards with the synopsis and air date.
-          - **Settings:** a rail of categories on the left, the chosen category's settings on the right.
-          - **Library and search:** poster grids with Movies and Series filters. The source list is a full-screen column of source cards.
-          - **Player:** the title, episode and round control buttons laid out like Android TV.
-          - **Sign in with a code only:** email sign-in is gone on Apple TV. A fresh install shows the code straight away; "Continue without signing in" skips it.
-          - **Automatic subtitle sync** (off by default) lines up an add-on subtitle with the video's own subtitles.
-          - New versions are offered once in a dialog instead of a card on Home.
+          - **Your add-ons' catalogs are on Home again:** every browsable catalog from your add-ons gets a row, in add-on order, and rows appear as they load. Add-ons that send numbers where text is expected (ratings, years) no longer drop out.
+          - **Continue Watching shows every title:** shows synced from your account or Trakt with only an id now get their name and artwork.
+          - **Debrid "downloading" clips are skipped:** when a debrid add-on answers with a short placeholder clip instead of the film, Meowio marks that link as not cached and plays the next source.
+          - **Up always works on Home:** each row is its own focus area, so pressing Up from any row goes back to the row above, all the way to Continue Watching.
 
           ## Download
 

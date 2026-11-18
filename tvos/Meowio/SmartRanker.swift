@@ -66,6 +66,7 @@ enum SmartRanker {
     /// "downloading" placeholder video) instead of the title, so failover never moves to one.
     static func isMarkedUncached(_ stream: StreamItem) -> Bool {
         stream.combinedText.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#)
+            || PlaceholderVideo.isPlaceholderURL(stream.url)
     }
 
     /// 0 = plays at once, 1 = probably fine, 2 = has to download first.
@@ -73,6 +74,7 @@ enum SmartRanker {
         // A torrent the user's debrid service already has plays at once.
         if stream.isTorrentOnly, let h = stream.infoHash?.lowercased(), cached.contains(h) { return 0 }
         if text.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#) { return 2 }
+        if PlaceholderVideo.isPlaceholderURL(stream.url) { return 2 }
         if stream.playableURL != nil { return 0 }
         if stream.infoHash != nil { return 2 }
         return 1
@@ -135,5 +137,72 @@ enum SmartRanker {
         if text.has(#"\bweb[-. ]?rip\b"#) { return 2 }
         if text.has(#"\b(hdtv|pdtv|dvdrip|hdrip)\b"#) { return 1 }
         return 2
+    }
+}
+
+/// Spots the stand-in clips debrid add-ons serve instead of the title when a torrent is not cached yet
+/// ("Torrent is being downloaded to debrid...", "Downloading", "Failed"). Such a link plays without an
+/// error, so it is caught by its address, or by being far shorter than the runtime from metadata.
+/// Same rules as PlaceholderVideoDetector on Android.
+enum PlaceholderVideo {
+    /// No stand-in clip is longer than this; a real title of known length never is this short.
+    static let maxPlaceholderSeconds: Double = 300
+    /// Without a runtime from metadata, only a clip this short counts as a stand-in.
+    static let unknownRuntimeMaxSeconds: Double = 90
+    /// Titles shorter than this (shorts, minisodes) are never judged by length.
+    static let minRuntimeMinutesForLengthCheck = 10
+
+    private static let pathPattern = #"/(?:videos?|static|assets|exceptions|media|public|placeholders?)/(?:[^/?#]+/)*([^/?#]*(?:download|caching|cached|queued|failed|failure|error|limit|blocked|infringement|unavailable|not[_-]?found|no[_-]?results?|expired|unauthori[sz]ed|forbidden|invalid|magnet|torrent)[^/?#]*)\.(?:mp4|mkv|webm|m4v|mov)(?:[?#]|$)"#
+    /// A real file name names a year or an episode; a stand-in clip never does.
+    private static let realTitlePattern = #"(?:^|[^0-9])(?:19|20)\d{2}(?:[^0-9]|$)|s\d{1,2}[ ._-]?e\d{1,3}|\d{3,4}p"#
+
+    static func isPlaceholderURL(_ url: String?) -> Bool {
+        guard let url, url.lowercased().hasPrefix("http"),
+              let regex = try? NSRegularExpression(pattern: pathPattern, options: [.caseInsensitive]),
+              let match = regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)),
+              let nameRange = Range(match.range(at: 1), in: url) else { return false }
+        let name = String(url[nameRange])
+        return name.count <= 48 && !name.has(realTitlePattern)
+    }
+
+    static func isTrailerText(_ text: String?) -> Bool {
+        guard let text, !text.isEmpty else { return false }
+        return text.has(#"\b(?:trailer|teaser)s?\b"#)
+    }
+
+    /// True when a video of [seconds] is too short to be a title whose runtime is [runtimeMinutes].
+    static func isPlaceholderDuration(_ seconds: Double, runtimeMinutes: Int?) -> Bool {
+        guard seconds.isFinite, seconds > 0 else { return false }
+        guard let expected = runtimeMinutes, expected > 0 else { return seconds <= unknownRuntimeMaxSeconds }
+        if expected < minRuntimeMinutesForLengthCheck { return false }
+        // A fifth of the runtime, capped: a 22-minute episode must run at least 4.4 minutes.
+        return seconds <= min(maxPlaceholderSeconds, Double(expected) * 60 / 5)
+    }
+
+    static func isPlaceholderPlayback(url: String?, seconds: Double, runtimeMinutes: Int?, streamText: String?) -> Bool {
+        if isPlaceholderURL(url) { return true }
+        if isTrailerText(streamText) { return false }
+        return isPlaceholderDuration(seconds, runtimeMinutes: runtimeMinutes)
+    }
+
+    /// Minutes in a metadata runtime such as "2h 10min", "45 min" or "1:52"; nil when unknown.
+    static func runtimeMinutes(_ raw: String?) -> Int? {
+        guard let text = raw?.trimmingCharacters(in: .whitespaces).lowercased(), !text.isEmpty else { return nil }
+        func number(_ pattern: String) -> Int? {
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let m = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                  let r = Range(m.range(at: 1), in: text) else { return nil }
+            return Int(text[r])
+        }
+        if let colon = try? NSRegularExpression(pattern: #"^(\d{1,2}):(\d{2})$"#),
+           let m = colon.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let h = Range(m.range(at: 1), in: text), let mm = Range(m.range(at: 2), in: text),
+           let hours = Int(text[h]), let minutes = Int(text[mm]) {
+            return hours * 60 + minutes
+        }
+        let hours = number(#"(\d+)\s*h"#)
+        let minutes = number(#"(\d+)\s*m"#)
+        if hours != nil || minutes != nil { return (hours ?? 0) * 60 + (minutes ?? 0) }
+        return number(#"(\d+)"#).flatMap { (1...1000).contains($0) ? $0 : nil }
     }
 }

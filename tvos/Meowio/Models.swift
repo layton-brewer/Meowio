@@ -43,7 +43,97 @@ struct Video: Identifiable, Codable, Hashable {
     var thumbnailURL: URL? { thumbnail.flatMap(URL.init(string:)) }
 }
 
-struct CatalogResponse: Codable { var metas: [MetaItem] }
+/// Add-ons are loose about types (a rating or year sent as a number, a missing type), so titles decode leniently and a
+/// catalog keeps every entry it can read instead of failing as a whole.
+extension MetaItem {
+    enum CodingKeys: String, CodingKey {
+        case id, type, name, poster, background, description, releaseInfo, imdbRating, genres, videos, addonBase
+        case trailers, trailerStreams, logo, runtime
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        guard let id = c.flexString(.id), !id.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "missing id")
+        }
+        self.id = id
+        type = c.flexString(.type) ?? ""
+        name = c.flexString(.name) ?? ""
+        poster = c.flexString(.poster)
+        background = c.flexString(.background)
+        description = c.flexString(.description)
+        releaseInfo = c.flexString(.releaseInfo)
+        imdbRating = c.flexString(.imdbRating)
+        genres = c.lossy(String.self, .genres)
+        videos = c.lossy(Video.self, .videos)
+        addonBase = c.flexString(.addonBase)
+        trailers = c.lossy(TrailerRef.self, .trailers)
+        trailerStreams = c.lossy(TrailerRef.self, .trailerStreams)
+        logo = c.flexString(.logo)
+        runtime = c.flexString(.runtime)
+    }
+}
+
+extension Video {
+    enum CodingKeys: String, CodingKey {
+        case id, season, episode, title, name, thumbnail, released, overview, description
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        guard let id = c.flexString(.id), !id.isEmpty else {
+            throw DecodingError.dataCorruptedError(forKey: .id, in: c, debugDescription: "missing id")
+        }
+        self.id = id
+        season = c.flexInt(.season)
+        episode = c.flexInt(.episode)
+        title = c.flexString(.title)
+        name = c.flexString(.name)
+        thumbnail = c.flexString(.thumbnail)
+        released = c.flexString(.released)
+        overview = c.flexString(.overview)
+        description = c.flexString(.description)
+    }
+}
+
+/// Decodes one array entry, or nothing when that entry is malformed.
+struct LossyEntry<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
+extension KeyedDecodingContainer {
+    /// A string, or a number written as a string.
+    func flexString(_ key: Key) -> String? {
+        if let s = try? decodeIfPresent(String.self, forKey: key) { return s }
+        if let i = try? decodeIfPresent(Int.self, forKey: key) { return String(i) }
+        if let d = try? decodeIfPresent(Double.self, forKey: key) { return String(d) }
+        return nil
+    }
+
+    func flexInt(_ key: Key) -> Int? {
+        if let i = try? decodeIfPresent(Int.self, forKey: key) { return i }
+        if let s = try? decodeIfPresent(String.self, forKey: key) { return Int(s) }
+        if let d = try? decodeIfPresent(Double.self, forKey: key) { return Int(d) }
+        return nil
+    }
+
+    /// Every readable entry of an array; a single value counts as a one-item array.
+    func lossy<T: Decodable>(_ type: T.Type, _ key: Key) -> [T]? {
+        if let list = try? decodeIfPresent([LossyEntry<T>].self, forKey: key) { return list.compactMap(\.value) }
+        if let one = try? decodeIfPresent(T.self, forKey: key) { return [one] }
+        return nil
+    }
+}
+
+struct CatalogResponse: Decodable {
+    var metas: [MetaItem]
+    enum CodingKeys: String, CodingKey { case metas }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        metas = c.lossy(MetaItem.self, .metas) ?? []
+    }
+}
 struct MetaResponse: Codable { var meta: MetaItem }
 
 struct StreamItem: Codable, Hashable {

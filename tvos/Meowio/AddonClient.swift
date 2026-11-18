@@ -54,6 +54,16 @@ enum AddonClient {
         var resources: [Resource]?
         var catalogs: [Catalog]?
 
+        enum CodingKeys: String, CodingKey { case id, name, resources, catalogs }
+        /// One malformed resource or catalog entry must not hide the whole add-on.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = c.flexString(.id)
+            name = c.flexString(.name)
+            resources = c.lossy(Resource.self, .resources)
+            catalogs = c.lossy(Catalog.self, .catalogs)
+        }
+
         struct Resource: Decodable {
             var name: String
             init(from decoder: Decoder) throws {
@@ -78,6 +88,14 @@ enum AddonClient {
                 var name: String
                 var isRequired: Bool?
                 var options: [String]?
+
+                enum CodingKeys: String, CodingKey { case name, isRequired, options }
+                init(from decoder: Decoder) throws {
+                    let c = try decoder.container(keyedBy: CodingKeys.self)
+                    name = c.flexString(.name) ?? ""
+                    isRequired = try? c.decodeIfPresent(Bool.self, forKey: .isRequired)
+                    options = c.lossy(String.self, .options)
+                }
             }
 
             /// Can be opened without a search term or genre.
@@ -126,12 +144,23 @@ enum AddonClient {
 
     /// Browsable movie and series catalogs from the user's add-ons, in add-on order.
     static func addonCatalogs(_ addons: [String]) async -> [AddonCatalog] {
+        // Fetch every manifest at once; the rows still follow the add-on order.
+        await withTaskGroup(of: Void.self) { group in
+            for base in addons { group.addTask { _ = await manifest(for: base) } }
+        }
         var out: [AddonCatalog] = []
         for base in addons {
-            guard let m = await manifest(for: base), m.has("catalog") else { continue }
+            guard let m = await manifest(for: base), m.has("catalog") || !(m.catalogs ?? []).isEmpty else { continue }
             let addon = m.name ?? URL(string: base)?.host ?? base
-            for c in m.catalogs ?? [] where c.isBrowsable && (c.type == "movie" || c.type == "series") {
-                let title = c.name.map { "\($0) · \(c.type == "movie" ? "Movies" : "Series")" } ?? addon
+            // Live channels belong to Live TV; every other browsable catalog (movies, series, anime and so on) is a row.
+            for c in m.catalogs ?? [] where c.isBrowsable && !c.id.isEmpty && c.type != "tv" && c.type != "channel" {
+                let kind: String
+                switch c.type {
+                case "movie": kind = "Movies"
+                case "series": kind = "Series"
+                default: kind = c.type.capitalized
+                }
+                let title = c.name.map { "\($0) · \(kind)" } ?? "\(addon) · \(kind)"
                 out.append(AddonCatalog(base: base, type: c.type, id: c.id, title: title))
             }
         }
