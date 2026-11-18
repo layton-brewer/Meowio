@@ -177,6 +177,7 @@ struct ContinueCard: View {
     }
 }
 
+/// Android TV's episode card: the still with the episode code, title, synopsis and air date laid over it.
 struct EpisodeCard: View {
     let video: Video
     let fallback: URL?
@@ -185,31 +186,122 @@ struct EpisodeCard: View {
     let isNext: Bool
     @Environment(\.isFocused) private var focused
 
+    static let width: CGFloat = 640
+    static let height: CGFloat = 414
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .bottomLeading) {
-                Artwork(url: video.thumbnailURL ?? fallback, placeholder: "Episode \(video.episode ?? 0)")
-                    .frame(width: 400, height: 225)
-                LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
-                HStack {
-                    Text("E\(video.episode ?? 0)").font(.caption.bold())
-                    Spacer()
-                    if watched { Image(systemName: "checkmark.circle.fill") }
-                    else if isNext { Image(systemName: "play.circle.fill") }
+        ZStack(alignment: .bottomLeading) {
+            Artwork(url: video.thumbnailURL ?? fallback, placeholder: "")
+                .frame(width: Self.width, height: Self.height)
+            LinearGradient(stops: [.init(color: .clear, location: 0.15), .init(color: .black.opacity(0.85), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("S\(video.season ?? 0) E\(video.episode ?? 0)")
+                    .font(.system(size: 22, weight: .bold)).kerning(1.5)
+                    .padding(.horizontal, 14).padding(.vertical, 6)
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                Text(video.displayTitle).font(.system(size: 32, weight: .semibold)).lineLimit(1)
+                if let s = video.synopsis {
+                    Text(s).font(.system(size: 24)).foregroundStyle(.white.opacity(0.75)).lineLimit(3)
                 }
-                .padding(14)
-                if let progress {
-                    Capsule().fill(.white.opacity(0.25)).frame(height: 5)
-                        .overlay(alignment: .leading) {
-                            GeometryReader { g in Capsule().fill(.white).frame(width: g.size.width * progress) }
-                        }
-                        .padding(.horizontal, 14).padding(.bottom, 3)
+                if let date = Self.airDate(video.released) {
+                    Text(date).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.6))
                 }
             }
-            .frame(width: 400, height: 225)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            Text(video.displayTitle).font(.caption).lineLimit(1).frame(width: 400, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+            .padding(.horizontal, 32).padding(.bottom, 40)
+            if let progress {
+                Capsule().fill(.white.opacity(0.25)).frame(height: 8)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { g in Capsule().fill(.white).frame(width: g.size.width * progress) }
+                    }
+                    .padding(.horizontal, 32).padding(.bottom, 16)
+            }
+        }
+        .frame(width: Self.width, height: Self.height)
+        .overlay(alignment: .topTrailing) {
+            if watched || isNext {
+                Image(systemName: watched ? "checkmark" : "play.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(watched ? .black : .white)
+                    .frame(width: 48, height: 48)
+                    .background(watched ? AnyShapeStyle(.white) : AnyShapeStyle(.black.opacity(0.55)), in: Circle())
+                    .padding(24)
+            }
+        }
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+    }
+
+    private static let isoDay: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+
+    static func airDate(_ released: String?) -> String? {
+        guard let released, released.count >= 10, let d = isoDay.date(from: String(released.prefix(10))) else { return nil }
+        return d.formatted(date: .abbreviated, time: .omitted)
+    }
+}
+
+// MARK: - Buttons
+
+/// Android TV's detail-page buttons: a white pill for Play and round glass buttons for the rest,
+/// with a white ring when focused.
+struct PillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration) }
+    private struct Body: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var enabled
+        var body: some View {
+            configuration.label
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 48).frame(height: 84)
+                .background(.white, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.6), lineWidth: focused ? 4 : 0).padding(-8))
+                .scaleEffect(focused ? 1.05 : 1)
+                .opacity(enabled ? 1 : 0.5)
+                .animation(.easeOut(duration: 0.15), value: focused)
+        }
+    }
+}
+
+struct CircleIconButtonStyle: ButtonStyle {
+    var selected = false
+    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, selected: selected) }
+    private struct Body: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .labelStyle(.iconOnly)
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(focused || selected ? .black : .white)
+                .frame(width: 84, height: 84)
+                .background(focused || selected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(0.14)), in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: focused ? 0 : 1.5))
+                .scaleEffect(focused ? 1.08 : 1)
+                .animation(.easeOut(duration: 0.15), value: focused)
+        }
+    }
+}
+
+/// Season picker chips: the chosen season filled white, like Android TV's season tabs.
+struct ChipButtonStyle: ButtonStyle {
+    var selected: Bool
+    func makeBody(configuration: Configuration) -> some View { Body(configuration: configuration, selected: selected) }
+    private struct Body: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .font(.system(size: 26, weight: selected ? .bold : .medium))
+                .foregroundStyle(selected ? .black : (focused ? .white : .white.opacity(0.7)))
+                .padding(.horizontal, 28).frame(height: 60)
+                .background(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(focused ? 0.2 : 0.08)), in: Capsule())
+                .overlay(Capsule().strokeBorder(.white, lineWidth: focused ? 3 : 0))
+                .animation(.easeOut(duration: 0.15), value: focused)
         }
     }
 }
@@ -316,7 +408,7 @@ struct HeroHeader: View {
                 Text(d)
                     .font(.system(size: 26))
                     .lineSpacing(4)
-                    .lineLimit(4)
+                    .lineLimit(3)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 860, alignment: .leading)
             }
@@ -341,8 +433,8 @@ private struct HeroTitle: View {
                     default: Color.clear
                     }
                 }
-                .frame(maxWidth: 440, maxHeight: 200, alignment: .leading)
-                .frame(height: 200, alignment: .bottomLeading)
+                .frame(maxWidth: 440, maxHeight: 170, alignment: .leading)
+                .frame(height: 170, alignment: .bottomLeading)
             } else {
                 Text(item.name)
                     .font(.system(size: 64, weight: .bold))
@@ -386,6 +478,11 @@ struct HeroBackdrop: View {
     }
 }
 
+struct UpdatePrompt: Identifiable {
+    var tag: String
+    var id: String { tag }
+}
+
 struct AddonRow: Identifiable {
     var catalog: AddonClient.AddonCatalog
     var items: [MetaItem]
@@ -406,6 +503,7 @@ struct HomeView: View {
     @State private var focusedItem: MetaItem?
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
+    @State private var updatePrompt: UpdatePrompt?
 
     private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? movies.first ?? series.first }
     /// What the header shows: the focused card, or a featured title before anything is focused.
@@ -416,10 +514,6 @@ struct HomeView: View {
         if settings.addons.isEmpty && !servers.hasEnabled {
             Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
                 .padding(24).glass().padding(.horizontal, CardMetrics.rowInset)
-        }
-        if case .available(let tag) = updates.state {
-            UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
-                .padding(.horizontal, CardMetrics.rowInset)
         }
         if party.party != nil {
             Button { party.reopen() } label: {
@@ -438,7 +532,7 @@ struct HomeView: View {
                     if let heroShown {
                         HeroHeader(item: heroShown)
                             .padding(.leading, CardMetrics.rowInset)
-                            .padding(.top, 80)
+                            .padding(.top, 56)
                     } else {
                         Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
                             .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
@@ -466,7 +560,7 @@ struct HomeView: View {
                         .padding(.bottom, 80)
                     }
                     .scrollClipDisabled()
-                    .frame(height: geo.size.height * 0.56)
+                    .frame(height: geo.size.height * 0.5)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }
@@ -475,6 +569,22 @@ struct HomeView: View {
         }
         .task {
             if case .idle = updates.state { await updates.check() }
+            if case .available(let tag) = updates.state,
+               UserDefaults.standard.string(forKey: "updatePromptDismissed") != tag {
+                updatePrompt = UpdatePrompt(tag: tag)
+            }
+        }
+        // A new version is offered once, in a dialog over Home, like Android TV's update prompt.
+        .fullScreenCover(item: $updatePrompt) { prompt in
+            VStack(spacing: 40) {
+                UpdateCard(tag: prompt.tag, url: updates.releaseURL, notes: updates.notes)
+                    .frame(maxWidth: 1300)
+                Button("Later") {
+                    UserDefaults.standard.set(prompt.tag, forKey: "updatePromptDismissed")
+                    updatePrompt = nil
+                }
+            }
+            .padding(80)
         }
         .task {
             guard !loaded else { return }
@@ -686,84 +796,23 @@ struct DetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Backdrop(url: meta.backgroundURL, background: settings.theme.background)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    Spacer(minLength: 120)
-                    Text(meta.name)
-                        .font(.system(size: 64, weight: .bold))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: 1200, alignment: .leading)
-                    HStack(spacing: 20) {
-                        if let r = meta.releaseInfo { Text(r) }
-                        if let r = meta.imdbRating { Label(r, systemImage: "star.fill") }
-                        if let g = meta.genres, !g.isEmpty { Text(g.prefix(3).joined(separator: " · ")) }
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                Backdrop(url: meta.backgroundURL, background: settings.theme.background)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Android TV's detail hero: everything sits at the bottom of the first screen.
+                        heroSection
+                            .frame(minHeight: geo.size.height - (meta.type == "movie" ? 0 : 170), alignment: .bottomLeading)
+                        if meta.type != "movie" { episodesSection.padding(.top, 40) }
                     }
-                    .foregroundStyle(.secondary)
-                    if let d = meta.description {
-                        Text(d).font(.callout).lineLimit(4).frame(maxWidth: 1100, alignment: .leading)
-                    }
-                    HStack(spacing: 24) {
-                        if meta.type == "movie" {
-                            Button { Task { await play(videoId: meta.id, title: meta.name) } } label: {
-                                Label(resolving ? "Finding best source…" : movieLabel, systemImage: "play.fill")
-                                    .padding(.horizontal, 30)
-                            }
-                            .focused($playFocused)
-                            .disabled(resolving)
-                        } else if let next = nextUp {
-                            Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
-                                Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
-                                    .padding(.horizontal, 30)
-                            }
-                            .focused($playFocused)
-                            .disabled(resolving)
-                        }
-                        Button { library.toggleSaved(meta) } label: {
-                            Label(library.isSaved(meta) ? "Saved" : "My List", systemImage: library.isSaved(meta) ? "checkmark" : "plus")
-                        }
-                        if meta.type != "movie", ordered.count > 1 {
-                            // Episode shuffle, like the Android TV app: plays a random episode of the show.
-                            Button {
-                                if let ep = ordered.randomElement() {
-                                    Task { await play(videoId: ep.id, title: ep.displayTitle) }
-                                }
-                            } label: {
-                                Label("Random Episode", systemImage: "shuffle")
-                            }
-                            .disabled(resolving)
-                        }
-                        if meta.type == "movie" {
-                            Button {
-                                if library.isWatched(meta.id) { library.markUnwatched(meta: meta, videoId: nil) }
-                                else { library.markWatched(meta: meta, videoId: nil) }
-                            } label: {
-                                Label(library.isWatched(meta.id) ? "Watched" : "Mark watched",
-                                      systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye")
-                            }
-                        }
-                        if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
-                            Button { Task { await chooseSource() } } label: {
-                                Label("Sources", systemImage: "list.bullet")
-                            }
-                            .disabled(resolving)
-                        }
-                        if trailerURL != nil {
-                            Button { showTrailer = true } label: {
-                                Label("Trailer", systemImage: "film")
-                            }
-                        }
-                    }
-                    if let message { Text(message).foregroundStyle(.orange) }
-                    if meta.type != "movie" { episodesSection }
+                    .padding(.horizontal, 96)
+                    .padding(.bottom, 80)
                 }
-                .padding(.horizontal, 80)
-                .padding(.bottom, 80)
+                .scrollClipDisabled()
             }
-            .scrollClipDisabled()
         }
+        .ignoresSafeArea()
         .task {
             if MediaServerStore.isServerId(item.id) {
                 full = await servers.nativeMeta(item)
@@ -805,32 +854,123 @@ struct DetailView: View {
         }
     }
 
+    @ViewBuilder private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HeroTitle(item: meta)
+                .frame(maxWidth: 900, alignment: .leading)
+                .padding(.bottom, 24)
+            HStack(spacing: 24) {
+                if meta.type == "movie" {
+                    Button { Task { await play(videoId: meta.id, title: meta.name) } } label: {
+                        Label(resolving ? "Finding best source…" : movieLabel, systemImage: "play.fill")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                    .focused($playFocused)
+                    .disabled(resolving)
+                } else if let next = nextUp {
+                    Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
+                        Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                    .focused($playFocused)
+                    .disabled(resolving)
+                }
+                Button { library.toggleSaved(meta) } label: {
+                    Label(library.isSaved(meta) ? "Remove from library" : "Add to library",
+                          systemImage: library.isSaved(meta) ? "checkmark" : "plus")
+                }
+                .buttonStyle(CircleIconButtonStyle(selected: library.isSaved(meta)))
+                if meta.type == "movie" {
+                    Button {
+                        if library.isWatched(meta.id) { library.markUnwatched(meta: meta, videoId: nil) }
+                        else { library.markWatched(meta: meta, videoId: nil) }
+                    } label: {
+                        Label(library.isWatched(meta.id) ? "Mark unwatched" : "Mark watched",
+                              systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye.slash")
+                    }
+                    .buttonStyle(CircleIconButtonStyle(selected: library.isWatched(meta.id)))
+                }
+                if trailerURL != nil {
+                    Button { showTrailer = true } label: { Label("Trailer", systemImage: "film") }
+                        .buttonStyle(CircleIconButtonStyle())
+                }
+                if meta.type != "movie", ordered.count > 1 {
+                    // Episode shuffle, like the Android TV app: plays a random episode of the show.
+                    Button {
+                        if let ep = ordered.randomElement() {
+                            Task { await play(videoId: ep.id, title: ep.displayTitle) }
+                        }
+                    } label: { Label("Random episode", systemImage: "shuffle") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .disabled(resolving)
+                }
+                if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
+                    Button { Task { await chooseSource() } } label: { Label("Sources", systemImage: "list.bullet") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .disabled(resolving)
+                }
+            }
+            .padding(.bottom, 32)
+            if let message { Text(message).foregroundStyle(.orange).padding(.bottom, 16) }
+            if let d = meta.description {
+                Text(d)
+                    .font(.system(size: 28))
+                    .lineSpacing(4)
+                    .lineLimit(4)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(maxWidth: 1100, alignment: .leading)
+                    .padding(.bottom, 24)
+            }
+            metaInfoRow
+        }
+    }
+
+    /// Year, genres, running time and IMDb rating under the description, like Android TV's MetaInfoRow.
+    private var metaInfoRow: some View {
+        HStack(spacing: 16) {
+            let parts = [meta.releaseInfo, meta.genres.map { $0.prefix(3).joined(separator: " • ") }, meta.runtime]
+                .compactMap { $0 }.filter { !$0.isEmpty }
+            ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                if i > 0 { Divider().frame(height: 22) }
+                Text(part)
+            }
+            if let r = meta.imdbRating, !r.isEmpty {
+                if !parts.isEmpty { Divider().frame(height: 22) }
+                HStack(spacing: 8) {
+                    Text("IMDb").font(.system(size: 18, weight: .heavy)).foregroundStyle(.black)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color(red: 0.96, green: 0.77, blue: 0.09), in: RoundedRectangle(cornerRadius: 4))
+                    Text(r)
+                }
+            }
+        }
+        .font(.system(size: 24, weight: .medium))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+
     @ViewBuilder private var episodesSection: some View {
-        if seasons.count > 1 {
+        if !seasons.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(seasons, id: \.self) { s in
-                        Button { season = s } label: {
-                            Text("Season \(s)").fontWeight(s == season ? .bold : .regular)
-                        }
-                        .tint(s == season ? settings.theme.accent : nil)
+                        Button { season = s } label: { Text("Season \(s)") }
+                            .buttonStyle(ChipButtonStyle(selected: s == season))
                     }
                 }
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
             }
             .scrollClipDisabled()
-        } else if let s = seasons.first {
-            Text("Season \(s)").font(.title3.bold())
         }
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 36) {
+                LazyHStack(spacing: 32) {
                     ForEach(episodes) { ep in
                         Button { Task { await play(videoId: ep.id, title: ep.displayTitle) } } label: {
                             EpisodeCard(video: ep, fallback: meta.backgroundURL, watched: watched(ep),
                                         progress: library.progress(for: ep.id), isNext: ep.id == nextUp?.id)
                         }
-                        .buttonStyle(.card)
+                        .buttonStyle(.focusRing)
                         .disabled(resolving)
                         .contextMenu {
                             if watched(ep) {
@@ -855,9 +995,6 @@ struct DetailView: View {
             .onAppear {
                 if let n = nextUp, episodes.contains(where: { $0.id == n.id }) { proxy.scrollTo(n.id, anchor: .leading) }
             }
-        }
-        if let ep = episodes.first(where: { $0.id == nextUp?.id }) ?? episodes.first, let title = ep.title ?? ep.name {
-            Text("Up next: E\(ep.episode ?? 0) \(title)").font(.caption).foregroundStyle(.secondary)
         }
     }
 
