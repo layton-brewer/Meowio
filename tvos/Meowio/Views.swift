@@ -120,6 +120,8 @@ enum CardMetrics {
 struct PosterCard: View {
     let item: MetaItem
     var onFocus: ((MetaItem) -> Void)? = nil
+    /// Show Poster Labels: the name and year under the poster.
+    var showLabel = true
     @Environment(\.isFocused) private var focused
 
     var body: some View {
@@ -127,6 +129,7 @@ struct PosterCard: View {
             Artwork(url: item.posterURL, placeholder: item.name)
                 .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
                 .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+            if showLabel {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.name)
                     .font(.system(size: 26, weight: .medium))
@@ -137,6 +140,7 @@ struct PosterCard: View {
                 }
             }
             .frame(width: CardMetrics.posterWidth, alignment: .leading)
+            }
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
     }
@@ -334,15 +338,17 @@ struct Shelf: View {
     var onFocus: ((MetaItem) -> Void)? = nil
     /// The add-on catalog behind this row; when set, the row ends with a See all card, like Android TV.
     var catalog: AddonClient.AddonCatalog? = nil
+    @EnvironmentObject var settings: SettingsStore
 
     var body: some View {
+        let items = settings.visible(self.items)
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
-                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus) }
+                            NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus, showLabel: settings.posterLabels) }
                                 .buttonStyle(.focusRing)
                         }
                         if let catalog {
@@ -394,7 +400,7 @@ struct ContinueShelf: View {
     var onFocus: ((MetaItem) -> Void)? = nil
 
     var body: some View {
-        if !library.continueWatching.isEmpty {
+        if !library.continueWatching.isEmpty && settings.showContinueWatching {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Continue Watching").font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -605,7 +611,9 @@ struct HomeView: View {
                 ZStack(alignment: .topLeading) {
                     HeroBackdrop(url: heroShown?.backgroundURL, background: settings.theme.background,
                                  trailerFor: settings.heroTrailers ? heroShown : nil)
-                    if let heroShown {
+                    if !settings.showHero {
+                        EmptyView()
+                    } else if let heroShown {
                         HeroHeader(item: heroShown)
                             .padding(.leading, CardMetrics.rowInset)
                             .padding(.top, 56)
@@ -637,7 +645,7 @@ struct HomeView: View {
                         .padding(.bottom, 80)
                     }
                     // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
-                    .frame(height: geo.size.height * 0.5)
+                    .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }

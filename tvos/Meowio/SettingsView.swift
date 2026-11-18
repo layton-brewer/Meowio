@@ -139,6 +139,12 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var layoutSection: some View {
+        Section("Home layout") {
+            Toggle("Show hero section", isOn: $settings.showHero)
+            Toggle("Show Continue Watching", isOn: $settings.showContinueWatching)
+            Toggle("Show poster labels", isOn: $settings.posterLabels)
+            Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
+        }
         Section {
             NavigationLink("Edit collections") { CollectionEditorView() }
         }

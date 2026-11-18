@@ -167,6 +167,11 @@ final class SettingsStore: ObservableObject {
     /// An empty order follows the add-on order.
     @Published var homeCatalogOrder: [String] { didSet { save() } }
     @Published var disabledHomeCatalogs: [String] { didSet { save() } }
+    /// Android TV's Layout settings for Home.
+    @Published var showHero: Bool { didSet { save() } }
+    @Published var showContinueWatching: Bool { didSet { save() } }
+    @Published var posterLabels: Bool { didSet { save() } }
+    @Published var hideUnreleased: Bool { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -222,6 +227,10 @@ final class SettingsStore: ObservableObject {
         subtitleStyle = d.data(forKey: "subtitleStyle").flatMap { try? JSONDecoder().decode(SubtitleStyle.self, from: $0) } ?? SubtitleStyle()
         homeCatalogOrder = d.stringArray(forKey: "homeCatalogOrder") ?? []
         disabledHomeCatalogs = d.stringArray(forKey: "disabledHomeCatalogs") ?? []
+        showHero = d.object(forKey: "showHero") as? Bool ?? true
+        showContinueWatching = d.object(forKey: "showContinueWatching") as? Bool ?? true
+        posterLabels = d.object(forKey: "posterLabels") as? Bool ?? true
+        hideUnreleased = d.object(forKey: "hideUnreleased") as? Bool ?? false
     }
 
     private func save() {
@@ -255,6 +264,20 @@ final class SettingsStore: ObservableObject {
         if let data = try? JSONEncoder().encode(subtitleStyle) { d.set(data, forKey: "subtitleStyle") }
         d.set(homeCatalogOrder, forKey: "homeCatalogOrder")
         d.set(disabledHomeCatalogs, forKey: "disabledHomeCatalogs")
+        d.set(showHero, forKey: "showHero")
+        d.set(showContinueWatching, forKey: "showContinueWatching")
+        d.set(posterLabels, forKey: "posterLabels")
+        d.set(hideUnreleased, forKey: "hideUnreleased")
+    }
+
+    /// Hide Unreleased Content: titles whose year is still to come.
+    func visible(_ items: [MetaItem]) -> [MetaItem] {
+        guard hideUnreleased else { return items }
+        let year = Calendar.current.component(.year, from: Date())
+        return items.filter { item in
+            guard let info = item.releaseInfo, let y = Int(info.prefix(4)) else { return true }
+            return y <= year
+        }
     }
 
     /// Home catalogs in the user's order: saved keys first, then any new catalog in add-on order.
