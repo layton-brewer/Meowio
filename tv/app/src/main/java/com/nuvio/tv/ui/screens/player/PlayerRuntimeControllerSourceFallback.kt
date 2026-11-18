@@ -3,7 +3,9 @@ package com.nuvio.tv.ui.screens.player
 import android.util.Log
 import com.nuvio.tv.R
 import com.nuvio.tv.core.debrid.DirectDebridPlayableResult
+import com.nuvio.tv.core.player.DeadStreamRegistry
 import com.nuvio.tv.core.player.StreamAutoPlaySelector
+import com.nuvio.tv.core.player.StreamSmartRanker
 import com.nuvio.tv.data.local.PlayerSettings
 import com.nuvio.tv.domain.model.Stream
 import kotlinx.coroutines.delay
@@ -28,14 +30,32 @@ internal fun PlayerRuntimeController.scheduleSourceStartupTimeout() {
         delay(timeoutSeconds * 1_000L)
         if (hasRenderedFirstFrame || currentStreamUrl != url) return@launch
         if (_uiState.value.error != null || isInBackground) return@launch
-        // The last source allowed keeps loading, as it would without the fallback.
-        if (sourceFallbackAttempts >= streamAutoPlayFallbackMaxSources) return@launch
         val message = context.getString(R.string.player_error_source_startup_timeout, timeoutSeconds)
-        if (tryFallbackToNextSourceAfterError(message)) {
+        // The last source the classic fallback allows keeps loading, as it would without it.
+        if (sourceFallbackAttempts < streamAutoPlayFallbackMaxSources &&
+            tryFallbackToNextSourceAfterError(message)
+        ) {
             Log.w(PlayerRuntimeController.TAG, "Source showed no first frame in ${timeoutSeconds}s, falling back")
+            return@launch
+        }
+        // Smart auto-play: a link that hangs is as dead as one that errors. A peer-to-peer
+        // torrent is left alone, since finding peers can take longer and it reports its own errors.
+        if (isTorrentStream || errorRetryJob?.isActive == true) return@launch
+        delay(SMART_FAILOVER_EXTRA_STARTUP_WAIT_MS)
+        if (hasRenderedFirstFrame || currentStreamUrl != url) return@launch
+        if (_uiState.value.error != null || isInBackground) return@launch
+        if (sourceFallbackJob?.isActive == true || errorRetryJob?.isActive == true) return@launch
+        if (tryFailoverToNextSource(message)) {
+            Log.w(PlayerRuntimeController.TAG, "Source showed no first frame in time, moving to the next best source")
         }
     }
 }
+
+/**
+ * Extra time Smart failover gives a source beyond the start-up timeout, so a slow but working
+ * link (a large remux, a cold debrid server) is not dropped too eagerly.
+ */
+private const val SMART_FAILOVER_EXTRA_STARTUP_WAIT_MS = 5_000L
 
 /** Shows [errorMessage] as the playback error unless the next matching source is tried instead. */
 internal fun PlayerRuntimeController.showErrorUnlessSourceFallback(errorMessage: String) {
@@ -74,6 +94,12 @@ internal fun PlayerRuntimeController.tryFallbackToNextSourceAfterError(errorMess
     val failedAddonName = currentAddonName
     val failedInfoHash = state.currentStreamInfoHash ?: navigationArgs.infoHash
     sourceFallbackTriedKeys += "url:$failedUrl"
+    DeadStreamRegistry.markDead(
+        url = failedUrl,
+        addonName = failedAddonName,
+        infoHash = failedInfoHash,
+        fileIdx = currentFileIdx
+    )
     val season = currentSeason
     val episode = currentEpisode
 
@@ -151,6 +177,8 @@ internal fun nextSourceFallbackCandidate(
 ): Stream? {
     val untried = streams.filterNot { stream ->
         stream.sourceFallbackKey() in triedKeys ||
+            StreamSmartRanker.isMarkedUncached(stream) ||
+            DeadStreamRegistry.isDead(stream) ||
             (failedInfoHash != null && stream.addonName == failedAddonName &&
                 stream.getEffectiveInfoHash().equals(failedInfoHash, ignoreCase = true))
     }

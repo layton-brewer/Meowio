@@ -62,6 +62,12 @@ enum SmartRanker {
         )
     }
 
+    /// True when the add-on says this link is not cached yet. Playing it starts a download (or a
+    /// "downloading" placeholder video) instead of the title, so failover never moves to one.
+    static func isMarkedUncached(_ stream: StreamItem) -> Bool {
+        stream.combinedText.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#)
+    }
+
     /// 0 = plays at once, 1 = probably fine, 2 = has to download first.
     static func availabilityTier(_ stream: StreamItem, text: String, cached: Set<String> = []) -> Int {
         // A torrent the user's debrid service already has plays at once.

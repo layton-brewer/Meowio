@@ -32,6 +32,7 @@ commonMain/kotlin/com/nuvio/app/features/livetv/M3uParser.kt
 commonMain/kotlin/com/nuvio/app/features/livetv/XmltvParser.kt
 commonMain/kotlin/com/nuvio/app/features/livetv/XtreamApi.kt
 commonMain/kotlin/com/nuvio/app/features/player/AudioTrackModal.kt
+commonMain/kotlin/com/nuvio/app/features/player/PlaybackStallFailoverPolicy.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerChaptersPanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerEpisodesPanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenModalHosts.kt
@@ -42,6 +43,7 @@ commonMain/kotlin/com/nuvio/app/features/player/skip/SkipIntroButton.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamSettings.kt
 commonMain/kotlin/com/nuvio/app/features/settings/SettingsBackupPlatform.kt
+commonMain/kotlin/com/nuvio/app/features/streams/DeadStreamRegistry.kt
 commonMain/kotlin/com/nuvio/app/features/streams/PlaybackFailover.kt
 commonMain/kotlin/com/nuvio/app/features/streams/StreamAutoPlayModels.kt
 commonMain/kotlin/com/nuvio/app/features/streams/StreamAutoPlayPolicy.kt

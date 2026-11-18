@@ -129,6 +129,45 @@ class StreamSmartRankerTest {
     }
 
     @Test
+    fun `backup ranking skips uncached and recently dead links`() {
+        val good = stream("1080p good")
+        val uncached = stream("[RD download] 2160p")
+        val dead = stream("1080p dead")
+        val ranked = com.nuvio.tv.ui.screens.player.rankSourceFailoverCandidates(
+            streams = listOf(uncached, dead, good),
+            triedKeys = emptySet(),
+            isSeries = false,
+            isDead = { it == dead }
+        )
+        assertEquals(listOf(good), ranked)
+    }
+
+    @Test
+    fun `auto-play skips a link that just failed unless nothing else is left`() {
+        DeadStreamRegistry.clear()
+        val best = stream("1080p WEB-DL")
+        val other = stream("720p WEB-DL")
+        DeadStreamRegistry.markDead(best)
+        try {
+            val pick = { list: List<Stream> ->
+                StreamAutoPlaySelector.selectAutoPlayStream(
+                    streams = list,
+                    mode = com.nuvio.tv.data.local.StreamAutoPlayMode.SMART,
+                    regexPattern = "",
+                    source = com.nuvio.tv.data.local.StreamAutoPlaySource.ALL_SOURCES,
+                    installedAddonNames = setOf("Addon"),
+                    selectedAddons = emptySet(),
+                    selectedPlugins = emptySet()
+                )
+            }
+            assertEquals(other, pick(listOf(best, other)))
+            assertEquals(best, pick(listOf(best)))
+        } finally {
+            DeadStreamRegistry.clear()
+        }
+    }
+
+    @Test
     fun `smart mode backups follow the first pick`() {
         val low = stream("480p")
         val best = stream("1080p WEB-DL")

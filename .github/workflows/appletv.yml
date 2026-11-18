@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.48
+  APPLETV_VERSION: 0.2.49
 
 permissions:
   contents: write
@@ -88,10 +88,26 @@ jobs:
           (cd pkg && zip -qry ../Meowio-tvos.ipa Payload)
           shasum -a 256 Meowio-tvos.ipa
 
+      # The same app, with the same keys, built for the Apple TV Simulator on an Apple Silicon Mac,
+      # so the release itself can be tried without an Apple TV (test-apple-tv.command installs it).
+      - name: Build for the Apple TV Simulator
+        run: |
+          xcodebuild -project Meowio.xcodeproj -scheme Meowio -configuration Release \
+            -sdk appletvsimulator -destination 'generic/platform=tvOS Simulator' \
+            -derivedDataPath build-sim ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            MARKETING_VERSION=$APPLETV_VERSION CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= build
+          app="build-sim/Build/Products/Release-appletvsimulator/Meowio.app"
+          test -d "$app"
+          ditto -c -k --keepParent "$app" Meowio-tvos-simulator.zip
+          shasum -a 256 Meowio-tvos-simulator.zip
+
       - uses: actions/upload-artifact@v4
         with:
           name: Meowio-tvos
-          path: tvos/Meowio-tvos.ipa
+          path: |
+            tvos/Meowio-tvos.ipa
+            tvos/Meowio-tvos-simulator.zip
           retention-days: 14
 
       - name: Publish the Apple TV release
@@ -106,11 +122,13 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
-          - **Skip Intro works on regular shows and movies again:** skip intro, recap and credits timings now come from IntroDB, not just anime and chapter markers.
+          - **Auto-play recovers from dead links:** a source that hangs at start or stops mid-show switches to the next source at the same spot, recently failed links are skipped, and "not cached" links are never used as a backup.
 
           ## Download
 
           [Meowio-tvos.ipa](https://github.com/REPO/releases/download/TAG/Meowio-tvos.ipa). Sideload it over your current version; settings and library stay.
+
+          No Apple TV? [Meowio-tvos-simulator.zip](https://github.com/REPO/releases/download/TAG/Meowio-tvos-simulator.zip) is this same release for the Apple TV Simulator on an Apple Silicon Mac.
 
           The other apps are on the [main Meowio release](https://github.com/REPO/releases/latest).
           NOTES
@@ -120,5 +138,5 @@ jobs:
             gh release create "$tag" --target "${{ github.sha }}" --title "Meowio for Apple TV $APPLETV_VERSION" \
               --notes-file notes.md --latest=false
           fi
-          for i in 1 2 3 4; do gh release upload "$tag" tvos/Meowio-tvos.ipa --clobber && exit 0; sleep 30; done
+          for i in 1 2 3 4; do gh release upload "$tag" tvos/Meowio-tvos.ipa tvos/Meowio-tvos-simulator.zip --clobber && exit 0; sleep 30; done
           exit 1

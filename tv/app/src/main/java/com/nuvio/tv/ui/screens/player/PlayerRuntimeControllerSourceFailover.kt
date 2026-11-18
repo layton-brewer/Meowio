@@ -1,6 +1,7 @@
 package com.nuvio.tv.ui.screens.player
 
 import android.util.Log
+import com.nuvio.tv.core.player.DeadStreamRegistry
 import com.nuvio.tv.core.player.StreamAutoPlaySelector
 import com.nuvio.tv.core.player.StreamSmartRanker
 import com.nuvio.tv.data.local.StreamAutoPlayMode
@@ -23,15 +24,23 @@ internal fun Stream.failoverKey(): String =
 
 /**
  * The sources worth trying after the playing one failed, best first: everything auto-play
- * could play, ranked for this device, minus what was already tried.
+ * could play, ranked for this device (cached first, then resolution fit), minus what was
+ * already tried, links that failed recently, and links marked as not cached (those start a
+ * download instead of the title).
  */
 internal fun rankSourceFailoverCandidates(
     streams: List<Stream>,
     triedKeys: Set<String>,
-    isSeries: Boolean
+    isSeries: Boolean,
+    isDead: (Stream) -> Boolean = DeadStreamRegistry::isDead
 ): List<Stream> =
     StreamSmartRanker.rank(
-        streams.filter { StreamAutoPlaySelector.isPlayable(it) && it.failoverKey() !in triedKeys },
+        streams.filter {
+            StreamAutoPlaySelector.isPlayable(it) &&
+                it.failoverKey() !in triedKeys &&
+                !StreamSmartRanker.isMarkedUncached(it) &&
+                !isDead(it)
+        },
         isSeries = isSeries
     )
 
@@ -57,6 +66,13 @@ internal fun PlayerRuntimeController.tryFailoverToNextSource(errorMessage: Strin
     val failedUrl = currentStreamUrl
     if (failedUrl.isNotBlank()) sourceFailoverTriedKeys += failedUrl
     val failedInfoHash = _uiState.value.currentStreamInfoHash ?: navigationArgs.infoHash
+    // Remembered so auto-play does not pick this link again when the viewer comes back to the title.
+    DeadStreamRegistry.markDead(
+        url = failedUrl,
+        addonName = currentAddonName,
+        infoHash = failedInfoHash,
+        fileIdx = currentFileIdx
+    )
     val season = currentSeason
     val episode = currentEpisode
     Log.i(PlayerRuntimeController.TAG, "Source failed to play, trying the next best source")

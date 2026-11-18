@@ -13,6 +13,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.servers.ServerPlayback
 import com.nuvio.app.features.servers.serverPlaybackMessage
+import com.nuvio.app.features.streams.DeadStreamRegistry
 import com.nuvio.app.features.streams.PlaybackFailover
 import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
@@ -397,6 +398,9 @@ internal fun PlayerScreenRuntime.tryFailoverToNextSource(message: String): Boole
     val failedPlaybackKey = activePlaybackKey
     val failedStream = activeStream
     val failedUrl = activeSourceUrl
+    // Remembered so auto-play does not pick this link again when the user comes back to the title.
+    failedStream?.let { DeadStreamRegistry.markDead(it, playedUrl = failedUrl) }
+        ?: DeadStreamRegistry.markDead(url = failedUrl)
     removeFailedStreamFromCache()
     scope.launch {
         while (activePlaybackKey == failedPlaybackKey) {

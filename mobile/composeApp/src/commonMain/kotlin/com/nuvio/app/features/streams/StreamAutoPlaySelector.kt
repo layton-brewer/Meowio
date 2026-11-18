@@ -93,6 +93,8 @@ object StreamAutoPlaySelector {
         isSeries: Boolean = false,
     ): StreamAutoPlayEvaluation {
         if (streams.isEmpty()) return StreamAutoPlayEvaluation()
+        // Links that just failed to play are skipped while anything else is left.
+        val streams = DeadStreamRegistry.withoutDead(streams)
 
         val sourceScopedStreams = when (source) {
             StreamAutoPlaySource.ALL_SOURCES -> streams
