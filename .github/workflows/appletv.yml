@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.48
+  APPLETV_VERSION: 0.2.49
 
 permissions:
   contents: write
@@ -106,7 +106,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new
 
-          - **Skip Intro works on regular shows and movies again:** skip intro, recap and credits timings now come from IntroDB, not just anime and chapter markers.
+          - **Auto-play recovers from dead links:** a source that hangs at start or stops mid-show switches to the next source at the same spot, recently failed links are skipped, and "not cached" links are never used as a backup.
 
           ## Download
 
