@@ -104,13 +104,9 @@ fun DetailActionButtons(
             onClick = it,
         )
     }
-    // Download takes the pinned slot beside Play unless Shuffle is active there.
-    val shownPinned = pinnedAction ?: downloadAction
-    val allSecondaryActions = if (pinnedAction != null && downloadAction != null) {
-        secondaryActions + downloadAction
-    } else {
-        secondaryActions
-    }
+    // Download and the random-episode button both sit beside Play; the rest live behind "...".
+    val shownPinnedActions = listOfNotNull(downloadAction, pinnedAction)
+    val allSecondaryActions = secondaryActions
     val hasSecondaryActions = allSecondaryActions.isNotEmpty()
 
     Box(
@@ -169,7 +165,7 @@ fun DetailActionButtons(
                 }
             }
 
-            if (shownPinned != null) {
+            shownPinnedActions.forEach { shownPinned ->
                 Spacer(modifier = Modifier.width(12.dp))
                 DetailIconAction(
                     label = shownPinned.label,
@@ -291,9 +287,8 @@ fun DetailActions(
     DetailActionButtons(
         playLabel = if (playEnabled) playLabel else stringResource(Res.string.playback_unavailable),
         playEnabled = playEnabled,
-        pinnedAction = shuffleAction?.takeIf { shuffleEnabled },
+        pinnedAction = shuffleAction,
         secondaryActions = buildList {
-            if (!shuffleEnabled) shuffleAction?.let(::add)
             add(
                 DetailSecondaryAction(
                     label = stringResource(if (isWatched) Res.string.hero_mark_unwatched else Res.string.hero_mark_watched),

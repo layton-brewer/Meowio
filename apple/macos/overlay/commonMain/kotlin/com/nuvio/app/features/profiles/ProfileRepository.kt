@@ -127,7 +127,18 @@ object ProfileRepository {
 
     suspend fun pullProfiles() {
         if (AuthRepository.state.value.isAnonymous) {
-            if (!_state.value.isLoaded) {
+            if (_state.value.profiles.isEmpty()) {
+                // Guest mode never syncs profiles, so seed one like the TV app does.
+                applyPayloadsLocally(
+                    listOf(
+                        ProfilePushPayload(
+                            profileIndex = 1,
+                            name = getString(Res.string.profile_default_name, 1),
+                            avatarColorHex = "#1E88E5",
+                        ),
+                    ),
+                )
+            } else if (!_state.value.isLoaded) {
                 _state.value = _state.value.copy(isLoaded = true)
             }
             return

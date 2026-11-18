@@ -62,7 +62,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 
-private const val PUSH_DEBOUNCE_MS = 500L
+private const val PUSH_DEBOUNCE_MS = 1500L
 private const val BACKUP_APP = "meowio-mobile"
 /** Set in backups that left personal add-on links out; restoring one keeps this device's own. */
 private const val BACKUP_PRIVATE_LINKS_LEFT_OUT = "privateAddonLinksLeftOut"
