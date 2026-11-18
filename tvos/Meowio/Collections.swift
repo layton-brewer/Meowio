@@ -436,6 +436,7 @@ struct CollectionShelf: View {
                 }
                 .scrollClipDisabled()
             }
+            .focusSection()
         }
     }
 }

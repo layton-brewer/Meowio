@@ -185,7 +185,8 @@ final class LibraryStore: ObservableObject {
         var slim = meta
         slim.videos = nil
         var changed = false
-        for i in continueWatching.indices where continueWatching[i].id == meta.id && continueWatching[i].meta.poster == nil {
+        for i in continueWatching.indices where continueWatching[i].id == meta.id
+            && (continueWatching[i].meta.poster == nil || continueWatching[i].meta.name.isEmpty || continueWatching[i].meta.name == meta.id) {
             continueWatching[i].meta = slim
             changed = true
         }

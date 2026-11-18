@@ -348,6 +348,9 @@ struct Shelf: View {
                 }
                 .scrollClipDisabled()
             }
+            // Each row is one focus section, so Up and Down always land on the row above or below,
+            // even when no card sits straight above the focused one.
+            .focusSection()
         }
     }
 }
@@ -407,7 +410,21 @@ struct ContinueShelf: View {
                 }
                 .scrollClipDisabled()
             }
+            .focusSection()
+            // Entries synced from the account or Trakt can arrive with only an id: fetch their name and artwork.
+            .task(id: missingArt.map(\.id)) {
+                for entry in missingArt.prefix(30) {
+                    if let meta = await AddonClient.meta(type: entry.meta.type.isEmpty ? (entry.videoId == nil ? "movie" : "series") : entry.meta.type,
+                                                         id: entry.id, addonBase: entry.meta.addonBase, addons: settings.addons) {
+                        library.refreshContinueMeta(meta)
+                    }
+                }
+            }
         }
+    }
+
+    private var missingArt: [ContinueItem] {
+        library.continueWatching.filter { $0.meta.poster == nil || $0.meta.name.isEmpty || $0.meta.name == $0.id }
     }
 
     private func subtitle(_ entry: ContinueItem) -> String? {
@@ -587,7 +604,8 @@ struct HomeView: View {
                     }
                     // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 12) {
+                        // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
+                        VStack(alignment: .leading, spacing: 12) {
                             notices
                             ContinueShelf(onFocus: focus)
                             ForEach(serverShelves) { shelf in
@@ -649,14 +667,21 @@ struct HomeView: View {
             serverShelves = await servers.shelves()
         }
         .task(id: settings.addons) {
-            let catalogs = await AddonClient.addonCatalogs(settings.addons)
-            var rows: [AddonRow] = []
-            for c in catalogs.prefix(12) {
-                let items = await AddonClient.items(in: c)
-                // Skip rows that only repeat Cinemeta's popular lists.
-                if !items.isEmpty, c.base != AddonClient.cinemeta { rows.append(AddonRow(catalog: c, items: Array(items.prefix(40)))) }
+            // Cinemeta's lists are the Popular rows above; every other add-on's catalogs follow in add-on order.
+            let catalogs = Array(await AddonClient.addonCatalogs(settings.addons)
+                .filter { $0.base != AddonClient.cinemeta }.prefix(40))
+            var found: [Int: AddonRow] = [:]
+            await withTaskGroup(of: (Int, [MetaItem]).self) { group in
+                for (index, catalog) in catalogs.enumerated() {
+                    group.addTask { (index, await AddonClient.items(in: catalog)) }
+                }
+                // Rows appear as each catalog arrives instead of after the slowest one.
+                for await (index, items) in group where !items.isEmpty {
+                    found[index] = AddonRow(catalog: catalogs[index], items: Array(items.prefix(40)))
+                    addonRows = found.keys.sorted().compactMap { found[$0] }
+                }
             }
-            addonRows = rows
+            if found.isEmpty { addonRows = [] }
         }
     }
 
