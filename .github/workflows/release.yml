@@ -61,6 +61,7 @@ jobs:
           MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
           PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
@@ -174,6 +175,7 @@ jobs:
           MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
           PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
         run: |
           if [ -n "$LOCAL_PROPERTIES_BASE64" ]; then
             printf '%s' "$LOCAL_PROPERTIES_BASE64" | base64 --decode > local.properties
