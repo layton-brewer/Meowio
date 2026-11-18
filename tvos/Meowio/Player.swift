@@ -54,6 +54,8 @@ struct PlayRequest: Identifiable {
     var candidates: [StreamItem]
     var headers: [String: String] = [:]
     var isLive = false
+    /// False for files played from the debrid cloud: they are not titles, so nothing is saved or scrobbled.
+    var tracked = true
     /// Live TV VPN proxy for this Live TV request, or "" for none. Never set for anything but Live TV.
     var liveProxy = ""
     /// Live TV only: told why the channel failed, or nil once it plays.
@@ -134,6 +136,7 @@ final class PlaybackController: ObservableObject {
     }
 
     private func emitScrobble(_ action: String, _ percent: Double) {
+        guard request.tracked else { return }
         onScrobble?(request, action, percent)
         if request.candidates.indices.contains(index) {
             serverReport.report(action, stream: request.candidates[index], seconds: lastSeconds, paused: action == "pause")
@@ -285,7 +288,7 @@ final class PlaybackController: ObservableObject {
 
     private func finishRecording(completed: Bool) {
         syncFromMPV()
-        guard !request.isLive, lastSeconds > 5 else { return }
+        guard !request.isLive, request.tracked, lastSeconds > 5 else { return }
         let done = completed || (lastDuration > 0 && lastSeconds / lastDuration > 0.92)
         onProgress?(request, lastSeconds, lastDuration, done)
     }
