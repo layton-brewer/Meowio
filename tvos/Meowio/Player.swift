@@ -112,6 +112,11 @@ final class PlaybackController: ObservableObject {
     private var ticker: Timer?
     private var resolved: [Int: URL] = [:]
     private var pendingSubtitle: SubtitleItem?
+    /// The file mpv is playing, for Automatic subtitle sync.
+    private var mpvSource: (url: URL, headers: [String: String])?
+    /// The add-on subtitle the current timing correction was worked out for.
+    private var syncedSubtitleURL: String?
+    private var subtitleSyncTask: Task<Void, Never>?
     private var upNextDismissed = false
     private var advancing = false
     private var wasPaused = true
@@ -199,6 +204,7 @@ final class PlaybackController: ObservableObject {
         player.pause()
         player.replaceCurrentItem(with: nil)
         mpv.stop()
+        subtitleSyncTask?.cancel()
         cancellables.removeAll()
     }
 
@@ -363,6 +369,26 @@ final class PlaybackController: ObservableObject {
         }
     }
 
+    /// Automatic subtitle sync (off by default): when the viewer's subtitle is an add-on file, line it
+    /// up with the video's built-in subtitle timing. Only timing changes; subtitles are never turned on.
+    private func subtitleChanged() {
+        guard usingMPV, let source = mpvSource else { return }
+        let selected = mpv.selectedExternalSubtitle()
+        guard selected?.url != syncedSubtitleURL else { return }
+        subtitleSyncTask?.cancel()
+        if syncedSubtitleURL != nil { mpv.setSubtitleTiming(delay: 0, speed: 1) }
+        syncedSubtitleURL = selected?.url
+        guard settings.autoSubtitleSync, let selected, let subtitleURL = URL(string: selected.url) else { return }
+        subtitleSyncTask = Task { [weak self] in
+            let result = await SubtitleAutoSync.sync(source: source.url, headers: source.headers,
+                                                     subtitle: subtitleURL, language: selected.lang)
+            guard let self, !Task.isCancelled, let result, self.usingMPV,
+                  self.mpvSource?.url == source.url, self.syncedSubtitleURL == selected.url,
+                  self.mpv.selectedExternalSubtitle()?.url == selected.url else { return }
+            self.mpv.setSubtitleTiming(delay: result.delaySeconds, speed: result.speed)
+        }
+    }
+
     private func load(at i: Int, keepPosition: Bool = true) {
         guard !stopped else { return }
         guard request.candidates.indices.contains(i) else {
@@ -427,9 +453,14 @@ final class PlaybackController: ObservableObject {
             }
             mpv.onFailed = { [weak self] in self?.failover() }
             mpv.onEnded = { [weak self] in self?.ended() }
+            mpv.onSubtitleChanged = { [weak self] in self?.subtitleChanged() }
+            mpvSource = (url, headers)
+            syncedSubtitleURL = nil
+            subtitleSyncTask?.cancel()
             mpv.setPreferences(audioLanguage: settings.audioLanguage, subtitleLanguage: settings.subtitleLanguage,
                                subtitlesOn: settings.subtitlesOn)
             mpv.setSubtitleStyle(settings.subtitleStyle)
+            mpv.setSubtitleTiming(delay: 0, speed: 1)
             mpv.load(url: url.absoluteString, headers: headers, start: pendingStart, proxy: proxy)
             armTimeout()
             return
@@ -822,15 +853,21 @@ struct MPVPlayerLayer: View {
         ZStack(alignment: .bottom) {
             MPVSurface(engine: controller.mpv).ignoresSafeArea()
             if showBar || showMenu {
-                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                VStack(alignment: .leading, spacing: 18) {
-                    if showMenu { menuPanel }
-                    progressBar
+                // Android TV's player chrome: dark fades top and bottom, the title and episode bottom left,
+                // the progress bar, then a row of round control buttons.
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .top, endPoint: .bottom).frame(height: 300)
+                    Spacer()
+                    LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom).frame(height: 520)
                 }
-                .padding(.horizontal, 80)
-                .padding(.bottom, 60)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                VStack(alignment: .leading, spacing: 24) {
+                    progressBar
+                    if showMenu { menuPanel }
+                }
+                .padding(.horizontal, 64)
+                .padding(.bottom, 48)
                 .transition(.opacity)
             }
             if !showMenu, let corner = cornerAction {
@@ -884,7 +921,15 @@ struct MPVPlayerLayer: View {
             let pos = controller.mpv.position
             let dur = controller.mpv.duration
             VStack(alignment: .leading, spacing: 12) {
-                Text(controller.request.title).font(.title3.bold()).lineLimit(1)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(controller.request.meta.type == "series" ? controller.request.meta.name : controller.request.title)
+                        .font(.system(size: 52, weight: .bold)).lineLimit(1)
+                    if let code = episodeCode {
+                        Text("\(code) • \(controller.request.title)").font(.system(size: 32, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9)).lineLimit(1)
+                    }
+                }
+                .padding(.bottom, 12)
                 if !controller.request.isLive, dur > 0 {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -909,8 +954,16 @@ struct MPVPlayerLayer: View {
         }
     }
 
+    /// "S1E4" for an episode, from its id (tt123:1:4).
+    private var episodeCode: String? {
+        guard controller.request.meta.type == "series", let vid = controller.request.videoId else { return nil }
+        let parts = vid.split(separator: ":")
+        guard parts.count >= 3, let s = Int(parts[parts.count - 2]), let e = Int(parts[parts.count - 1]) else { return nil }
+        return "S\(s)E\(e)"
+    }
+
     private var menuPanel: some View {
-        HStack(spacing: 30) {
+        HStack(spacing: 16) {
             if controller.request.candidates.count > 1 {
                 Menu {
                     ForEach(Array(controller.request.candidates.prefix(25).enumerated()), id: \.offset) { i, s in
@@ -966,12 +1019,12 @@ struct MPVPlayerLayer: View {
                     Button("End of episode") { SleepTimer.shared.endOfEpisode() }
                 } label: { Label(sleep.label, systemImage: "moon.zzz") }
                 PartyMenuButton(party: party, controller: controller)
-                Button { controller.mpv.seek(by: -30) } label: { Label("30s", systemImage: "gobackward.30") }
-                Button { controller.mpv.seek(by: 30) } label: { Label("30s", systemImage: "goforward.30") }
+                Button { controller.mpv.seek(by: -30) } label: { Label("Back 30 seconds", systemImage: "gobackward.30") }
+                Button { controller.mpv.seek(by: 30) } label: { Label("Forward 30 seconds", systemImage: "goforward.30") }
             }
         }
-        .padding(24)
-        .glass()
+        .buttonStyle(CircleIconButtonStyle())
+        .labelStyle(.iconOnly)
     }
 
     private func openMenu() {

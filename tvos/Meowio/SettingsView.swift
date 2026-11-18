@@ -15,232 +15,433 @@ struct SettingsView: View {
     @State private var addonNames: [String: String] = [:]
     @StateObject private var updates = UpdateChecker()
 
+    @State private var category: SettingsCategory = .account
+    @FocusState private var railFocus: SettingsCategory?
+
     var body: some View {
         NavigationStack {
-            List {
-                Section("Profile and accounts") {
-                    if let p = profiles.active {
-                        NavigationLink { ProfilesSettingsView() } label: {
-                            HStack(spacing: 20) {
-                                ProfileAvatar(profile: p, size: 50)
-                                Text(p.name)
-                                Spacer()
-                                Text("Profiles").foregroundStyle(.secondary)
+            // Android TV's settings: a rail of categories on the left, that category's settings on the right.
+            HStack(alignment: .top, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Grouped like the phone and Android TV settings.
+                            ForEach(Array(SettingsCategory.groups.enumerated()), id: \.offset) { i, group in
+                                if i > 0 { Divider().padding(.vertical, 10).padding(.horizontal, 24) }
+                                ForEach(group) { c in
+                                    Button { category = c } label: {
+                                        HStack(spacing: 20) {
+                                            Image(systemName: c.icon)
+                                                .font(.system(size: 26, weight: .semibold))
+                                                .foregroundStyle(settings.theme.accent)
+                                                .frame(width: 60, height: 60)
+                                                .background(settings.theme.accent.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(c.title)
+                                                Text(c.subtitle).font(.system(size: 20)).foregroundStyle(.secondary).lineLimit(1)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(RailButtonStyle(selected: c == category))
+                                    .focused($railFocus, equals: c)
+                                }
                             }
                         }
+                        .padding(.vertical, 8)
                     }
-                    NavigationLink { AccountSettingsView() } label: {
-                        HStack {
-                            Text("Nuvio account")
-                            Spacer()
-                            Text(account.signedIn ? (account.email ?? "Signed in") : (AccountStore.available ? "Not signed in" : "Off"))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    // Tracking cards are always shown. Without sign-in keys in this build they read "Not set up yet".
-                    NavigationLink { TraktSettingsView() } label: {
-                        HStack {
-                            Text("Trakt")
-                            Spacer()
-                            Text(trakt.connected ? (trakt.username ?? "Connected") : (TraktStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
-                        }
-                    }
-                    NavigationLink { SimklSettingsView() } label: {
-                        HStack {
-                            Text("Simkl")
-                            Spacer()
-                            Text(simkl.connected ? (simkl.username ?? "Connected") : (SimklStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
-                        }
-                    }
-                    NavigationLink { MDBListSettingsView() } label: {
-                        HStack {
-                            Text("MDBList")
-                            Spacer()
-                            Text(mdblist.connected ? (mdblist.username ?? "Connected") : "Not connected").foregroundStyle(.secondary)
-                        }
+                    .scrollClipDisabled()
+                }
+                .frame(width: 640)
+                // Moving along the rail opens each category, like Android TV.
+                .onChange(of: railFocus) { _, c in if let c { category = c } }
+                .padding(.leading, 80)
+                .padding(.top, 110)
+                List {
+                    switch category {
+                    case .account: accountSection
+                    case .profiles: profilesSection
+                    case .party: partySection
+                    case .appearance: appearanceSection
+                    case .layout: layoutSection
+                    case .content: contentSection
+                    case .playback: playbackSection
+                    case .integrations: integrationsSection
+                    case .tracking: trackingSection
+                    case .stats: statsSection
+                    case .ai: aiSection
+                    case .live: liveSection
+                    case .advanced: advancedSection
+                    case .about: aboutSection
                     }
                 }
-
-                Section("Media servers and watch party") {
-                    NavigationLink { MediaServersSettingsView() } label: {
-                        HStack {
-                            Text("Jellyfin and Emby")
-                            Spacer()
-                            Text(servers.hasEnabled ? "\(servers.enabled.count) connected" : "None").foregroundStyle(.secondary)
-                        }
-                    }
-                    NavigationLink { PartySettingsView() } label: {
-                        HStack {
-                            Text("Watch party")
-                            Spacer()
-                            Text(party.party.map { "In party \($0.formattedCode)" } ?? "Join or host").foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Section("Plugins") {
-                    NavigationLink { PluginsSettingsView() } label: {
-                        LabeledContent("Nuvio plugins", value: "\(plugins.scrapers.filter(\.enabled).count) on")
-                    }
-                }
-
-                Section("Stream add-ons") {
-                    ForEach(settings.addons, id: \.self) { base in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(addonNames[base] ?? base)
-                                Text(base).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                            }
-                            Spacer()
-                            Button("Remove") { settings.addons.removeAll { $0 == base } }
-                        }
-                    }
-                    TextField("Add-on link (https://… or stremio://…)", text: $newAddon)
-                    Button("Add add-on") {
-                        settings.addAddon(newAddon)
-                        newAddon = ""
-                    }
-                }
-
-                Section("Playback") {
-                    Picker("Source selection", selection: $settings.streamMode) {
-                        ForEach(StreamMode.allCases) { Text($0.title).tag($0) }
-                    }
-                    Toggle("Play next episode automatically", isOn: $settings.autoNext)
-                    Toggle("Prefer the same release for every episode", isOn: $settings.sameRelease)
-                    Toggle("Find the next episode's sources early", isOn: $settings.preloadNext)
-                    Toggle("Switch sources silently when one fails", isOn: $settings.failoverEnabled)
-                    Picker("Most source switches per title", selection: $settings.maxSwitches) {
-                        ForEach([2, 4, 6, 10, 15], id: \.self) { Text("\($0)").tag($0) }
-                    }
-                    Picker("Wait for a source to start", selection: $settings.startupTimeout) {
-                        ForEach([10, 15, 20, 30, 45], id: \.self) { Text("\($0) seconds").tag($0) }
-                    }
-                }
-
-                Section("Player") {
-                    Toggle("Show Skip Intro on intro and recap chapters", isOn: $settings.skipIntro)
-                    Toggle("Show Next Episode near the end", isOn: $settings.upNextCard)
-                    Toggle("Play trailers behind the Home header", isOn: $settings.heroTrailers)
-                    Picker("Audio language", selection: $settings.audioLanguage) {
-                        Text("File default").tag("")
-                        ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
-                    }
-                    Toggle("Turn subtitles on", isOn: $settings.subtitlesOn)
-                    Picker("Subtitle language", selection: $settings.subtitleLanguage) {
-                        Text("Apple TV language").tag("")
-                        ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
-                    }
-                    NavigationLink("Subtitle style") { SubtitleStyleView() }
-                }
-
-                Section {
-                    Picker("Service", selection: $settings.debridService) {
-                        ForEach(DebridService.allCases) { Text($0.title).tag($0) }
-                    }
-                    if settings.debridService != .none {
-                        if Debrid.canSignIn(settings.debridService) {
-                            NavigationLink { DebridSignInView(service: settings.debridService) } label: {
-                                LabeledContent("Sign in with a code", value: settings.debridReady ? "Connected" : "")
-                            }
-                        }
-                        SecureField("\(settings.debridService.title) API key", text: $settings.debridKey)
-                    }
-                } header: {
-                    Text("Debrid (plays torrent results)")
-                } footer: {
-                    Text("Apple TV can't run torrents itself. With a debrid key, torrent results from your add-ons are turned into direct links, and uncached ones are skipped so playback never waits on a download. Signed in to your Nuvio account, the key comes from your phone or Android TV automatically. It is never in backups.")
-                }
-
-                if !settings.addons.isEmpty {
-                    Section("Pinned sources (tried first at the same quality)") {
-                        ForEach(Array(addonNames.values).sorted(), id: \.self) { name in
-                            Toggle(name, isOn: Binding(
-                                get: { settings.pinnedSources.contains(name) },
-                                set: { _ in settings.togglePinned(name) }))
-                        }
-                    }
-                }
-
-                Section {
-                    SecureField("TMDB API key (optional)", text: $settings.tmdbKey)
-                } header: {
-                    Text("Collections and trailers")
-                } footer: {
-                    Text("Collections made in the other Meowio apps appear on Home. Folders built from TMDB lists and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
-                }
-
-                Section {
-                    NavigationLink("Edit collections") { CollectionEditorView() }
-                }
-
-                Section("Appearance") {
-                    Picker("Theme", selection: $settings.theme) {
-                        ForEach(MeowioTheme.allCases) { Text($0.title).tag($0) }
-                    }
-                    Toggle("Show Live TV", isOn: $settings.liveTabVisible)
-                }
-
-                Section("Live TV playlists (none = free built-in channels)") {
-                    ForEach(settings.liveSources) { source in
-                        NavigationLink {
-                            LiveSourceEditor(original: source)
-                        } label: {
-                            HStack {
-                                Text(source.label)
-                                Spacer()
-                                Text(source.enabled ? (source.type == .xtream ? "Xtream" : "M3U") : "Off")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    NavigationLink("Add a playlist or login") { LiveSourceEditor(original: nil) }
-                }
-
-                Section("Live TV VPN (only Live TV uses it, never debrid)") {
-                    Toggle("Use for Live TV", isOn: $settings.liveVpnEnabled)
-                    TextField("Proxy, such as http://user:pass@host:8080", text: $settings.liveVpnProxy)
-                    Text(liveVpnStatus).font(.caption).foregroundStyle(.secondary)
-                }
-
-                Section("More") {
-                    NavigationLink("Watch insights") { InsightsView() }
-                    NavigationLink("AI assistant") { AiAssistantView() }
-                }
-
-                Section("AI assistant key (stays on this device)") {
-                    SecureField("Anthropic API key", text: $settings.aiKey)
-                    TextField("Model (optional)", text: $settings.aiModel)
-                }
-
-                Section("Backup and restore") {
-                    NavigationLink("Back up or restore settings") { BackupView() }
-                }
-
-                Section("About") {
-                    Text("Meowio for Apple TV \(UpdateChecker.currentVersion)")
-                    switch updates.state {
-                    case .idle, .checking:
-                        Text("Checking for updates…").foregroundStyle(.secondary)
-                    case .upToDate:
-                        Text("You have the latest version.").foregroundStyle(.secondary)
-                    case .available(let tag):
-                        UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
-                    case .failed:
-                        Text("Could not check for updates.").foregroundStyle(.secondary)
-                    }
-                    Button("Check for updates") { Task { await updates.check() } }
-                    Text("MKV and other formats play through the built-in mpv engine. TV apps do not offer downloads. Surround sound passes through Apple TV's own audio settings.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                // Each choice reads as a row with its current value, like Android TV, rather than a segmented bar.
+                .pickerStyle(.navigationLink)
+                .padding(.top, 110)
+                .padding(.trailing, 60)
             }
-            .navigationTitle("Settings")
         }
         .task { if case .idle = updates.state { await updates.check() } }
         .task(id: settings.addons) {
             var map: [String: String] = [:]
             for base in settings.addons { map[base] = await AddonClient.addonName(for: base) }
             addonNames = map
+        }
+    }
+
+    @ViewBuilder private var accountSection: some View {
+        Section("Account") {
+            NavigationLink { AccountSettingsView() } label: {
+                HStack {
+                    Text("Nuvio account")
+                    Spacer()
+                    Text(account.signedIn ? (account.email ?? "Signed in") : (AccountStore.available ? "Not signed in" : "Off"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var profilesSection: some View {
+        Section("Profiles") {
+
+            if let p = profiles.active {
+                NavigationLink { ProfilesSettingsView() } label: {
+                    HStack(spacing: 20) {
+                        ProfileAvatar(profile: p, size: 50)
+                        Text(p.name)
+                        Spacer()
+                        Text("Profiles").foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var partySection: some View {
+        Section("Watch party") {
+            NavigationLink { PartySettingsView() } label: {
+                HStack {
+                    Text("Watch party")
+                    Spacer()
+                    Text(party.party.map { "In party \($0.formattedCode)" } ?? "Join or host").foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var appearanceSection: some View {
+        Section("Appearance") {
+            Picker("Theme", selection: $settings.theme) {
+                ForEach(MeowioTheme.allCases) { Text($0.title).tag($0) }
+            }
+            Toggle("Show Live TV", isOn: $settings.liveTabVisible)
+        }
+    }
+
+    @ViewBuilder private var layoutSection: some View {
+        Section {
+            NavigationLink("Edit collections") { CollectionEditorView() }
+        }
+
+        Section {
+            SecureField("TMDB API key (optional)", text: $settings.tmdbKey)
+        } header: {
+            Text("Collections and trailers")
+        } footer: {
+            Text("Collections made in the other Meowio apps appear on Home. Folders built from TMDB lists and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
+        }
+    }
+
+    @ViewBuilder private var contentSection: some View {
+        Section("Stream add-ons") {
+            ForEach(settings.addons, id: \.self) { base in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(addonNames[base] ?? base)
+                        Text(base).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer()
+                    Button("Remove") { settings.addons.removeAll { $0 == base } }
+                }
+            }
+            TextField("Add-on link (https://… or stremio://…)", text: $newAddon)
+            Button("Add add-on") {
+                settings.addAddon(newAddon)
+                newAddon = ""
+            }
+        }
+
+        Section("Plugins") {
+            NavigationLink { PluginsSettingsView() } label: {
+                LabeledContent("Nuvio plugins", value: "\(plugins.scrapers.filter(\.enabled).count) on")
+            }
+        }
+
+        if !settings.addons.isEmpty {
+            Section("Pinned sources (tried first at the same quality)") {
+                ForEach(Array(addonNames.values).sorted(), id: \.self) { name in
+                    Toggle(name, isOn: Binding(
+                        get: { settings.pinnedSources.contains(name) },
+                        set: { _ in settings.togglePinned(name) }))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var playbackSection: some View {
+        Section("Playback") {
+            Picker("Source selection", selection: $settings.streamMode) {
+                ForEach(StreamMode.allCases) { Text($0.title).tag($0) }
+            }
+            Toggle("Play next episode automatically", isOn: $settings.autoNext)
+            Toggle("Prefer the same release for every episode", isOn: $settings.sameRelease)
+            Toggle("Find the next episode's sources early", isOn: $settings.preloadNext)
+            Toggle("Switch sources silently when one fails", isOn: $settings.failoverEnabled)
+            Picker("Most source switches per title", selection: $settings.maxSwitches) {
+                ForEach([2, 4, 6, 10, 15], id: \.self) { Text("\($0)").tag($0) }
+            }
+            Picker("Wait for a source to start", selection: $settings.startupTimeout) {
+                ForEach([10, 15, 20, 30, 45], id: \.self) { Text("\($0) seconds").tag($0) }
+            }
+        }
+
+        Section("Player") {
+            Toggle("Show Skip Intro on intro and recap chapters", isOn: $settings.skipIntro)
+            Toggle("Show Next Episode near the end", isOn: $settings.upNextCard)
+            Toggle("Play trailers behind the Home header", isOn: $settings.heroTrailers)
+            Picker("Audio language", selection: $settings.audioLanguage) {
+                Text("File default").tag("")
+                ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
+            }
+            Toggle("Turn subtitles on", isOn: $settings.subtitlesOn)
+            Picker("Subtitle language", selection: $settings.subtitleLanguage) {
+                Text("Apple TV language").tag("")
+                ForEach(Languages.all, id: \.code) { Text($0.name).tag($0.code) }
+            }
+            Toggle(isOn: $settings.autoSubtitleSync) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Automatic subtitle sync")
+                    Text("Off by default. When you turn on an add-on subtitle, its timing is lined up with the subtitles built into the video. Only confident matches are applied, and subtitles are never turned on for you.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            NavigationLink("Subtitle style") { SubtitleStyleView() }
+        }
+    }
+
+    @ViewBuilder private var integrationsSection: some View {
+        Section {
+            Picker("Service", selection: $settings.debridService) {
+                ForEach(DebridService.allCases) { Text($0.title).tag($0) }
+            }
+            if settings.debridService != .none {
+                if Debrid.canSignIn(settings.debridService) {
+                    NavigationLink { DebridSignInView(service: settings.debridService) } label: {
+                        LabeledContent("Sign in with a code", value: settings.debridReady ? "Connected" : "")
+                    }
+                }
+                SecureField("\(settings.debridService.title) API key", text: $settings.debridKey)
+            }
+        } header: {
+            Text("Debrid (plays torrent results)")
+        } footer: {
+            Text("Apple TV can't run torrents itself. With a debrid key, torrent results from your add-ons are turned into direct links, and uncached ones are skipped so playback never waits on a download. Signed in to your Nuvio account, the key comes from your phone or Android TV automatically. It is never in backups.")
+        }
+
+        Section("Media servers") {
+
+            NavigationLink { MediaServersSettingsView() } label: {
+                HStack {
+                    Text("Jellyfin and Emby")
+                    Spacer()
+                    Text(servers.hasEnabled ? "\(servers.enabled.count) connected" : "None").foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var trackingSection: some View {
+        Section("Tracking") {
+            // Tracking cards are always shown. Without sign-in keys in this build they read "Not set up yet".
+            NavigationLink { TraktSettingsView() } label: {
+                HStack {
+                    Text("Trakt")
+                    Spacer()
+                    Text(trakt.connected ? (trakt.username ?? "Connected") : (TraktStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
+                }
+            }
+            NavigationLink { SimklSettingsView() } label: {
+                HStack {
+                    Text("Simkl")
+                    Spacer()
+                    Text(simkl.connected ? (simkl.username ?? "Connected") : (SimklStore.configured ? "Not connected" : "Not set up yet")).foregroundStyle(.secondary)
+                }
+            }
+            NavigationLink { MDBListSettingsView() } label: {
+                HStack {
+                    Text("MDBList")
+                    Spacer()
+                    Text(mdblist.connected ? (mdblist.username ?? "Connected") : "Not connected").foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var liveSection: some View {
+        Section("Live TV playlists (none = free built-in channels)") {
+            ForEach(settings.liveSources) { source in
+                NavigationLink {
+                    LiveSourceEditor(original: source)
+                } label: {
+                    HStack {
+                        Text(source.label)
+                        Spacer()
+                        Text(source.enabled ? (source.type == .xtream ? "Xtream" : "M3U") : "Off")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            NavigationLink("Add a playlist or login") { LiveSourceEditor(original: nil) }
+        }
+
+        Section("Live TV VPN (only Live TV uses it, never debrid)") {
+            Toggle("Use for Live TV", isOn: $settings.liveVpnEnabled)
+            TextField("Proxy, such as http://user:pass@host:8080", text: $settings.liveVpnProxy)
+            Text(liveVpnStatus).font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var advancedSection: some View {
+        Section("Backup and restore") {
+            NavigationLink("Back up or restore settings") { BackupView() }
+        }
+    }
+
+    @ViewBuilder private var statsSection: some View {
+        Section("Your watch stats") {
+            NavigationLink("Open watch stats") { InsightsView() }
+        }
+    }
+
+    @ViewBuilder private var aiSection: some View {
+        Section("AI assistant") {
+            NavigationLink("Ask for ideas") { AiAssistantView() }
+        }
+        Section("AI assistant key (stays on this device)") {
+            SecureField("Anthropic API key", text: $settings.aiKey)
+            TextField("Model (optional)", text: $settings.aiModel)
+        }
+    }
+
+    @ViewBuilder private var aboutSection: some View {
+        Section("About") {
+            Text("Meowio for Apple TV \(UpdateChecker.currentVersion)")
+            switch updates.state {
+            case .idle, .checking:
+                Text("Checking for updates…").foregroundStyle(.secondary)
+            case .upToDate:
+                Text("You have the latest version.").foregroundStyle(.secondary)
+            case .available(let tag):
+                UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
+            case .failed:
+                Text("Could not check for updates.").foregroundStyle(.secondary)
+            }
+            Button("Check for updates") { Task { await updates.check() } }
+            Text("MKV and other formats play through the built-in mpv engine. TV apps do not offer downloads. Surround sound passes through Apple TV's own audio settings.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+
+    }
+}
+
+/// Settings categories, in the phone and Android TV apps' order and groups.
+enum SettingsCategory: String, CaseIterable, Identifiable {
+    case account, stats, ai, profiles, party, appearance, layout, content, playback, integrations, tracking, live, advanced, about
+    var id: String { rawValue }
+
+    static let groups: [[SettingsCategory]] = [
+        [.account, .stats, .ai, .profiles, .party],
+        [.appearance, .layout],
+        [.content, .playback],
+        [.integrations, .tracking, .live],
+        [.advanced, .about]
+    ]
+
+    var title: String {
+        switch self {
+        case .account: "Account"
+        case .stats: "Your watch stats"
+        case .ai: "AI assistant"
+        case .profiles: "Switch Profile"
+        case .party: "Watch party"
+        case .appearance: "Appearance"
+        case .layout: "Layout"
+        case .content: "Content & Discovery"
+        case .playback: "Playback"
+        case .integrations: "Integrations"
+        case .tracking: "Tracking"
+        case .live: "Live TV"
+        case .advanced: "Backup and restore"
+        case .about: "About"
+        }
+    }
+    var subtitle: String {
+        switch self {
+        case .account: "Account and sync status"
+        case .stats: "Watch time, streaks and most-watched"
+        case .ai: "Describe a mood, get ideas"
+        case .profiles: "Change to a different profile"
+        case .party: "Join friends with a party code"
+        case .appearance: "Themes and the Live TV tab"
+        case .layout: "Home collections"
+        case .content: "Manage add-ons and sources"
+        case .playback: "Player, subtitles and auto-play"
+        case .integrations: "Debrid and media servers"
+        case .tracking: "Trakt, Simkl and MDBList"
+        case .live: "Playlists and Live TV VPN"
+        case .advanced: "Move settings between devices"
+        case .about: "Version and updates"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .account: "person.fill"
+        case .stats: "chart.line.uptrend.xyaxis"
+        case .ai: "sparkles"
+        case .profiles: "person.2.fill"
+        case .party: "person.3.fill"
+        case .appearance: "paintpalette.fill"
+        case .layout: "square.grid.2x2"
+        case .content: "safari.fill"
+        case .playback: "play.fill"
+        case .integrations: "link"
+        case .tracking: "arrow.triangle.2.circlepath"
+        case .live: "tv.fill"
+        case .advanced: "externaldrive.fill"
+        case .about: "info.circle.fill"
+        }
+    }
+}
+
+/// A settings rail item: filled when it is the open category, ringed when focused.
+struct RailButtonStyle: ButtonStyle {
+    var selected: Bool
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    private struct StyledBody: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .font(.system(size: 28, weight: focused || selected ? .semibold : .regular))
+                .foregroundStyle(focused || selected ? .white : .white.opacity(0.6))
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+                .background(focused || selected ? AnyShapeStyle(.white.opacity(focused ? 0.2 : 0.1)) : AnyShapeStyle(.clear),
+                            in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.white, lineWidth: focused ? 3 : 0))
+                .animation(.easeOut(duration: 0.15), value: focused)
         }
     }
 }

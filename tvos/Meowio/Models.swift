@@ -16,7 +16,11 @@ struct MetaItem: Identifiable, Codable, Hashable {
     /// Trailer links some metadata sources list (YouTube ids).
     var trailers: [TrailerRef]?
     var trailerStreams: [TrailerRef]?
+    /// Title logo art and running time, when the metadata source lists them (Cinemeta does).
+    var logo: String?
+    var runtime: String?
 
+    var logoURL: URL? { logo.flatMap(URL.init(string:)) }
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
     var backgroundURL: URL? { (background ?? poster).flatMap(URL.init(string:)) }
 }
@@ -29,6 +33,11 @@ struct Video: Identifiable, Codable, Hashable {
     var name: String?
     var thumbnail: String?
     var released: String?
+    /// Episode synopsis; add-ons use either key.
+    var overview: String?
+    var description: String?
+
+    var synopsis: String? { (overview ?? description).flatMap { $0.isEmpty ? nil : $0 } }
 
     var displayTitle: String { title ?? name ?? "Episode \(episode ?? 0)" }
     var thumbnailURL: URL? { thumbnail.flatMap(URL.init(string:)) }

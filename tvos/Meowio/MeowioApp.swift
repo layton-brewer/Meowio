@@ -170,20 +170,7 @@ struct RootView: View {
     @State private var partyRequest: PlayRequest?
 
     var body: some View {
-        TabView {
-            HomeView()
-                .tabItem { Label("Home", systemImage: "house.fill") }
-            SearchView()
-                .tabItem { Label("Search", systemImage: "magnifyingglass") }
-            LibraryView()
-                .tabItem { Label("Library", systemImage: "bookmark.fill") }
-            if settings.liveTabVisible {
-                LiveTVView()
-                    .tabItem { Label("Live TV", systemImage: "antenna.radiowaves.left.and.right") }
-            }
-            SettingsView()
-                .tabItem { Label("Settings", systemImage: "gearshape.fill") }
-        }
+        tabs
         .background(settings.theme.background.ignoresSafeArea())
         .onChange(of: party.launch) { _, launch in
             guard let media = launch?.media, partyRequest == nil else { return }
@@ -195,6 +182,38 @@ struct RootView: View {
         }
         .fullScreenCover(item: $partyRequest) { req in
             PlayerScreen(request: req, settings: settings)
+        }
+    }
+
+    /// Android TV's side menu: on tvOS 18 and later the sections sit in a sidebar on the left that opens when
+    /// you press left, instead of a tab bar across the top. Older tvOS keeps the top tab bar.
+    @ViewBuilder private var tabs: some View {
+        if #available(tvOS 18.0, *) {
+            TabView {
+                Tab("Home", systemImage: "house.fill") { HomeView() }
+                Tab("Search", systemImage: "magnifyingglass") { SearchView() }
+                Tab("Library", systemImage: "bookmark.fill") { LibraryView() }
+                if settings.liveTabVisible {
+                    Tab("Live TV", systemImage: "antenna.radiowaves.left.and.right") { LiveTVView() }
+                }
+                Tab("Settings", systemImage: "gearshape.fill") { SettingsView() }
+            }
+            .tabViewStyle(.sidebarAdaptable)
+        } else {
+            TabView {
+                HomeView()
+                    .tabItem { Label("Home", systemImage: "house.fill") }
+                SearchView()
+                    .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                LibraryView()
+                    .tabItem { Label("Library", systemImage: "bookmark.fill") }
+                if settings.liveTabVisible {
+                    LiveTVView()
+                        .tabItem { Label("Live TV", systemImage: "antenna.radiowaves.left.and.right") }
+                }
+                SettingsView()
+                    .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            }
         }
     }
 }

@@ -70,66 +70,133 @@ struct Backdrop: View {
 
 // MARK: - Cards
 
+/// Android TV's card focus: a white ring round the art and a small lift, instead of tvOS's big tilt and shadow.
+struct FocusRingCardStyle: ButtonStyle {
+    var radius: CGFloat = 24
+    func makeBody(configuration: Configuration) -> some View {
+        FocusRingCard(configuration: configuration, radius: radius)
+    }
+
+    private struct FocusRingCard: View {
+        let configuration: ButtonStyleConfiguration
+        let radius: CGFloat
+        @Environment(\.isFocused) private var focused
+
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.98 : (focused ? 1.04 : 1))
+                .animation(.easeOut(duration: 0.18), value: focused)
+        }
+    }
+}
+
+extension ButtonStyle where Self == FocusRingCardStyle {
+    static var focusRing: FocusRingCardStyle { FocusRingCardStyle() }
+}
+
+/// White focus ring drawn round card art, like Android TV.
+private struct FocusRing: ViewModifier {
+    let focused: Bool
+    let radius: CGFloat
+    func body(content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
+    }
+}
+
+/// Poster size on Home and in rows: Android TV's Modern view poster (126 dp × 0.84 × 1.08) at Apple TV's scale.
+enum CardMetrics {
+    static let posterWidth: CGFloat = 228
+    static let posterHeight: CGFloat = 342
+    static let wideWidth: CGFloat = 418
+    static let wideHeight: CGFloat = 236
+    static let radius: CGFloat = 24
+    static let spacing: CGFloat = 24
+    static let rowInset: CGFloat = 104
+}
+
 struct PosterCard: View {
     let item: MetaItem
     var onFocus: ((MetaItem) -> Void)? = nil
     @Environment(\.isFocused) private var focused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Artwork(url: item.posterURL, placeholder: item.name)
-                .frame(width: 220, height: 330)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            Text(item.name)
-                .font(.caption)
-                .lineLimit(1)
-                .frame(width: 220, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+                .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+                .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.system(size: 26, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundStyle(focused ? .primary : .secondary)
+                if let year = item.releaseInfo, !year.isEmpty {
+                    Text(year).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            .frame(width: CardMetrics.posterWidth, alignment: .leading)
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
     }
 }
 
-/// Wide card for Continue Watching, with how far the user got.
+/// Wide card for Continue Watching, as in the phone and Android TV apps: the episode code, show and
+/// episode title over the still, time left in the corner and a progress bar in the theme colour.
 struct ContinueCard: View {
     let entry: ContinueItem
     let subtitle: String?
     let progress: Double?
+    var minutesLeft: Int? = nil
+    var accent: Color = .pink
     var onFocus: ((MetaItem) -> Void)? = nil
     @Environment(\.isFocused) private var focused
 
+    private var episodeTitle: String? {
+        guard let vid = entry.videoId else { return nil }
+        return entry.meta.videos?.first(where: { $0.id == vid })?.displayTitle
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ZStack(alignment: .bottomLeading) {
-                Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
-                    .frame(width: 420, height: 236)
-                LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
-                HStack(spacing: 10) {
-                    Image(systemName: "play.fill")
-                    Text(subtitle ?? "Resume").font(.caption.bold())
+        ZStack(alignment: .bottomLeading) {
+            Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
+                .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+            LinearGradient(stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.85), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 4) {
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 20, weight: .bold)).kerning(1.5).foregroundStyle(.white.opacity(0.85))
                 }
-                .padding(16)
+                Text(entry.meta.name).font(.system(size: 28, weight: .semibold)).lineLimit(1)
+                if let episodeTitle {
+                    Text(episodeTitle).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
+                }
                 if let progress {
                     GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.25))
-                            Capsule().fill(.white).frame(width: geo.size.width * progress)
-                        }
+                        Capsule().fill(accent).frame(width: max(12, geo.size.width * progress))
                     }
                     .frame(height: 6)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 4)
+                    .padding(.top, 6)
                 }
             }
-            .frame(width: 420, height: 236)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            Text(entry.meta.name).font(.caption).lineLimit(1).frame(width: 420, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
         }
+        .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+        .overlay(alignment: .topTrailing) {
+            if let minutesLeft {
+                Text("\(minutesLeft)m left").font(.system(size: 20, weight: .semibold))
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+                    .padding(14)
+            }
+        }
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
         .onChange(of: focused) { _, f in if f { onFocus?(entry.meta) } }
     }
 }
 
+/// Android TV's episode card: the still with the episode code, title, synopsis and air date laid over it.
 struct EpisodeCard: View {
     let video: Video
     let fallback: URL?
@@ -138,31 +205,122 @@ struct EpisodeCard: View {
     let isNext: Bool
     @Environment(\.isFocused) private var focused
 
+    static let width: CGFloat = 640
+    static let height: CGFloat = 414
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .bottomLeading) {
-                Artwork(url: video.thumbnailURL ?? fallback, placeholder: "Episode \(video.episode ?? 0)")
-                    .frame(width: 400, height: 225)
-                LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
-                HStack {
-                    Text("E\(video.episode ?? 0)").font(.caption.bold())
-                    Spacer()
-                    if watched { Image(systemName: "checkmark.circle.fill") }
-                    else if isNext { Image(systemName: "play.circle.fill") }
+        ZStack(alignment: .bottomLeading) {
+            Artwork(url: video.thumbnailURL ?? fallback, placeholder: "")
+                .frame(width: Self.width, height: Self.height)
+            LinearGradient(stops: [.init(color: .clear, location: 0.15), .init(color: .black.opacity(0.85), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("S\(video.season ?? 0) E\(video.episode ?? 0)")
+                    .font(.system(size: 22, weight: .bold)).kerning(1.5)
+                    .padding(.horizontal, 14).padding(.vertical, 6)
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                Text(video.displayTitle).font(.system(size: 32, weight: .semibold)).lineLimit(1)
+                if let s = video.synopsis {
+                    Text(s).font(.system(size: 24)).foregroundStyle(.white.opacity(0.75)).lineLimit(3)
                 }
-                .padding(14)
-                if let progress {
-                    Capsule().fill(.white.opacity(0.25)).frame(height: 5)
-                        .overlay(alignment: .leading) {
-                            GeometryReader { g in Capsule().fill(.white).frame(width: g.size.width * progress) }
-                        }
-                        .padding(.horizontal, 14).padding(.bottom, 3)
+                if let date = Self.airDate(video.released) {
+                    Text(date).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.6))
                 }
             }
-            .frame(width: 400, height: 225)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            Text(video.displayTitle).font(.caption).lineLimit(1).frame(width: 400, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+            .padding(.horizontal, 32).padding(.bottom, 40)
+            if let progress {
+                Capsule().fill(.white.opacity(0.25)).frame(height: 8)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { g in Capsule().fill(.white).frame(width: g.size.width * progress) }
+                    }
+                    .padding(.horizontal, 32).padding(.bottom, 16)
+            }
+        }
+        .frame(width: Self.width, height: Self.height)
+        .overlay(alignment: .topTrailing) {
+            if watched || isNext {
+                Image(systemName: watched ? "checkmark" : "play.fill")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(watched ? .black : .white)
+                    .frame(width: 48, height: 48)
+                    .background(watched ? AnyShapeStyle(.white) : AnyShapeStyle(.black.opacity(0.55)), in: Circle())
+                    .padding(24)
+            }
+        }
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+    }
+
+    private static let isoDay: DateFormatter = {
+        let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; return f
+    }()
+
+    static func airDate(_ released: String?) -> String? {
+        guard let released, released.count >= 10, let d = isoDay.date(from: String(released.prefix(10))) else { return nil }
+        return d.formatted(date: .abbreviated, time: .omitted)
+    }
+}
+
+// MARK: - Buttons
+
+/// Android TV's detail-page buttons: a white pill for Play and round glass buttons for the rest,
+/// with a white ring when focused.
+struct PillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration) }
+    private struct StyledBody: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isFocused) private var focused
+        @Environment(\.isEnabled) private var enabled
+        var body: some View {
+            configuration.label
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 48).frame(height: 84)
+                .background(.white, in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.6), lineWidth: focused ? 4 : 0).padding(-8))
+                .scaleEffect(focused ? 1.05 : 1)
+                .opacity(enabled ? 1 : 0.5)
+                .animation(.easeOut(duration: 0.15), value: focused)
+        }
+    }
+}
+
+struct CircleIconButtonStyle: ButtonStyle {
+    var selected = false
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    private struct StyledBody: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .labelStyle(.iconOnly)
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(focused || selected ? .black : .white)
+                .frame(width: 84, height: 84)
+                .background(focused || selected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(0.14)), in: Circle())
+                .overlay(Circle().strokeBorder(.white.opacity(0.25), lineWidth: focused ? 0 : 1.5))
+                .scaleEffect(focused ? 1.08 : 1)
+                .animation(.easeOut(duration: 0.15), value: focused)
+        }
+    }
+}
+
+/// Season picker chips: the chosen season filled white, like Android TV's season tabs.
+struct ChipButtonStyle: ButtonStyle {
+    var selected: Bool
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    private struct StyledBody: View {
+        let configuration: ButtonStyleConfiguration
+        let selected: Bool
+        @Environment(\.isFocused) private var focused
+        var body: some View {
+            configuration.label
+                .font(.system(size: 26, weight: selected ? .bold : .medium))
+                .foregroundStyle(selected ? .black : (focused ? .white : .white.opacity(0.7)))
+                .padding(.horizontal, 28).frame(height: 60)
+                .background(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(focused ? 0.2 : 0.08)), in: Capsule())
+                .overlay(Capsule().strokeBorder(.white, lineWidth: focused ? 3 : 0))
+                .animation(.easeOut(duration: 0.15), value: focused)
         }
     }
 }
@@ -176,19 +334,45 @@ struct Shelf: View {
 
     var body: some View {
         if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title).font(.title3.bold()).padding(.leading, 60)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 40) {
+                    LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
                             NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus) }
-                                .buttonStyle(.card)
+                                .buttonStyle(.focusRing)
                         }
                     }
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 24)
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.vertical, 20)
                 }
                 .scrollClipDisabled()
+            }
+        }
+    }
+}
+
+/// Posters in a grid that wraps, for Library and search results (Android TV uses grids there, not rows).
+struct PosterGrid: View {
+    let title: String?
+    let items: [MetaItem]
+
+    var body: some View {
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                if let title {
+                    Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: CardMetrics.posterWidth, maximum: CardMetrics.posterWidth),
+                                             spacing: CardMetrics.spacing, alignment: .top)],
+                          alignment: .leading, spacing: 36) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) { PosterCard(item: item) }
+                            .buttonStyle(.focusRing)
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .padding(.vertical, 12)
             }
         }
     }
@@ -196,27 +380,30 @@ struct Shelf: View {
 
 struct ContinueShelf: View {
     @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var settings: SettingsStore
     var onFocus: ((MetaItem) -> Void)? = nil
 
     var body: some View {
         if !library.continueWatching.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Continue Watching").font(.title3.bold()).padding(.leading, 60)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Continue Watching").font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 40) {
+                    LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(library.continueWatching) { entry in
                             NavigationLink(value: AutoPlayRoute(item: entry.meta)) {
                                 ContinueCard(entry: entry, subtitle: subtitle(entry),
-                                             progress: library.progress(for: entry.videoId ?? entry.id), onFocus: onFocus)
+                                             progress: library.progress(for: entry.videoId ?? entry.id),
+                                             minutesLeft: library.minutesLeft(for: entry.videoId ?? entry.id),
+                                             accent: settings.theme.accent, onFocus: onFocus)
                             }
-                            .buttonStyle(.card)
+                            .buttonStyle(.focusRing)
                             .contextMenu {
                                 Button("Remove from Continue Watching", role: .destructive) { library.removeContinue(entry.id) }
                             }
                         }
                     }
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 24)
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.vertical, 20)
                 }
                 .scrollClipDisabled()
             }
@@ -224,70 +411,124 @@ struct ContinueShelf: View {
     }
 
     private func subtitle(_ entry: ContinueItem) -> String? {
-        guard let vid = entry.videoId else { return "Resume" }
+        guard let vid = entry.videoId else { return nil }
         // Cinemeta episode ids look like tt123:1:4.
         let parts = vid.split(separator: ":")
         if parts.count >= 3, let s = Int(parts[parts.count - 2]), let e = Int(parts[parts.count - 1]) {
             return "S\(s) E\(e)"
         }
-        return "Resume"
+        return nil
     }
 }
 
 // MARK: - Home
 
-/// The big header at the top of Home: the focused title's art, info and a one-press Play.
+/// Home's header, as in Android TV's Modern view: the focused title's logo (or name), its details and
+/// description. Nothing in it takes focus; pressing a card opens or resumes that title.
 struct HeroHeader: View {
-    @EnvironmentObject var profiles: ProfileStore
     let item: MetaItem
-    let accent: Color
-    let resumeLabel: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("MEOWIO")
-                .font(.caption.weight(.heavy))
-                .kerning(6)
-                .foregroundStyle(accent)
-                .fixedSize()
-            Text(item.name)
-                .font(.system(size: 64, weight: .bold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.6)
-                .frame(maxWidth: 1100, alignment: .leading)
-            HStack(spacing: 18) {
-                Text(item.type == "movie" ? "Movie" : "Series").padding(.horizontal, 12).padding(.vertical, 4).glass(radius: 8)
-                if let r = item.releaseInfo { Text(r) }
-                if let r = item.imdbRating { Label(r, systemImage: "star.fill") }
-                if let g = item.genres, !g.isEmpty { Text(g.prefix(3).joined(separator: " · ")) }
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            if let d = item.description {
-                Text(d).font(.callout).lineLimit(3).frame(maxWidth: 1000, alignment: .leading).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 24) {
-                NavigationLink(value: AutoPlayRoute(item: item)) {
-                    Label(resumeLabel ?? "Play", systemImage: "play.fill").padding(.horizontal, 24)
+        VStack(alignment: .leading, spacing: 16) {
+            HeroTitle(item: item)
+            HStack(spacing: 16) {
+                let leading = [item.type == "movie" ? "Movie" : "Series", item.genres?.first].compactMap { $0 }
+                Text(leading.joined(separator: " • "))
+                let trailing = [item.runtime, item.releaseInfo].compactMap { $0 }.filter { !$0.isEmpty }
+                ForEach(trailing, id: \.self) { part in
+                    Divider().frame(height: 22)
+                    Text(part)
                 }
-                NavigationLink(value: item) {
-                    Label("More Info", systemImage: "info.circle").padding(.horizontal, 12)
-                }
-                if let profile = profiles.active, profiles.profiles.count > 1 {
-                    Button { profiles.showPicker() } label: {
-                        HStack(spacing: 12) {
-                            ProfileAvatar(profile: profile, size: 36)
-                            Text(profile.name)
-                        }
+                if let r = item.imdbRating, !r.isEmpty {
+                    Divider().frame(height: 22)
+                    HStack(spacing: 8) {
+                        Text("IMDb").font(.system(size: 18, weight: .heavy)).foregroundStyle(.black)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color(red: 0.96, green: 0.77, blue: 0.09), in: RoundedRectangle(cornerRadius: 4))
+                        Text(r)
                     }
                 }
             }
-            .padding(.top, 8)
+            .font(.system(size: 24, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            if let d = item.description {
+                Text(d)
+                    .font(.system(size: 26))
+                    .lineSpacing(4)
+                    .lineLimit(3)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: 860, alignment: .leading)
+            }
         }
-        .padding(.horizontal, 60)
-        .padding(.top, 40)
-        .frame(maxWidth: .infinity, minHeight: 600, alignment: .bottomLeading)
+        .frame(maxWidth: 960, alignment: .leading)
+        .animation(.easeInOut(duration: 0.25), value: item.id)
     }
+}
+
+/// The title's logo art, or its name in large type when there is no logo.
+private struct HeroTitle: View {
+    let item: MetaItem
+    @State private var logoFailed = false
+
+    var body: some View {
+        Group {
+            if let url = item.logoURL, !logoFailed {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().aspectRatio(contentMode: .fit)
+                    case .failure: Color.clear.onAppear { logoFailed = true }
+                    default: Color.clear
+                    }
+                }
+                .frame(maxWidth: 440, maxHeight: 170, alignment: .leading)
+                .frame(height: 170, alignment: .bottomLeading)
+            } else {
+                Text(item.name)
+                    .font(.system(size: 64, weight: .bold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+            }
+        }
+        .id(item.id)
+    }
+}
+
+/// Home's backdrop: the art fills the top right, fading into the background to the left and below,
+/// so the rows underneath read cleanly (Android TV draws its hero at 72% of the width).
+struct HeroBackdrop: View {
+    let url: URL?
+    let background: Color
+    var trailerFor: MetaItem? = nil
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .topTrailing) {
+                background
+                ZStack {
+                    if let url {
+                        Artwork(url: url).id(url).transition(.opacity)
+                    }
+                    if let trailerFor { HeroTrailerLayer(item: trailerFor).id(trailerFor.id) }
+                    LinearGradient(stops: [.init(color: background, location: 0), .init(color: background.opacity(0.8), location: 0.2),
+                                           .init(color: background.opacity(0.3), location: 0.45), .init(color: .clear, location: 0.7)],
+                                   startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(stops: [.init(color: .clear, location: 0.45), .init(color: background.opacity(0.75), location: 0.8),
+                                           .init(color: background, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .frame(width: geo.size.width * 0.72, height: geo.size.height * 0.7)
+                .clipped()
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.4), value: url)
+    }
+}
+
+struct UpdatePrompt: Identifiable {
+    var tag: String
+    var id: String { tag }
 }
 
 struct AddonRow: Identifiable {
@@ -310,61 +551,90 @@ struct HomeView: View {
     @State private var focusedItem: MetaItem?
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
+    @State private var updatePrompt: UpdatePrompt?
 
     private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? movies.first ?? series.first }
-    private var backdropItem: MetaItem? { focusedItem ?? featured }
+    /// What the header shows: the focused card, or a featured title before anything is focused.
+    private var heroShown: MetaItem? { focusedItem ?? featured }
+
+    /// Setup hints, the update card and an open watch party sit above the rows.
+    @ViewBuilder private var notices: some View {
+        if settings.addons.isEmpty && !servers.hasEnabled {
+            Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
+                .padding(24).glass().padding(.horizontal, CardMetrics.rowInset)
+        }
+        if party.party != nil {
+            Button { party.reopen() } label: {
+                Label("Watch party \(party.party?.formattedCode ?? "") · open what everyone is watching", systemImage: "person.2.fill")
+            }
+            .padding(.horizontal, CardMetrics.rowInset)
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Backdrop(url: backdropItem?.backgroundURL, background: settings.theme.background,
-                         trailerFor: settings.heroTrailers && focusedItem == nil ? featured : nil)
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 20) {
-                        if let featured {
-                            HeroHeader(item: featured, accent: settings.theme.accent,
-                                       resumeLabel: library.continueWatching.contains { $0.id == featured.id } ? "Resume" : nil)
-                        } else {
-                            Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
-                                .padding(.leading, 60).padding(.top, 40)
-                        }
-                        if settings.addons.isEmpty && !servers.hasEnabled {
-                            Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
-                                .padding(24).glass().padding(.horizontal, 60)
-                        }
-                        if case .available(let tag) = updates.state {
-                            UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
-                                .padding(.horizontal, 60)
-                        }
-                        if party.party != nil {
-                            Button { party.reopen() } label: {
-                                Label("Watch party \(party.party?.formattedCode ?? "") · open what everyone is watching", systemImage: "person.2.fill")
-                            }
-                            .padding(.horizontal, 60)
-                        }
-                        ContinueShelf(onFocus: focus)
-                        ForEach(serverShelves) { shelf in
-                            Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
-                        }
-                        ForEach(collections.ordered) { collection in
-                            CollectionShelf(collection: collection)
-                        }
-                        Shelf(title: "Popular Movies", items: movies, onFocus: focus)
-                        Shelf(title: "Popular Series", items: series, onFocus: focus)
-                        ForEach(addonRows) { row in
-                            Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
-                        }
-                        if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
-                            Text("Couldn't load the catalog. Check your connection.").padding(60)
-                        }
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    HeroBackdrop(url: heroShown?.backgroundURL, background: settings.theme.background,
+                                 trailerFor: settings.heroTrailers ? heroShown : nil)
+                    if let heroShown {
+                        HeroHeader(item: heroShown)
+                            .padding(.leading, CardMetrics.rowInset)
+                            .padding(.top, 56)
+                    } else {
+                        Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
+                            .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
                     }
-                    .padding(.bottom, 80)
+                    // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            notices
+                            ContinueShelf(onFocus: focus)
+                            ForEach(serverShelves) { shelf in
+                                Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
+                            }
+                            ForEach(collections.ordered) { collection in
+                                CollectionShelf(collection: collection)
+                            }
+                            Shelf(title: "Popular Movies", items: movies, onFocus: focus)
+                            Shelf(title: "Popular Series", items: series, onFocus: focus)
+                            ForEach(addonRows) { row in
+                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
+                            }
+                            if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
+                                Text("Couldn't load the catalog. Check your connection.").padding(CardMetrics.rowInset)
+                            }
+                        }
+                        .padding(.bottom, 80)
+                    }
+                    .scrollClipDisabled()
+                    .frame(height: geo.size.height * 0.5)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }
+            .ignoresSafeArea(edges: .bottom)
             .meowioDestinations()
         }
         .task {
             if case .idle = updates.state { await updates.check() }
+            if case .available(let tag) = updates.state,
+               UserDefaults.standard.string(forKey: "updatePromptDismissed") != tag {
+                updatePrompt = UpdatePrompt(tag: tag)
+            }
+        }
+        // A new version is offered once, in a dialog over Home, like Android TV's update prompt.
+        .fullScreenCover(item: $updatePrompt) { prompt in
+            VStack(spacing: 40) {
+                UpdateCard(tag: prompt.tag, url: updates.releaseURL, notes: updates.notes)
+                    .frame(maxWidth: 1300)
+                Button("Later") {
+                    UserDefaults.standard.set(prompt.tag, forKey: "updatePromptDismissed")
+                    updatePrompt = nil
+                }
+            }
+            .padding(80)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.opacity(0.85).ignoresSafeArea())
         }
         .task {
             guard !loaded else { return }
@@ -409,16 +679,19 @@ struct SearchView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     Button { showSurprise = true } label: {
-                        Label("Surprise Me", systemImage: "shuffle").padding(.horizontal, 20)
+                        Label("Surprise Me", systemImage: "shuffle")
                     }
-                    .padding(.horizontal, 60)
-                    if searching { ProgressView().padding(60) }
-                    Shelf(title: "Movies", items: results.filter { $0.type == "movie" })
-                    Shelf(title: "Series", items: results.filter { $0.type == "series" })
+                    .buttonStyle(ChipButtonStyle(selected: false))
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    if searching { ProgressView().padding(CardMetrics.rowInset) }
+                    // Results as a poster grid, like Android TV's search.
+                    PosterGrid(title: "Movies", items: results.filter { $0.type == "movie" })
+                    PosterGrid(title: "Series", items: results.filter { $0.type == "series" })
                     if !searching && results.isEmpty && query.count >= 2 {
-                        Text("Nothing found for \u{201C}\(query)\u{201D}.").padding(60)
+                        Text("Nothing found for \u{201C}\(query)\u{201D}.").padding(CardMetrics.rowInset)
                     }
                 }
+                .padding(.bottom, 80)
             }
             .background(settings.theme.background.ignoresSafeArea())
             .meowioDestinations()
@@ -447,6 +720,8 @@ struct LibraryView: View {
     @EnvironmentObject var mdblist: MDBListStore
     /// "all", "meowio", "trakt", "simkl" or "mdblist".
     @State private var showing = "all"
+    /// Android TV's library filter chips.
+    @State private var kind = "all"
 
     private struct Service: Identifiable {
         let id: String
@@ -479,7 +754,7 @@ struct LibraryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 30) {
                     HStack(spacing: 30) {
-                        Text("Library").font(.largeTitle.bold())
+                        Text("Library").font(.system(size: 52, weight: .bold))
                         Spacer()
                         if settings.debridReady, CloudLibrary.supports(settings.debridService) {
                             NavigationLink { CloudLibraryView() } label: {
@@ -515,17 +790,24 @@ struct LibraryView: View {
                             Label("Primary: \(name(library.primaryService))", systemImage: "star")
                         }
                     }
-                    .padding(.horizontal, 60)
-                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
-                        .font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
-                    if showing == "all" { ContinueShelf() }
-                    Shelf(title: "Saved Movies", items: visible.filter { $0.type == "movie" })
-                    Shelf(title: "Saved Series", items: visible.filter { $0.type != "movie" })
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.top, 40)
+                    HStack(spacing: 16) {
+                        ForEach([("all", "All"), ("movie", "Movies"), ("series", "Series")], id: \.0) { k, title in
+                            Button { kind = k } label: { Text(title) }
+                                .buttonStyle(ChipButtonStyle(selected: kind == k))
+                        }
+                    }
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    if showing == "all" && kind == "all" { ContinueShelf() }
+                    PosterGrid(title: nil, items: visible.filter { kind == "all" || (kind == "movie" ? $0.type == "movie" : $0.type != "movie") })
                     if visible.isEmpty && (showing != "all" || library.continueWatching.isEmpty) {
                         Text(showing == "all"
                              ? "Save titles from their detail page and they will show up here."
-                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(60)
+                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(CardMetrics.rowInset)
                     }
+                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
+                        .font(.callout).foregroundStyle(.secondary).padding(.horizontal, CardMetrics.rowInset)
                 }
             }
             .background(settings.theme.background.ignoresSafeArea())
@@ -576,84 +858,23 @@ struct DetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            Backdrop(url: meta.backgroundURL, background: settings.theme.background)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    Spacer(minLength: 120)
-                    Text(meta.name)
-                        .font(.system(size: 64, weight: .bold))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: 1200, alignment: .leading)
-                    HStack(spacing: 20) {
-                        if let r = meta.releaseInfo { Text(r) }
-                        if let r = meta.imdbRating { Label(r, systemImage: "star.fill") }
-                        if let g = meta.genres, !g.isEmpty { Text(g.prefix(3).joined(separator: " · ")) }
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                Backdrop(url: meta.backgroundURL, background: settings.theme.background)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Android TV's detail hero: everything sits at the bottom of the first screen.
+                        heroSection
+                            .frame(minHeight: geo.size.height - (meta.type == "movie" ? 0 : 170), alignment: .bottomLeading)
+                        if meta.type != "movie" { episodesSection.padding(.top, 40) }
                     }
-                    .foregroundStyle(.secondary)
-                    if let d = meta.description {
-                        Text(d).font(.callout).lineLimit(4).frame(maxWidth: 1100, alignment: .leading)
-                    }
-                    HStack(spacing: 24) {
-                        if meta.type == "movie" {
-                            Button { Task { await play(videoId: meta.id, title: meta.name) } } label: {
-                                Label(resolving ? "Finding best source…" : movieLabel, systemImage: "play.fill")
-                                    .padding(.horizontal, 30)
-                            }
-                            .focused($playFocused)
-                            .disabled(resolving)
-                        } else if let next = nextUp {
-                            Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
-                                Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
-                                    .padding(.horizontal, 30)
-                            }
-                            .focused($playFocused)
-                            .disabled(resolving)
-                        }
-                        Button { library.toggleSaved(meta) } label: {
-                            Label(library.isSaved(meta) ? "Saved" : "My List", systemImage: library.isSaved(meta) ? "checkmark" : "plus")
-                        }
-                        if meta.type != "movie", ordered.count > 1 {
-                            // Episode shuffle, like the Android TV app: plays a random episode of the show.
-                            Button {
-                                if let ep = ordered.randomElement() {
-                                    Task { await play(videoId: ep.id, title: ep.displayTitle) }
-                                }
-                            } label: {
-                                Label("Random Episode", systemImage: "shuffle")
-                            }
-                            .disabled(resolving)
-                        }
-                        if meta.type == "movie" {
-                            Button {
-                                if library.isWatched(meta.id) { library.markUnwatched(meta: meta, videoId: nil) }
-                                else { library.markWatched(meta: meta, videoId: nil) }
-                            } label: {
-                                Label(library.isWatched(meta.id) ? "Watched" : "Mark watched",
-                                      systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye")
-                            }
-                        }
-                        if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
-                            Button { Task { await chooseSource() } } label: {
-                                Label("Sources", systemImage: "list.bullet")
-                            }
-                            .disabled(resolving)
-                        }
-                        if trailerURL != nil {
-                            Button { showTrailer = true } label: {
-                                Label("Trailer", systemImage: "film")
-                            }
-                        }
-                    }
-                    if let message { Text(message).foregroundStyle(.orange) }
-                    if meta.type != "movie" { episodesSection }
+                    .padding(.horizontal, 96)
+                    .padding(.bottom, 80)
                 }
-                .padding(.horizontal, 80)
-                .padding(.bottom, 80)
+                .scrollClipDisabled()
             }
-            .scrollClipDisabled()
         }
+        .ignoresSafeArea()
         .task {
             if MediaServerStore.isServerId(item.id) {
                 full = await servers.nativeMeta(item)
@@ -687,7 +908,7 @@ struct DetailView: View {
         .fullScreenCover(isPresented: $showTrailer) {
             if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
         }
-        .sheet(item: $picker) { state in
+        .fullScreenCover(item: $picker) { state in
             SourcePicker(state: state) { chosen in
                 picker = nil
                 start(videoId: state.videoId, title: state.title, candidates: chosen)
@@ -695,32 +916,123 @@ struct DetailView: View {
         }
     }
 
+    @ViewBuilder private var heroSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HeroTitle(item: meta)
+                .frame(maxWidth: 900, alignment: .leading)
+                .padding(.bottom, 24)
+            HStack(spacing: 24) {
+                if meta.type == "movie" {
+                    Button { Task { await play(videoId: meta.id, title: meta.name) } } label: {
+                        Label(resolving ? "Finding best source…" : movieLabel, systemImage: "play.fill")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                    .focused($playFocused)
+                    .disabled(resolving)
+                } else if let next = nextUp {
+                    Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
+                        Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                    .focused($playFocused)
+                    .disabled(resolving)
+                }
+                Button { library.toggleSaved(meta) } label: {
+                    Label(library.isSaved(meta) ? "Remove from library" : "Add to library",
+                          systemImage: library.isSaved(meta) ? "checkmark" : "plus")
+                }
+                .buttonStyle(CircleIconButtonStyle(selected: library.isSaved(meta)))
+                if meta.type == "movie" {
+                    Button {
+                        if library.isWatched(meta.id) { library.markUnwatched(meta: meta, videoId: nil) }
+                        else { library.markWatched(meta: meta, videoId: nil) }
+                    } label: {
+                        Label(library.isWatched(meta.id) ? "Mark unwatched" : "Mark watched",
+                              systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye.slash")
+                    }
+                    .buttonStyle(CircleIconButtonStyle(selected: library.isWatched(meta.id)))
+                }
+                if trailerURL != nil {
+                    Button { showTrailer = true } label: { Label("Trailer", systemImage: "film") }
+                        .buttonStyle(CircleIconButtonStyle())
+                }
+                if meta.type != "movie", ordered.count > 1 {
+                    // Episode shuffle, like the Android TV app: plays a random episode of the show.
+                    Button {
+                        if let ep = ordered.randomElement() {
+                            Task { await play(videoId: ep.id, title: ep.displayTitle) }
+                        }
+                    } label: { Label("Random episode", systemImage: "shuffle") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .disabled(resolving)
+                }
+                if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
+                    Button { Task { await chooseSource() } } label: { Label("Sources", systemImage: "list.bullet") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .disabled(resolving)
+                }
+            }
+            .padding(.bottom, 32)
+            if let message { Text(message).foregroundStyle(.orange).padding(.bottom, 16) }
+            if let d = meta.description {
+                Text(d)
+                    .font(.system(size: 28))
+                    .lineSpacing(4)
+                    .lineLimit(4)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(maxWidth: 1100, alignment: .leading)
+                    .padding(.bottom, 24)
+            }
+            metaInfoRow
+        }
+    }
+
+    /// Year, genres, running time and IMDb rating under the description, like Android TV's MetaInfoRow.
+    private var metaInfoRow: some View {
+        HStack(spacing: 16) {
+            let parts = [meta.releaseInfo, meta.genres.map { $0.prefix(3).joined(separator: " • ") }, meta.runtime]
+                .compactMap { $0 }.filter { !$0.isEmpty }
+            ForEach(Array(parts.enumerated()), id: \.offset) { i, part in
+                if i > 0 { Divider().frame(height: 22) }
+                Text(part)
+            }
+            if let r = meta.imdbRating, !r.isEmpty {
+                if !parts.isEmpty { Divider().frame(height: 22) }
+                HStack(spacing: 8) {
+                    Text("IMDb").font(.system(size: 18, weight: .heavy)).foregroundStyle(.black)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color(red: 0.96, green: 0.77, blue: 0.09), in: RoundedRectangle(cornerRadius: 4))
+                    Text(r)
+                }
+            }
+        }
+        .font(.system(size: 24, weight: .medium))
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+    }
+
     @ViewBuilder private var episodesSection: some View {
-        if seasons.count > 1 {
+        if !seasons.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(seasons, id: \.self) { s in
-                        Button { season = s } label: {
-                            Text("Season \(s)").fontWeight(s == season ? .bold : .regular)
-                        }
-                        .tint(s == season ? settings.theme.accent : nil)
+                        Button { season = s } label: { Text("Season \(s)") }
+                            .buttonStyle(ChipButtonStyle(selected: s == season))
                     }
                 }
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
             }
             .scrollClipDisabled()
-        } else if let s = seasons.first {
-            Text("Season \(s)").font(.title3.bold())
         }
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 36) {
+                LazyHStack(spacing: 32) {
                     ForEach(episodes) { ep in
                         Button { Task { await play(videoId: ep.id, title: ep.displayTitle) } } label: {
                             EpisodeCard(video: ep, fallback: meta.backgroundURL, watched: watched(ep),
                                         progress: library.progress(for: ep.id), isNext: ep.id == nextUp?.id)
                         }
-                        .buttonStyle(.card)
+                        .buttonStyle(.focusRing)
                         .disabled(resolving)
                         .contextMenu {
                             if watched(ep) {
@@ -745,9 +1057,6 @@ struct DetailView: View {
             .onAppear {
                 if let n = nextUp, episodes.contains(where: { $0.id == n.id }) { proxy.scrollTo(n.id, anchor: .leading) }
             }
-        }
-        if let ep = episodes.first(where: { $0.id == nextUp?.id }) ?? episodes.first, let title = ep.title ?? ep.name {
-            Text("Up next: E\(ep.episode ?? 0) \(title)").font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -856,34 +1165,73 @@ struct DetailView: View {
     }
 }
 
-/// The ranked source list: Manual mode, or the Sources button in Smart mode.
+/// The ranked source list: Manual mode, or the Sources button in Smart mode. Laid out like Android TV's
+/// sources screen: what is playing on the left, a column of source cards on the right.
 struct SourcePicker: View {
     let state: DetailView.PickerState
     let onChoose: ([StreamItem]) -> Void
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(Array(state.candidates.prefix(40).enumerated()), id: \.offset) { i, s in
-                    Button {
-                        var reordered = state.candidates
-                        let picked = reordered.remove(at: i)
-                        reordered.insert(picked, at: 0)
-                        onChoose(reordered)
-                    } label: {
-                        HStack(alignment: .top, spacing: 20) {
-                            if i == 0 {
-                                Image(systemName: "sparkles").foregroundStyle(.yellow)
-                            }
-                            VStack(alignment: .leading) {
-                                Text(s.label).font(.headline)
-                                Text("\(s.addonName ?? "")  \(s.detail)").font(.caption).lineLimit(2)
-                            }
+        HStack(alignment: .top, spacing: 60) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Sources").font(.system(size: 28, weight: .semibold)).foregroundStyle(.secondary)
+                Text(state.title).font(.system(size: 48, weight: .bold)).lineLimit(3)
+                Text("\(state.candidates.count) found. The first one is Smart auto-play's pick.")
+                    .font(.system(size: 24)).foregroundStyle(.secondary)
+            }
+            .frame(width: 560, alignment: .leading)
+            .padding(.top, 40)
+            ScrollView {
+                LazyVStack(spacing: 18) {
+                    ForEach(Array(state.candidates.prefix(40).enumerated()), id: \.offset) { i, s in
+                        Button {
+                            var reordered = state.candidates
+                            let picked = reordered.remove(at: i)
+                            reordered.insert(picked, at: 0)
+                            onChoose(reordered)
+                        } label: {
+                            SourceCard(stream: s, best: i == 0)
                         }
+                        .buttonStyle(.focusRing)
                     }
                 }
+                .padding(.vertical, 40)
+                .padding(.horizontal, 20)
             }
-            .navigationTitle(state.title)
+            .scrollClipDisabled()
         }
+        .padding(.horizontal, 96)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black.opacity(0.92).ignoresSafeArea())
+    }
+}
+
+private struct SourceCard: View {
+    let stream: StreamItem
+    let best: Bool
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 24) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 12) {
+                    if best {
+                        Label("Best", systemImage: "sparkles").font(.system(size: 20, weight: .bold))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(.yellow.opacity(0.9), in: Capsule()).foregroundStyle(.black)
+                    }
+                    Text(stream.label).font(.system(size: 30, weight: .semibold)).lineLimit(1)
+                }
+                Text(stream.detail).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(3)
+            }
+            Spacer(minLength: 20)
+            if let addon = stream.addonName {
+                Text(addon).font(.system(size: 22, weight: .medium)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(28)
+        .frame(width: 1060, alignment: .leading)
+        .background(.white.opacity(focused ? 0.16 : 0.07), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
+        .overlay(RoundedRectangle(cornerRadius: CardMetrics.radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
     }
 }
