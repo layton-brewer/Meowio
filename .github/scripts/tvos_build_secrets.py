@@ -35,7 +35,8 @@ fields = {
     "simklClientId": value("SIMKL_CLIENT_ID"),
     "mdblistClientId": value("MDBLIST_API_KEY") or value("MDBLIST_CLIENT_ID"),
     "premiumizeClientId": value("PREMIUMIZE_CLIENT_ID"),
-    "introDbURL": value("INTRODB_API_URL"),
+    # Reads are anonymous, so the public IntroDB API is the default; a secret can point elsewhere.
+    "introDbURL": value("INTRODB_API_URL") or "https://api.introdb.app/",
     "tmdbApiKey": value("TMDB_API_KEY"),
 }
 

@@ -23,7 +23,7 @@ on:
 
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
-  MEOWIO_TAG: v0.2.46
+  MEOWIO_TAG: v0.2.47
 
 permissions:
   contents: write
@@ -106,18 +106,22 @@ jobs:
           MDBLIST_API_KEY: ${{ secrets.MDBLIST_API_KEY }}
           PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
         run: |
           $lines = @("NUVIO_SUPABASE_URL=$env:NUVIO_SUPABASE_URL", "NUVIO_SUPABASE_ANON_KEY=$env:NUVIO_SUPABASE_ANON_KEY")
           # Tracking keys are added only when the repository secrets exist; otherwise the app shows "Not set up yet".
           foreach ($pair in @(@("TRAKT_CLIENT_ID", $env:TRAKT_CLIENT_ID), @("TRAKT_CLIENT_SECRET", $env:TRAKT_CLIENT_SECRET), @("SIMKL_CLIENT_ID", $env:SIMKL_CLIENT_ID), @("MDBLIST_CLIENT_ID", $env:MDBLIST_API_KEY), @("TMDB_API_KEY", $env:TMDB_API_KEY), @("PREMIUMIZE_CLIENT_ID", $env:PREMIUMIZE_CLIENT_ID))) {
             if ($pair[1]) { $lines += ($pair[0] + "=" + $pair[1]) }
           }
+          # Skip intro/recap/credits timings: IntroDB reads are anonymous, so the public API is the default.
+          $introDb = if ($env:INTRODB_API_URL) { $env:INTRODB_API_URL } else { "https://api.introdb.app/" }
+          $lines += ("INTRODB_API_URL=" + $introDb)
           ($lines -join "`n") + "`n" | Set-Content local.properties -NoNewline
           & .\gradlew.bat `
             :composeApp:packageReleaseExe `
             "-Pnuvio.webview2.dir=$env:WEBVIEW2_ROOT" `
             "-Pcompose.desktop.packaging.checkJdkVendor=false" `
-            "-Pnuvio.desktop.versionName=0.2.46" `
+            "-Pnuvio.desktop.versionName=0.2.47" `
             --no-configuration-cache `
             --no-daemon `
             --stacktrace
