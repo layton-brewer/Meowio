@@ -548,6 +548,12 @@ struct UpdatePrompt: Identifiable {
     var id: String { tag }
 }
 
+struct HomeCatalogKey: Hashable {
+    var addons: [String]
+    var order: [String]
+    var hidden: [String]
+}
+
 struct AddonRow: Identifiable {
     var catalog: AddonClient.AddonCatalog
     var items: [MetaItem]
@@ -561,8 +567,6 @@ struct HomeView: View {
     @EnvironmentObject var servers: MediaServerStore
     @EnvironmentObject var party: PartyRepository
     @State private var serverShelves: [ServerShelf] = []
-    @State private var movies: [MetaItem] = []
-    @State private var series: [MetaItem] = []
     @State private var addonRows: [AddonRow] = []
     @State private var loaded = false
     @State private var focusedItem: MetaItem?
@@ -570,7 +574,7 @@ struct HomeView: View {
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
 
-    private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? movies.first ?? series.first }
+    private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? addonRows.first?.items.first }
     /// What the header shows: the focused card, or a featured title before anything is focused.
     private var heroShown: MetaItem? { focusedItem ?? featured }
 
@@ -614,18 +618,18 @@ struct HomeView: View {
                             ForEach(collections.ordered) { collection in
                                 CollectionShelf(collection: collection)
                             }
-                            Shelf(title: "Popular Movies", items: movies, onFocus: focus)
-                            Shelf(title: "Popular Series", items: series, onFocus: focus)
                             ForEach(addonRows) { row in
                                 Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
                             }
-                            if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
-                                Text("Couldn't load the catalog. Check your connection.").padding(CardMetrics.rowInset)
+                            if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
+                                Text("No catalogs to show. Check your connection, or turn catalogs on in Settings > Content & Discovery > Home catalogs.")
+                                    .padding(CardMetrics.rowInset)
                             }
                         }
+                        .padding(.top, 16)
                         .padding(.bottom, 80)
                     }
-                    .scrollClipDisabled()
+                    // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
                     .frame(height: geo.size.height * 0.5)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                 }
@@ -654,22 +658,14 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.85).ignoresSafeArea())
         }
-        .task {
-            guard !loaded else { return }
-            async let m = AddonClient.catalog(type: "movie")
-            async let s = AddonClient.catalog(type: "series")
-            movies = await m
-            series = await s
-            heroItem = movies.prefix(5).randomElement()
-            loaded = true
-        }
         .task(id: servers.connections) {
             serverShelves = await servers.shelves()
         }
-        .task(id: settings.addons) {
-            // Cinemeta's lists are the Popular rows above; every other add-on's catalogs follow in add-on order.
-            let catalogs = Array(await AddonClient.addonCatalogs(settings.addons)
-                .filter { $0.base != AddonClient.cinemeta }.prefix(40))
+        .task(id: HomeCatalogKey(addons: settings.addons, order: settings.homeCatalogOrder, hidden: settings.disabledHomeCatalogs)) {
+            // Every add-on's catalogs, Cinemeta's included, in the order set in Home catalogs, minus the hidden ones.
+            let hidden = Set(settings.disabledHomeCatalogs)
+            let catalogs = Array(settings.orderedHomeCatalogs(await AddonClient.addonCatalogs(settings.addons))
+                .filter { !hidden.contains($0.rowId) }.prefix(40))
             var found: [Int: AddonRow] = [:]
             await withTaskGroup(of: (Int, [MetaItem]).self) { group in
                 for (index, catalog) in catalogs.enumerated() {
@@ -682,6 +678,8 @@ struct HomeView: View {
                 }
             }
             if found.isEmpty { addonRows = [] }
+            if heroItem == nil { heroItem = addonRows.first?.items.prefix(5).randomElement() }
+            loaded = true
         }
     }
 

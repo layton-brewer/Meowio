@@ -163,6 +163,10 @@ final class SettingsStore: ObservableObject {
     @Published var heroTrailers: Bool { didSet { save() } }
     /// Subtitle look, the same options as the Android TV player (size in percent, colours as ARGB).
     @Published var subtitleStyle: SubtitleStyle { didSet { save() } }
+    /// Home catalog order and hidden catalogs, by catalog key (add-on|type|id), like Android TV's Catalog order screen.
+    /// An empty order follows the add-on order.
+    @Published var homeCatalogOrder: [String] { didSet { save() } }
+    @Published var disabledHomeCatalogs: [String] { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -174,7 +178,14 @@ final class SettingsStore: ObservableObject {
         let d = ProfileScope.defaults
         store = d
         addonStore = sharesPrimaryAddons ? ProfileScope.defaults(for: 1) : d
-        addons = addonStore.stringArray(forKey: "addons") ?? []
+        // Like Android TV, a fresh install comes with Cinemeta and OpenSubtitles as ordinary add-ons the user can remove.
+        // Older installs showed Cinemeta's Popular rows without listing it, so it is added to their list once.
+        var list = addonStore.stringArray(forKey: "addons") ?? [AddonClient.cinemeta, AddonClient.openSubtitles]
+        if !addonStore.bool(forKey: "cinemetaListed") {
+            if !list.contains(AddonClient.cinemeta) { list.insert(AddonClient.cinemeta, at: 0) }
+            addonStore.set(true, forKey: "cinemetaListed")
+        }
+        addons = list
         streamMode = StreamMode(rawValue: d.string(forKey: "streamMode") ?? "") ?? .smart
         autoNext = d.object(forKey: "autoNext") as? Bool ?? true
         sameRelease = d.object(forKey: "sameRelease") as? Bool ?? true
@@ -209,6 +220,8 @@ final class SettingsStore: ObservableObject {
         upNextCard = d.object(forKey: "upNextCard") as? Bool ?? true
         heroTrailers = d.object(forKey: "heroTrailers") as? Bool ?? true
         subtitleStyle = d.data(forKey: "subtitleStyle").flatMap { try? JSONDecoder().decode(SubtitleStyle.self, from: $0) } ?? SubtitleStyle()
+        homeCatalogOrder = d.stringArray(forKey: "homeCatalogOrder") ?? []
+        disabledHomeCatalogs = d.stringArray(forKey: "disabledHomeCatalogs") ?? []
     }
 
     private func save() {
@@ -240,6 +253,22 @@ final class SettingsStore: ObservableObject {
         d.set(upNextCard, forKey: "upNextCard")
         d.set(heroTrailers, forKey: "heroTrailers")
         if let data = try? JSONEncoder().encode(subtitleStyle) { d.set(data, forKey: "subtitleStyle") }
+        d.set(homeCatalogOrder, forKey: "homeCatalogOrder")
+        d.set(disabledHomeCatalogs, forKey: "disabledHomeCatalogs")
+    }
+
+    /// Home catalogs in the user's order: saved keys first, then any new catalog in add-on order.
+    func orderedHomeCatalogs(_ catalogs: [AddonClient.AddonCatalog]) -> [AddonClient.AddonCatalog] {
+        guard !homeCatalogOrder.isEmpty else { return catalogs }
+        let rank = Dictionary(homeCatalogOrder.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+        return catalogs.enumerated().sorted { a, b in
+            switch (rank[a.element.rowId], rank[b.element.rowId]) {
+            case let (x?, y?): return x < y
+            case (_?, nil): return true
+            case (nil, _?): return false
+            case (nil, nil): return a.offset < b.offset
+            }
+        }.map(\.element)
     }
 
     func addAddon(_ raw: String) {
