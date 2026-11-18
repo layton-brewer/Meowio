@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.49 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.50 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.49 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.50 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,11 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.49"
+          tag="v0.2.50"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.49
+          ## What's new in 0.2.50
 
-          - **Automatic subtitle sync (optional, off by default).** Turn it on in Settings > Playback/Subtitles. When you pick an add-on subtitle, its timing is lined up with the subtitles built into the video. On Android TV and phone, videos with no built-in subtitles are matched to the dialogue in the audio instead. Only confident matches are applied, and subtitles are never turned on for you. Android TV, phone, iPhone/iPad, Mac and Windows.
+          - **Skips debrid "downloading" clips.** When an add-on plays a stand-in clip such as "Torrent is being downloaded to debrid..." instead of the title, Meowio notices (by the clip's link, or because it is far shorter than the episode or movie) and quietly switches to the next cached source. Short titles and trailers are left alone. Android TV, phone, iPhone/iPad, Mac and Windows.
+          - **Guest mode on phone goes straight to Home.** "Continue Without Account" now creates a local Profile 1 instead of showing an empty "Who's watching?" screen.
 
           ## Download
 

@@ -40,6 +40,7 @@ import com.nuvio.app.features.servers.ServerPlayback
 import com.nuvio.app.features.servers.ServerStreams
 import com.nuvio.app.features.streams.BingeGroupCacheRepository
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
+import com.nuvio.app.features.streams.PlaceholderVideoDetector
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.streams.StreamItem
@@ -190,6 +191,44 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
             if (initialLoadCompleted || errorMessage != null) return@LaunchedEffect
             if (credentialRefreshJob?.isActive == true || sourceFallbackJob?.isActive == true) return@LaunchedEffect
             tryFailoverToNextSource(timeoutMessage)
+        }
+    }
+
+    // Debrid add-ons answer an uncached torrent with a short stand-in clip ("Torrent is being
+    // downloaded to debrid...", "Downloading", "Failed"). It plays without an error, so it is
+    // caught here: a known stand-in address, or a video far shorter than the title's runtime.
+    LaunchedEffect(activePlaybackKey, activeSourceUrl) {
+        if (parentMetaType == com.nuvio.app.features.livetv.LiveTvContentType) return@LaunchedEffect
+        var waitedMs = 0L
+        while (true) {
+            delay(PlaybackStallFailoverPolicy.POLL_INTERVAL_MS)
+            val ready = initialLoadCompleted && errorMessage == null && activeTorrentInfoHash == null &&
+                playbackSnapshotKey == activePlaybackKey &&
+                credentialRefreshJob?.isActive != true && sourceFallbackJob?.isActive != true
+            if (!ready) continue
+            val durationMs = playbackSnapshot.durationMs
+            waitedMs += PlaybackStallFailoverPolicy.POLL_INTERVAL_MS
+            if (durationMs <= 0L && waitedMs < PlaceholderVideoDetector.DURATION_WAIT_MS) continue
+            val season = activeSeasonNumber
+            val episode = activeEpisodeNumber
+            val episodeRuntime = if (season != null && episode != null) {
+                playerMetaVideos.firstOrNull { it.season == season && it.episode == episode }?.runtime
+            } else {
+                null
+            }
+            val expectedMinutes = episodeRuntime?.takeIf { it > 0 }
+                ?: PlaceholderVideoDetector.runtimeMinutes(playerMeta?.runtime)
+            val isPlaceholder = PlaceholderVideoDetector.isPlaceholderPlayback(
+                url = activeSourceUrl,
+                durationMs = durationMs,
+                expectedRuntimeMinutes = expectedMinutes,
+                streamText = activeStream?.let { listOfNotNull(it.name, it.title).joinToString("\n") },
+            )
+            if (isPlaceholder) {
+                // With nothing left to try, the clip keeps playing as it would anyway.
+                tryFailoverToNextSource(getString(Res.string.player_error_source_placeholder))
+            }
+            return@LaunchedEffect
         }
     }
 

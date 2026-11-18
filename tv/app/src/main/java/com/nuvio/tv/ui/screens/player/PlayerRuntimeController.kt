@@ -541,6 +541,8 @@ class PlayerRuntimeController(
     internal var cloudPlaybackContext: CloudLibraryPlaybackContext? =
         cloudPlaybackSessionStore.load(cloudSessionToken)
     internal var metaGenres: List<String> = emptyList()
+    /** Runtime of the title from metadata, in minutes, used to spot debrid stand-in clips. */
+    internal var metaRuntimeMinutes: Int? = null
     internal var metaCountry: String? = null
     internal var metaFetchJob: Job? = null
     internal var nextEpisodeVideo: Video? = null
