@@ -19,3 +19,4 @@ build/
 tvos/MPVKit/
 tvos/Meowio.xcodeproj/
 tvos/build/
+tvos/Meowio/crypto-js.js

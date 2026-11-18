@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 env:
-  APPLETV_VERSION: 0.2.45
+  APPLETV_VERSION: 0.2.46
 
 permissions:
   contents: write
@@ -60,6 +60,13 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TV_LOCAL_PROPERTIES_BASE64: ${{ secrets.TV_LOCAL_PROPERTIES_BASE64 }}
         run: python3 ../.github/scripts/tvos_build_secrets.py Meowio/BuildSecrets.swift
+
+      # Nuvio plugins can require('crypto-js'); bundle the same 4.2.0 build the Android app ships.
+      - name: Fetch CryptoJS for plugins
+        run: |
+          curl -fsSL https://registry.npmjs.org/crypto-js/-/crypto-js-4.2.0.tgz -o /tmp/crypto-js.tgz
+          tar -xzf /tmp/crypto-js.tgz -C /tmp package/crypto-js.js
+          cp /tmp/package/crypto-js.js Meowio/crypto-js.js
 
       - name: Generate project
         run: xcodegen generate

@@ -201,6 +201,8 @@ final class StreamStore: ObservableObject {
     private var lastRelease: [String: String] = [:]
     /// The profile's media servers, set when the profile opens.
     weak var servers: MediaServerStore?
+    /// The profile's Nuvio plugins, set when the profile opens.
+    weak var plugins: PluginStore?
 
     private func key(_ type: String, _ id: String, _ addons: [String]) -> String {
         "\(type)/\(id)|\(addons.joined(separator: ","))"
@@ -221,9 +223,11 @@ final class StreamStore: ObservableObject {
     /// Ranked candidates, best first.
     func candidates(type: String, id: String, parentId: String, settings: SettingsStore, name: String? = nil) async -> [StreamItem] {
         async let own = servers?.streams(type: type, id: id, name: name) ?? []
+        async let fromPlugins = MediaServerStore.isServerId(id) ? [] : (plugins?.streams(type: type, id: id) ?? [])
         var list = MediaServerStore.isServerId(id) ? [] : await raw(type: type, id: id, addons: settings.addons)
         if !settings.debridReady { list.removeAll { $0.isTorrentOnly } }
         let ownList = await own
+        list += await fromPlugins
         let cached = await cachedHashes(list, settings: settings)
         var ranked = SmartRanker.rank(list + ownList, isSeries: type == "series", pinned: Set(settings.pinnedSources), cached: cached)
         if servers?.preferServers ?? true, !ownList.isEmpty {
@@ -257,7 +261,9 @@ final class StreamStore: ObservableObject {
     }
 
     func preload(type: String, id: String, settings: SettingsStore) {
-        guard settings.streamMode == .smart, !settings.addons.isEmpty, !MediaServerStore.isServerId(id) else { return }
+        guard settings.streamMode == .smart, !MediaServerStore.isServerId(id) else { return }
+        if let plugins, plugins.hasActiveScrapers { Task { _ = await plugins.streams(type: type, id: id) } }
+        guard !settings.addons.isEmpty else { return }
         let addons = settings.addons
         Task {
             let list = await raw(type: type, id: id, addons: addons)

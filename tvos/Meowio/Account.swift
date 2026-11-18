@@ -361,6 +361,36 @@ final class AccountStore: ObservableObject {
         return row?["unlocked"] as? Bool ?? false
     }
 
+    // MARK: Plugin repositories (shared with the phone and Android TV)
+
+    /// All of the profile's plugin rows on the account, in order. Nil when they could not be read.
+    private func pluginRows(profileId: Int) async -> [[String: Any]]? {
+        guard let owner = await owner() else { return nil }
+        let r = await call("/rest/v1/plugins?select=url,name,enabled,sort_order,repo_type&user_id=eq.\(owner)&profile_id=eq.\(profileId)&order=sort_order.asc",
+                           body: nil, method: "GET")
+        return r.status < 300 ? r.json as? [[String: Any]] : nil
+    }
+
+    /// The JavaScript plugin repositories (the kind Apple TV can run) saved on the account for this profile.
+    func pullPluginRepos(profileId: Int) async -> [PluginStore.Repo]? {
+        guard signedIn, let rows = await pluginRows(profileId: profileId) else { return nil }
+        return rows.filter { (($0["repo_type"] as? String) ?? "NUVIO_JS") == "NUVIO_JS" }.compactMap { row in
+            guard let url = row["url"] as? String else { return nil }
+            return PluginStore.Repo(url: url, name: (row["name"] as? String) ?? "Plugins", enabled: row["enabled"] as? Bool ?? true)
+        }
+    }
+
+    /// Sends this profile's JavaScript repositories up, keeping the account's other repositories (Android-only kinds).
+    func pushPluginRepos(_ repos: [PluginStore.Repo], profileId: Int) async {
+        guard signedIn, let rows = await pluginRows(profileId: profileId) else { return }
+        let others = rows.filter { (($0["repo_type"] as? String) ?? "NUVIO_JS") != "NUVIO_JS" }
+        var list: [[String: Any]] = repos.map { ["url": $0.url, "name": $0.name, "enabled": $0.enabled, "repo_type": "NUVIO_JS"] }
+        list += others.map { ["url": $0["url"] ?? "", "name": $0["name"] ?? NSNull(), "enabled": $0["enabled"] ?? true,
+                              "repo_type": $0["repo_type"] ?? NSNull()] }
+        for i in list.indices { list[i]["sort_order"] = i }
+        _ = await rpc("sync_push_plugins", ["p_plugins": list, "p_profile_id": profileId, "p_origin_client_id": clientId])
+    }
+
     // MARK: Settings made on Android TV
 
     /// Takes the playback settings this profile uses on Android TV (autoplay, failover, languages, Skip Intro, theme,
