@@ -38,6 +38,13 @@ struct AppRoot: View {
             if account.signedIn { hasSeenFirstLaunchSignIn = true }
             await account.pullProfiles(into: profiles)
         }
+        .onChange(of: account.signedIn) { _, signedIn in
+            // The first-launch sign-in screen goes away the moment the token arrives, so the account's
+            // profiles are fetched here rather than by that screen.
+            guard signedIn else { return }
+            hasSeenFirstLaunchSignIn = true
+            Task { await account.pullProfiles(into: profiles) }
+        }
     }
 }
 
@@ -86,6 +93,15 @@ struct ProfileRoot: View {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await syncAll() } }
             }
+            .onChange(of: account.signedIn) { _, signedIn in
+                // Signing in from Settings (code or email) brings the account's profiles, add-ons, library,
+                // progress and keys down straight away, like Android TV, instead of on the next app launch.
+                guard signedIn else { return }
+                Task {
+                    await account.pullProfiles(into: profiles)
+                    await syncAll()
+                }
+            }
             .task(id: "\(settings.debridService.rawValue)|\(settings.debridKey)") {
                 // A debrid key typed here reaches the account a moment after the last keystroke.
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -93,7 +109,8 @@ struct ProfileRoot: View {
                 await account.syncCredentials(profileId: profile.id, settings: settings)
             }
             .onChange(of: settings.addons) { _, addons in
-                guard !profile.usesPrimaryAddons || profile.id == 1 else { return }
+                let current = profiles.profiles.first { $0.id == profile.id } ?? profile
+                guard !current.usesPrimaryAddons || current.id == 1 else { return }
                 Task { await account.pushAddons(addons, profileId: profile.id) }
             }
     }
@@ -103,7 +120,9 @@ struct ProfileRoot: View {
 
     private func syncAll() async {
         if account.signedIn {
-            await account.sync(profile: profile, settings: settings, library: library)
+            // The account may have just changed this profile (for example "use the main profile's add-ons").
+            let current = profiles.profiles.first { $0.id == profile.id } ?? profile
+            await account.sync(profile: current, settings: settings, library: library)
             if let key = account.mdblistKey { await mdblist.useAccountKey(key) }
         }
         if trakt.connected { await trakt.sync(into: library) }
@@ -126,10 +145,8 @@ struct ProfileRoot: View {
         streams.plugins = plugins
         let pluginId = pluginProfile
         plugins.onReposChanged = { [weak acc] repos in Task { await acc?.pushPluginRepos(repos, profileId: pluginId) } }
-        account.onSignedIn = { [profiles] in
-            await acc.pullProfiles(into: profiles)
-            await self.syncAll()
-        }
+        // Sign-in is picked up by the onChange of account.signedIn above.
+        account.onSignedIn = nil
         party.configure(account: account, profiles: profiles)
         library.onSavedChanged = { [weak acc, weak tr, weak sk, weak md] item, added in
             Task { @MainActor in

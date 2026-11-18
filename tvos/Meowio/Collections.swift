@@ -377,11 +377,11 @@ final class CollectionsStore: ObservableObject {
             }
             rows = (await TMDB.get("/discover/\(media)", q))?["results"] as? [[String: Any]] ?? []
         }
-        return await withImdbIds(rows.prefix(40).map { $0 }, defaultMedia: media)
+        return await Self.withImdbIds(rows.prefix(40).map { $0 }, defaultMedia: media)
     }
 
     /// Cinemeta and the add-ons know titles by IMDb id, so each TMDB result is looked up for one.
-    private func withImdbIds(_ rows: [[String: Any]], defaultMedia: String) async -> [MetaItem] {
+    nonisolated static func withImdbIds(_ rows: [[String: Any]], defaultMedia: String) async -> [MetaItem] {
         var found: [Int: MetaItem] = [:]
         await withTaskGroup(of: (Int, MetaItem?).self) { group in
             for (index, row) in rows.enumerated() {

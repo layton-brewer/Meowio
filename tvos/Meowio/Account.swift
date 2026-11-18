@@ -66,6 +66,8 @@ final class AccountStore: ObservableObject {
             self.email = email
             UserDefaults.standard.set(self.email, forKey: "accountEmail")
             message = nil
+            busy = false
+            await onSignedIn?()
         } else if create, r.status < 300 {
             message = "Check your email to confirm the account, then sign in."
         } else {
@@ -173,6 +175,7 @@ final class AccountStore: ObservableObject {
         userId = nil
         ownerId = nil
         email = nil
+        pulledAddonProfiles = []
         for k in ["accountAccess", "accountRefresh", "accountExpires", "accountUser", "accountEmail"] {
             UserDefaults.standard.removeObject(forKey: k)
         }
@@ -186,11 +189,31 @@ final class AccountStore: ObservableObject {
             userId = user["id"] as? String ?? userId
             if let mail = user["email"] as? String { email = mail; UserDefaults.standard.set(mail, forKey: "accountEmail") }
         }
+        // The TV code exchange can answer without a user object: the token itself names the user.
+        if let claims = accessToken.flatMap(Self.jwtClaims) {
+            if let sub = claims["sub"] as? String, !sub.isEmpty {
+                if sub != userId { ownerId = nil }
+                userId = sub
+            }
+            if email == nil || email == "your Nuvio account", let mail = claims["email"] as? String, !mail.isEmpty {
+                email = mail
+                UserDefaults.standard.set(mail, forKey: "accountEmail")
+            }
+        }
         let d = UserDefaults.standard
         d.set(accessToken, forKey: "accountAccess")
         d.set(refreshToken, forKey: "accountRefresh")
         d.set(expiresAt?.timeIntervalSince1970, forKey: "accountExpires")
         d.set(userId, forKey: "accountUser")
+    }
+
+    private static func jwtClaims(_ token: String) -> [String: Any]? {
+        let parts = token.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var b64 = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while b64.count % 4 != 0 { b64 += "=" }
+        guard let data = Data(base64Encoded: b64) else { return nil }
+        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
     }
 
     private func refresh() async -> Bool {
@@ -279,7 +302,8 @@ final class AccountStore: ObservableObject {
             else if let rows = r.json as? [[String: Any]], let s = rows.first?.values.first as? String { ownerId = s }
             else if let obj = r.json as? [String: Any], let s = obj.values.first as? String { ownerId = s }
         }
-        return ownerId ?? userId
+        // Like Android, don't guess: a linked device's data lives under the owner, not its own id.
+        return ownerId
     }
 
     /// The account's profiles, for the "Who's watching?" screen.
@@ -522,6 +546,10 @@ final class AccountStore: ObservableObject {
 
     /// Full two-way sync for one profile: add-ons, My List, progress and watched marks.
     func sync(profile: Profile, settings: SettingsStore, library: LibraryStore) async {
+        guard signedIn else { return }
+        // A sync already running (sign-in, the scene waking, a profile switch) used to make this one do nothing,
+        // so the add-ons of the profile just opened never came down. Wait for it, then run.
+        for _ in 0..<120 where busy { try? await Task.sleep(nanoseconds: 500_000_000) }
         guard signedIn, !busy else { return }
         busy = true
         defer { busy = false; lastSync = Date() }
@@ -538,25 +566,46 @@ final class AccountStore: ObservableObject {
         guard let owner = await owner() else { return }
         let r = await call("/rest/v1/addons?select=url,sort_order,enabled&user_id=eq.\(owner)&profile_id=eq.\(addonProfile)&order=sort_order.asc",
                            body: nil, method: "GET")
-        let rows = (r.json as? [[String: Any]]) ?? []
+        guard r.status < 300, let rows = r.json as? [[String: Any]] else { return }
         let remote = rows.filter { ($0["enabled"] as? Bool) ?? true }.compactMap { $0["url"] as? String }
-        if r.status < 300, !remote.isEmpty {
+        pulledAddonProfiles.insert(addonProfile)
+        if !remote.isEmpty {
             var cleaned: [String] = []
             for raw in remote {
-                var s = raw.trimmingCharacters(in: .whitespaces)
-                if s.hasSuffix("/manifest.json") { s = String(s.dropLast("/manifest.json".count)) }
-                while s.hasSuffix("/") { s.removeLast() }
+                let s = Self.addonBase(raw)
                 if !s.isEmpty, !cleaned.contains(s) { cleaned.append(s) }
             }
             if cleaned != settings.addons { settings.addons = cleaned }
-        } else if r.status < 300, !settings.addons.isEmpty, !profile.usesPrimaryAddons {
+        } else if !settings.addons.isEmpty, !profile.usesPrimaryAddons || profile.id == 1,
+                  Set(settings.addons) != Set([AddonClient.cinemeta, AddonClient.openSubtitles]) {
+            // An account with no add-ons yet gets the ones set up here, but never just the stock pair.
             await pushAddons(settings.addons, profileId: profile.id)
         }
     }
 
+    /// Profiles whose add-on list has come down from the account since sign-in. Until then nothing is pushed,
+    /// so the stock add-ons of a fresh install can't replace the account's list.
+    private var pulledAddonProfiles: Set<Int> = []
+
+    /// "https://x/manifest.json?a=b" and "https://x/" both become "https://x" (query kept), like Android.
+    static func addonBase(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var query = ""
+        if let q = s.firstIndex(of: "?") { query = String(s[q...]); s = String(s[..<q]) }
+        while s.hasSuffix("/") { s.removeLast() }
+        if s.lowercased().hasSuffix("/manifest.json") { s = String(s.dropLast("/manifest.json".count)) }
+        while s.hasSuffix("/") { s.removeLast() }
+        return s.isEmpty ? "" : s + query
+    }
+
+    private static func manifestURL(_ base: String) -> String {
+        guard let q = base.firstIndex(of: "?") else { return base + "/manifest.json" }
+        return String(base[..<q]) + "/manifest.json" + String(base[q...])
+    }
+
     func pushAddons(_ addons: [String], profileId: Int) async {
-        guard signedIn else { return }
-        let list: [[String: Any]] = addons.enumerated().map { ["url": $0.element + "/manifest.json", "sort_order": $0.offset, "enabled": true] }
+        guard signedIn, pulledAddonProfiles.contains(profileId) else { return }
+        let list: [[String: Any]] = addons.enumerated().map { ["url": Self.manifestURL($0.element), "sort_order": $0.offset, "enabled": true] }
         _ = await rpc("sync_push_addons", ["p_addons": list, "p_profile_id": profileId, "p_origin_client_id": clientId])
     }
 
