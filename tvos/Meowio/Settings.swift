@@ -103,12 +103,17 @@ enum HomeLayout: String, Codable, CaseIterable, Identifiable {
 }
 
 enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
-    case meowio, ocean, emerald, amber, rose, crimson, sunset, aurora, midnight, white
+    case meowio, ocean, emerald, amber, rose, crimson, sunset, aurora, midnight, white, custom
     var id: String { rawValue }
     var title: String { rawValue.capitalized }
 
+    /// The custom theme's colours, set in Settings > Appearance (hex, like Android TV's custom theme editor).
+    static var customAccentHex: String { ProfileScope.defaults.string(forKey: "customAccent") ?? "#FF5C9E" }
+    static var customBackgroundHex: String { ProfileScope.defaults.string(forKey: "customBackground") ?? "#120A14" }
+
     var accent: Color {
         switch self {
+        case .custom: return Color(hex: Self.customAccentHex) ?? .pink
         case .meowio: return Color(red: 0.69, green: 0.45, blue: 0.95)
         case .ocean: return Color(red: 0.22, green: 0.60, blue: 0.95)
         case .emerald: return Color(red: 0.20, green: 0.78, blue: 0.52)
@@ -124,6 +129,7 @@ enum MeowioTheme: String, Codable, CaseIterable, Identifiable {
 
     var background: Color {
         switch self {
+        case .custom: return Color(hex: Self.customBackgroundHex) ?? .black
         case .meowio: return Color(red: 0.07, green: 0.05, blue: 0.11)
         case .ocean: return Color(red: 0.04, green: 0.07, blue: 0.11)
         case .emerald: return Color(red: 0.04, green: 0.09, blue: 0.07)
@@ -190,6 +196,8 @@ final class SettingsStore: ObservableObject {
     @Published var landscapePosters: Bool { didSet { save() } }
     /// Ambient mode: minutes of no remote use on Home before a backdrop slideshow starts. 0 is off.
     @Published var ambientMinutes: Int { didSet { save() } }
+    @Published var customAccent: String { didSet { save() } }
+    @Published var customBackground: String { didSet { save() } }
 
     /// Storage for this profile, and for its add-ons (the main profile's when it shares them).
     private let store: UserDefaults
@@ -252,6 +260,8 @@ final class SettingsStore: ObservableObject {
         homeLayout = HomeLayout(rawValue: d.string(forKey: "homeLayout") ?? "") ?? .modern
         landscapePosters = d.object(forKey: "landscapePosters") as? Bool ?? false
         ambientMinutes = d.object(forKey: "ambientMinutes") as? Int ?? 0
+        customAccent = d.string(forKey: "customAccent") ?? "#FF5C9E"
+        customBackground = d.string(forKey: "customBackground") ?? "#120A14"
     }
 
     private func save() {
@@ -292,6 +302,8 @@ final class SettingsStore: ObservableObject {
         d.set(homeLayout.rawValue, forKey: "homeLayout")
         d.set(landscapePosters, forKey: "landscapePosters")
         d.set(ambientMinutes, forKey: "ambientMinutes")
+        d.set(customAccent, forKey: "customAccent")
+        d.set(customBackground, forKey: "customBackground")
     }
 
     /// Hide Unreleased Content: titles whose year is still to come.

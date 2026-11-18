@@ -135,6 +135,17 @@ struct SettingsView: View {
                 ForEach(MeowioTheme.allCases) { Text($0.title).tag($0) }
             }
             Toggle("Show Live TV", isOn: $settings.liveTabVisible)
+            if settings.theme == .custom {
+                NavigationLink { CustomThemeView() } label: {
+                    HStack {
+                        Text("Custom colours")
+                        Spacer()
+                        Circle().fill(settings.theme.accent).frame(width: 30, height: 30)
+                        Circle().fill(settings.theme.background).frame(width: 30, height: 30)
+                            .overlay(Circle().stroke(.white.opacity(0.4), lineWidth: 1))
+                    }
+                }
+            }
         }
         Section {
             Picker("Start after", selection: $settings.ambientMinutes) {
@@ -855,5 +866,40 @@ struct HomeCatalogsView: View {
         } else {
             settings.disabledHomeCatalogs.append(catalog.rowId)
         }
+    }
+}
+
+
+/// Android TV's custom theme editor: an accent and a background colour, from swatches or a hex code.
+struct CustomThemeView: View {
+    @EnvironmentObject var settings: SettingsStore
+
+    private let accents = ["#FF5C9E", "#B073F2", "#3899F2", "#33C785", "#FAB233", "#F26B5E", "#E63835", "#38B8E8",
+                           "#5468FF", "#F5F5F5", "#FF9F0A", "#64D2FF", "#BF5AF2", "#30D158", "#FFD60A", "#AC8E68"]
+    private let backgrounds = ["#120A14", "#0A0D1C", "#0A1712", "#1A140A", "#1A0F14", "#0D0D0D", "#000000", "#101820"]
+
+    var body: some View {
+        List {
+            Section("Accent") { swatches(accents, selection: $settings.customAccent) }
+            Section("Background") { swatches(backgrounds, selection: $settings.customBackground) }
+            Section("Hex codes") {
+                TextField("Accent, like #FF5C9E", text: $settings.customAccent)
+                TextField("Background, like #120A14", text: $settings.customBackground)
+            }
+        }
+        .navigationTitle("Custom colours")
+    }
+
+    private func swatches(_ list: [String], selection: Binding<String>) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(90), spacing: 24), count: 8), spacing: 24) {
+            ForEach(list, id: \.self) { hex in
+                Button { selection.wrappedValue = hex } label: {
+                    Circle().fill(Color(hex: hex) ?? .clear).frame(width: 70, height: 70)
+                        .overlay(Circle().stroke(.white, lineWidth: selection.wrappedValue.uppercased() == hex ? 4 : 0))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 12)
     }
 }
