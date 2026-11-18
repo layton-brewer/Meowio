@@ -17,6 +17,7 @@ import com.nuvio.tv.ui.screens.player.autosync.AutoSyncExtractorsFactory
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncLibassSubtitles
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncPreferences
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncResolvedTimeline
+import com.nuvio.tv.ui.screens.player.autosync.AutoSyncSpeechReference
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncSubtitleCandidate
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncSubtitleTextRetimer
 import com.nuvio.tv.ui.screens.player.autosync.AutoSyncSyncedSubtitle
@@ -55,7 +56,12 @@ internal fun PlayerRuntimeController.autoSyncExtractorsFactory(
     headers: Map<String, String>,
 ): ExtractorsFactory {
     AutoSyncPreferences.ensureLoaded(context)
-    if (!AutoSyncPreferences.isEnabled(context)) return delegate
+    if (!AutoSyncPreferences.isEnabled(context)) {
+        AutoSyncSpeechReference.endSession()
+        return delegate
+    }
+    // Audio fallback for videos without embedded subtitles: summarise this stream's dialogue.
+    AutoSyncSpeechReference.beginSession(url)
     val factory = AutoSyncExtractorsFactory(delegate = delegate, sourceKey = url)
     prefetchAutoSyncIndex(url, headers)
     return factory
