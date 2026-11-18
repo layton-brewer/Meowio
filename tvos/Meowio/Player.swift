@@ -82,6 +82,9 @@ final class PlaybackController: ObservableObject {
     private var stallPosition: Double = -1
     /// Playing mid-playback stops this long without moving before the next source takes over.
     private static let stallFailoverSeconds = 30
+    /// Debrid stand-in clip check for the playing source: done once its length is known.
+    private var placeholderChecked = false
+    private var placeholderWaitSeconds = 0
     @Published var failedAll = false {
         didSet { if failedAll, !oldValue { diagnoseLiveFailure() } }
     }
@@ -260,6 +263,7 @@ final class PlaybackController: ObservableObject {
         }
         guard !request.isLive else { return }
         checkMidPlaybackStall()
+        checkDebridPlaceholder()
         // Pause and resume for scrobbling.
         let paused = usingMPV ? mpv.isPaused : player.timeControlStatus == .paused
         if started, paused != wasPaused { emitScrobble(paused ? "pause" : "start", percent) }
@@ -312,6 +316,28 @@ final class PlaybackController: ObservableObject {
         stallSeconds = 0
         sourcePlaying = false
         // Retrying the same link in mpv will not bring a dead host back: move to the next source.
+        nextSource()
+    }
+
+    /// Debrid add-ons answer an uncached torrent with a short stand-in clip ("Torrent is being downloaded
+    /// to debrid..."). It plays without an error, so it is caught here: a known stand-in address, or a
+    /// video far shorter than the title's runtime. The link is remembered as dead and the next source plays.
+    private func checkDebridPlaceholder() {
+        guard settings.failoverEnabled, sourcePlaying, !placeholderChecked, !stopped, !failedAll, !advancing,
+              request.tracked, request.candidates.indices.contains(index) else { return }
+        let duration = usingMPV ? mpv.duration : (player.currentItem?.duration.seconds ?? 0)
+        placeholderWaitSeconds += 1
+        guard (duration.isFinite && duration > 0) || placeholderWaitSeconds >= 20 else { return }
+        placeholderChecked = true
+        let stream = request.candidates[index]
+        let url = resolved[index]?.absoluteString ?? stream.url
+        let isPlaceholder = PlaceholderVideo.isPlaceholderPlayback(
+            url: url,
+            seconds: duration.isFinite ? duration : 0,
+            runtimeMinutes: PlaceholderVideo.runtimeMinutes(request.meta.runtime),
+            streamText: [stream.name, stream.title].compactMap { $0 }.joined(separator: "\n"))
+        guard isPlaceholder else { return }
+        sourcePlaying = false
         nextSource()
     }
 
@@ -432,6 +458,8 @@ final class PlaybackController: ObservableObject {
         sourcePlaying = false
         stallSeconds = 0
         stallPosition = -1
+        placeholderChecked = false
+        placeholderWaitSeconds = 0
         pendingStart = request.isLive ? 0 : (lastSeconds > 5 ? lastSeconds : request.startAt)
         let headers = stream.headers(merging: request.headers)
         let hint = (stream.behaviorHints?.filename ?? url.lastPathComponent).lowercased()
