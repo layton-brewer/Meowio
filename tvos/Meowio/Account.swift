@@ -715,13 +715,10 @@ final class AccountStore: ObservableObject {
     }
 }
 
-/// Sign in with a code or with email. Used on the Account page and on the first-launch screen.
+/// Sign in with a code approved from the phone. Used on the Account page and on the first-launch screen.
+/// Email sign-in is left out on Apple TV: typing with the remote was unreliable, and the code needs no typing.
 struct AccountSignInForm: View {
     @EnvironmentObject var account: AccountStore
-    /// Runs after an email sign-in. A code sign-in runs the account's own onSignedIn hook instead.
-    var onSignedIn: () async -> Void = {}
-    @State private var email = ""
-    @State private var password = ""
 
     var body: some View {
         if let code = account.linkCode {
@@ -748,31 +745,7 @@ struct AccountSignInForm: View {
             } footer: {
                 Text("The same Nuvio account as your phone and Android TV. Approve this Apple TV from your phone, no typing needed.")
             }
-            Section("Or sign in with email") {
-                TextField("Email", text: $email)
-                    .textContentType(.username)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                SecureField("Password", text: $password)
-                    .textContentType(.password)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                Button(account.busy ? "Signing in…" : "Sign in") {
-                    Task { await signIn(create: false) }
-                }
-                .disabled(account.busy || email.isEmpty || password.isEmpty)
-                Button("Create account") { Task { await signIn(create: true) } }
-                    .disabled(account.busy || email.isEmpty || password.count < 6)
-            }
         }
-    }
-
-    private func signIn(create: Bool) async {
-        await account.signIn(email: email, password: password, create: create)
-        guard account.signedIn else { return }
-        password = ""
-        await onSignedIn()
     }
 }
 
@@ -805,7 +778,9 @@ struct FirstLaunchSignInView: View {
                 }
             }
         }
-        // Either way of signing in ends here: bring the account's profiles, then open the app.
+        // Shows the code straight away, like Android TV's first-launch QR screen.
+        .task { if account.linkCode == nil { await account.startCodeSignIn() } }
+        // Signing in ends here: bring the account's profiles, then open the app.
         .onChange(of: account.signedIn) { _, signedIn in
             guard signedIn else { return }
             Task {
@@ -848,16 +823,11 @@ struct AccountSettingsView: View {
                     Text("Profiles, PINs, add-ons, debrid keys, My List, watch progress and watched episodes sync with your phone and Android TV.")
                 }
             } else {
-                AccountSignInForm { await afterSignIn() }
+                AccountSignInForm()
             }
             if let m = account.message { Text(m).foregroundStyle(.orange) }
         }
         .navigationTitle("Account")
         .onDisappear { account.cancelCodeSignIn() }
-    }
-
-    private func afterSignIn() async {
-        await account.pullProfiles(into: profiles)
-        if let p = profiles.active { await account.sync(profile: p, settings: settings, library: library) }
     }
 }
