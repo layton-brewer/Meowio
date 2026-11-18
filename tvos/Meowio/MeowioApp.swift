@@ -78,8 +78,7 @@ struct ProfileRoot: View {
             .environmentObject(collections)
             .environmentObject(party)
             .environmentObject(plugins)
-            // Neutral white highlights, like Android TV, instead of tinting every control with the theme colour.
-            .tint(.white)
+            .tint(settings.theme.accent)
             .task {
                 wire()
                 await syncAll()

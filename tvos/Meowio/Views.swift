@@ -126,53 +126,72 @@ struct PosterCard: View {
             Artwork(url: item.posterURL, placeholder: item.name)
                 .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
                 .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
-            Text(item.name)
-                .font(.system(size: 26, weight: .medium))
-                .lineLimit(1)
-                .frame(width: CardMetrics.posterWidth, alignment: .leading)
-                .foregroundStyle(focused ? .primary : .secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name)
+                    .font(.system(size: 26, weight: .medium))
+                    .lineLimit(1)
+                    .foregroundStyle(focused ? .primary : .secondary)
+                if let year = item.releaseInfo, !year.isEmpty {
+                    Text(year).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            .frame(width: CardMetrics.posterWidth, alignment: .leading)
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
     }
 }
 
-/// Wide card for Continue Watching, with how far the user got (Android TV's "Card" style).
+/// Wide card for Continue Watching, as in the phone and Android TV apps: the episode code, show and
+/// episode title over the still, time left in the corner and a progress bar in the theme colour.
 struct ContinueCard: View {
     let entry: ContinueItem
     let subtitle: String?
     let progress: Double?
+    var minutesLeft: Int? = nil
+    var accent: Color = .pink
     var onFocus: ((MetaItem) -> Void)? = nil
     @Environment(\.isFocused) private var focused
 
+    private var episodeTitle: String? {
+        guard let vid = entry.videoId else { return nil }
+        return entry.meta.videos?.first(where: { $0.id == vid })?.displayTitle
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack(alignment: .bottomLeading) {
-                Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
-                    .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
-                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
+        ZStack(alignment: .bottomLeading) {
+            Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
+                .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+            LinearGradient(stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.85), location: 1)],
+                           startPoint: .top, endPoint: .bottom)
+            VStack(alignment: .leading, spacing: 4) {
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 20, weight: .bold)).kerning(1.5).foregroundStyle(.white.opacity(0.85))
+                }
+                Text(entry.meta.name).font(.system(size: 28, weight: .semibold)).lineLimit(1)
+                if let episodeTitle {
+                    Text(episodeTitle).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
+                }
                 if let progress {
                     GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.25))
-                            Capsule().fill(.white).frame(width: geo.size.width * progress)
-                        }
+                        Capsule().fill(accent).frame(width: max(12, geo.size.width * progress))
                     }
                     .frame(height: 6)
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 14)
+                    .padding(.top, 6)
                 }
             }
-            .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
-            .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.meta.name).font(.system(size: 26, weight: .medium)).lineLimit(1)
-                    .foregroundStyle(focused ? .primary : .secondary)
-                if let subtitle {
-                    Text(subtitle).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            .frame(width: CardMetrics.wideWidth, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
         }
+        .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+        .overlay(alignment: .topTrailing) {
+            if let minutesLeft {
+                Text("\(minutesLeft)m left").font(.system(size: 20, weight: .semibold))
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+                    .padding(14)
+            }
+        }
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
         .onChange(of: focused) { _, f in if f { onFocus?(entry.meta) } }
     }
 }
@@ -361,6 +380,7 @@ struct PosterGrid: View {
 
 struct ContinueShelf: View {
     @EnvironmentObject var library: LibraryStore
+    @EnvironmentObject var settings: SettingsStore
     var onFocus: ((MetaItem) -> Void)? = nil
 
     var body: some View {
@@ -372,7 +392,9 @@ struct ContinueShelf: View {
                         ForEach(library.continueWatching) { entry in
                             NavigationLink(value: AutoPlayRoute(item: entry.meta)) {
                                 ContinueCard(entry: entry, subtitle: subtitle(entry),
-                                             progress: library.progress(for: entry.videoId ?? entry.id), onFocus: onFocus)
+                                             progress: library.progress(for: entry.videoId ?? entry.id),
+                                             minutesLeft: library.minutesLeft(for: entry.videoId ?? entry.id),
+                                             accent: settings.theme.accent, onFocus: onFocus)
                             }
                             .buttonStyle(.focusRing)
                             .contextMenu {

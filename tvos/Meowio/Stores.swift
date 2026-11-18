@@ -88,6 +88,12 @@ final class LibraryStore: ObservableObject {
         return min(1, max(0, r.seconds / d))
     }
 
+    /// Minutes left in a title or episode that was left part way, for the "30m left" badge.
+    func minutesLeft(for itemId: String) -> Int? {
+        guard let r = records.last(where: { $0.id == itemId }), !r.completed, let d = r.duration, d > r.seconds else { return nil }
+        return max(1, Int(((d - r.seconds) / 60).rounded()))
+    }
+
     func removeContinue(_ id: String) {
         continueWatching.removeAll { $0.id == id }
         persist()

@@ -25,22 +25,33 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(SettingsCategory.allCases) { c in
-                                Button { category = c } label: {
-                                    HStack(spacing: 20) {
-                                        Image(systemName: c.icon).frame(width: 40)
-                                        Text(c.title)
+                            // Grouped like the phone and Android TV settings.
+                            ForEach(Array(SettingsCategory.groups.enumerated()), id: \.offset) { i, group in
+                                if i > 0 { Divider().padding(.vertical, 10).padding(.horizontal, 24) }
+                                ForEach(group) { c in
+                                    Button { category = c } label: {
+                                        HStack(spacing: 20) {
+                                            Image(systemName: c.icon)
+                                                .font(.system(size: 26, weight: .semibold))
+                                                .foregroundStyle(settings.theme.accent)
+                                                .frame(width: 60, height: 60)
+                                                .background(settings.theme.accent.opacity(0.18), in: RoundedRectangle(cornerRadius: 14))
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(c.title)
+                                                Text(c.subtitle).font(.system(size: 20)).foregroundStyle(.secondary).lineLimit(1)
+                                            }
+                                        }
                                     }
+                                    .buttonStyle(RailButtonStyle(selected: c == category))
+                                    .focused($railFocus, equals: c)
                                 }
-                                .buttonStyle(RailButtonStyle(selected: c == category))
-                                .focused($railFocus, equals: c)
                             }
                         }
                         .padding(.vertical, 8)
                     }
                     .scrollClipDisabled()
                 }
-                .frame(width: 520)
+                .frame(width: 640)
                 // Moving along the rail opens each category, like Android TV.
                 .onChange(of: railFocus) { _, c in if let c { category = c } }
                 .padding(.leading, 80)
@@ -55,6 +66,9 @@ struct SettingsView: View {
                     case .content: contentSection
                     case .playback: playbackSection
                     case .integrations: integrationsSection
+                    case .tracking: trackingSection
+                    case .stats: statsSection
+                    case .ai: aiSection
                     case .live: liveSection
                     case .advanced: advancedSection
                     case .about: aboutSection
@@ -163,17 +177,6 @@ struct SettingsView: View {
             }
         }
 
-Section("Media servers") {
-
-            NavigationLink { MediaServersSettingsView() } label: {
-                HStack {
-                    Text("Jellyfin and Emby")
-                    Spacer()
-                    Text(servers.hasEnabled ? "\(servers.enabled.count) connected" : "None").foregroundStyle(.secondary)
-                }
-            }
-        }
-
         if !settings.addons.isEmpty {
             Section("Pinned sources (tried first at the same quality)") {
                 ForEach(Array(addonNames.values).sorted(), id: \.self) { name in
@@ -225,7 +228,9 @@ Section("Media servers") {
             }
             NavigationLink("Subtitle style") { SubtitleStyleView() }
         }
+    }
 
+    @ViewBuilder private var integrationsSection: some View {
         Section {
             Picker("Service", selection: $settings.debridService) {
                 ForEach(DebridService.allCases) { Text($0.title).tag($0) }
@@ -243,9 +248,20 @@ Section("Media servers") {
         } footer: {
             Text("Apple TV can't run torrents itself. With a debrid key, torrent results from your add-ons are turned into direct links, and uncached ones are skipped so playback never waits on a download. Signed in to your Nuvio account, the key comes from your phone or Android TV automatically. It is never in backups.")
         }
+
+        Section("Media servers") {
+
+            NavigationLink { MediaServersSettingsView() } label: {
+                HStack {
+                    Text("Jellyfin and Emby")
+                    Spacer()
+                    Text(servers.hasEnabled ? "\(servers.enabled.count) connected" : "None").foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
-    @ViewBuilder private var integrationsSection: some View {
+    @ViewBuilder private var trackingSection: some View {
         Section("Tracking") {
             // Tracking cards are always shown. Without sign-in keys in this build they read "Not set up yet".
             NavigationLink { TraktSettingsView() } label: {
@@ -297,18 +313,24 @@ Section("Media servers") {
     }
 
     @ViewBuilder private var advancedSection: some View {
-        Section("More") {
-            NavigationLink("Watch insights") { InsightsView() }
-            NavigationLink("AI assistant") { AiAssistantView() }
+        Section("Backup and restore") {
+            NavigationLink("Back up or restore settings") { BackupView() }
         }
+    }
 
+    @ViewBuilder private var statsSection: some View {
+        Section("Your watch stats") {
+            NavigationLink("Open watch stats") { InsightsView() }
+        }
+    }
+
+    @ViewBuilder private var aiSection: some View {
+        Section("AI assistant") {
+            NavigationLink("Ask for ideas") { AiAssistantView() }
+        }
         Section("AI assistant key (stays on this device)") {
             SecureField("Anthropic API key", text: $settings.aiKey)
             TextField("Model (optional)", text: $settings.aiModel)
-        }
-
-        Section("Backup and restore") {
-            NavigationLink("Back up or restore settings") { BackupView() }
         }
     }
 
@@ -333,38 +355,71 @@ Section("Media servers") {
     }
 }
 
-/// Settings categories, grouped like Android TV's settings rail.
+/// Settings categories, in the phone and Android TV apps' order and groups.
 enum SettingsCategory: String, CaseIterable, Identifiable {
-    case account, profiles, party, appearance, layout, content, playback, integrations, live, advanced, about
+    case account, stats, ai, profiles, party, appearance, layout, content, playback, integrations, tracking, live, advanced, about
     var id: String { rawValue }
+
+    static let groups: [[SettingsCategory]] = [
+        [.account, .stats, .ai, .profiles, .party],
+        [.appearance, .layout],
+        [.content, .playback],
+        [.integrations, .tracking, .live],
+        [.advanced, .about]
+    ]
+
     var title: String {
         switch self {
         case .account: "Account"
-        case .profiles: "Profiles"
+        case .stats: "Your watch stats"
+        case .ai: "AI assistant"
+        case .profiles: "Switch Profile"
         case .party: "Watch party"
         case .appearance: "Appearance"
         case .layout: "Layout"
-        case .content: "Content and discovery"
+        case .content: "Content & Discovery"
         case .playback: "Playback"
         case .integrations: "Integrations"
+        case .tracking: "Tracking"
         case .live: "Live TV"
-        case .advanced: "Advanced"
+        case .advanced: "Backup and restore"
         case .about: "About"
+        }
+    }
+    var subtitle: String {
+        switch self {
+        case .account: "Account and sync status"
+        case .stats: "Watch time, streaks and most-watched"
+        case .ai: "Describe a mood, get ideas"
+        case .profiles: "Change to a different profile"
+        case .party: "Join friends with a party code"
+        case .appearance: "Themes and the Live TV tab"
+        case .layout: "Home collections"
+        case .content: "Manage add-ons and sources"
+        case .playback: "Player, subtitles and auto-play"
+        case .integrations: "Debrid and media servers"
+        case .tracking: "Trakt, Simkl and MDBList"
+        case .live: "Playlists and Live TV VPN"
+        case .advanced: "Move settings between devices"
+        case .about: "Version and updates"
         }
     }
     var icon: String {
         switch self {
-        case .account: "person.crop.circle"
-        case .profiles: "person.2"
-        case .party: "person.3"
-        case .appearance: "paintpalette"
+        case .account: "person.fill"
+        case .stats: "chart.line.uptrend.xyaxis"
+        case .ai: "sparkles"
+        case .profiles: "person.2.fill"
+        case .party: "person.3.fill"
+        case .appearance: "paintpalette.fill"
         case .layout: "square.grid.2x2"
-        case .content: "puzzlepiece.extension"
-        case .playback: "play.rectangle"
+        case .content: "safari.fill"
+        case .playback: "play.fill"
         case .integrations: "link"
-        case .live: "antenna.radiowaves.left.and.right"
-        case .advanced: "slider.horizontal.3"
-        case .about: "info.circle"
+        case .tracking: "arrow.triangle.2.circlepath"
+        case .live: "tv.fill"
+        case .advanced: "externaldrive.fill"
+        case .about: "info.circle.fill"
         }
     }
 }
