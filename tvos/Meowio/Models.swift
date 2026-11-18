@@ -16,7 +16,11 @@ struct MetaItem: Identifiable, Codable, Hashable {
     /// Trailer links some metadata sources list (YouTube ids).
     var trailers: [TrailerRef]?
     var trailerStreams: [TrailerRef]?
+    /// Title logo art and running time, when the metadata source lists them (Cinemeta does).
+    var logo: String?
+    var runtime: String?
 
+    var logoURL: URL? { logo.flatMap(URL.init(string:)) }
     var posterURL: URL? { poster.flatMap(URL.init(string:)) }
     var backgroundURL: URL? { (background ?? poster).flatMap(URL.init(string:)) }
 }

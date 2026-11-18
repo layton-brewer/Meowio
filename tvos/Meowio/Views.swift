@@ -70,27 +70,73 @@ struct Backdrop: View {
 
 // MARK: - Cards
 
+/// Android TV's card focus: a white ring round the art and a small lift, instead of tvOS's big tilt and shadow.
+struct FocusRingCardStyle: ButtonStyle {
+    var radius: CGFloat = 24
+    func makeBody(configuration: Configuration) -> some View {
+        FocusRingCard(configuration: configuration, radius: radius)
+    }
+
+    private struct FocusRingCard: View {
+        let configuration: ButtonStyleConfiguration
+        let radius: CGFloat
+        @Environment(\.isFocused) private var focused
+
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? 0.98 : (focused ? 1.04 : 1))
+                .animation(.easeOut(duration: 0.18), value: focused)
+        }
+    }
+}
+
+extension ButtonStyle where Self == FocusRingCardStyle {
+    static var focusRing: FocusRingCardStyle { FocusRingCardStyle() }
+}
+
+/// White focus ring drawn round card art, like Android TV.
+private struct FocusRing: ViewModifier {
+    let focused: Bool
+    let radius: CGFloat
+    func body(content: Content) -> some View {
+        content
+            .clipShape(RoundedRectangle(cornerRadius: radius))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
+    }
+}
+
+/// Poster size on Home and in rows: Android TV's Modern view poster (126 dp × 0.84 × 1.08) at Apple TV's scale.
+enum CardMetrics {
+    static let posterWidth: CGFloat = 228
+    static let posterHeight: CGFloat = 342
+    static let wideWidth: CGFloat = 418
+    static let wideHeight: CGFloat = 236
+    static let radius: CGFloat = 24
+    static let spacing: CGFloat = 24
+    static let rowInset: CGFloat = 104
+}
+
 struct PosterCard: View {
     let item: MetaItem
     var onFocus: ((MetaItem) -> Void)? = nil
     @Environment(\.isFocused) private var focused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Artwork(url: item.posterURL, placeholder: item.name)
-                .frame(width: 220, height: 330)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+                .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
             Text(item.name)
-                .font(.caption)
+                .font(.system(size: 26, weight: .medium))
                 .lineLimit(1)
-                .frame(width: 220, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+                .frame(width: CardMetrics.posterWidth, alignment: .leading)
+                .foregroundStyle(focused ? .primary : .secondary)
         }
         .onChange(of: focused) { _, f in if f { onFocus?(item) } }
     }
 }
 
-/// Wide card for Continue Watching, with how far the user got.
+/// Wide card for Continue Watching, with how far the user got (Android TV's "Card" style).
 struct ContinueCard: View {
     let entry: ContinueItem
     let subtitle: String?
@@ -99,16 +145,11 @@ struct ContinueCard: View {
     @Environment(\.isFocused) private var focused
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             ZStack(alignment: .bottomLeading) {
                 Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
-                    .frame(width: 420, height: 236)
-                LinearGradient(colors: [.clear, .black.opacity(0.7)], startPoint: .center, endPoint: .bottom)
-                HStack(spacing: 10) {
-                    Image(systemName: "play.fill")
-                    Text(subtitle ?? "Resume").font(.caption.bold())
-                }
-                .padding(16)
+                    .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+                LinearGradient(colors: [.clear, .black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
                 if let progress {
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
@@ -118,13 +159,19 @@ struct ContinueCard: View {
                     }
                     .frame(height: 6)
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 14)
                 }
             }
-            .frame(width: 420, height: 236)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            Text(entry.meta.name).font(.caption).lineLimit(1).frame(width: 420, alignment: .leading)
-                .opacity(focused ? 1 : 0.7)
+            .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
+            .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.meta.name).font(.system(size: 26, weight: .medium)).lineLimit(1)
+                    .foregroundStyle(focused ? .primary : .secondary)
+                if let subtitle {
+                    Text(subtitle).font(.system(size: 22)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            .frame(width: CardMetrics.wideWidth, alignment: .leading)
         }
         .onChange(of: focused) { _, f in if f { onFocus?(entry.meta) } }
     }
@@ -176,17 +223,17 @@ struct Shelf: View {
 
     var body: some View {
         if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(title).font(.title3.bold()).padding(.leading, 60)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 40) {
+                    LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
                             NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus) }
-                                .buttonStyle(.card)
+                                .buttonStyle(.focusRing)
                         }
                     }
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 24)
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.vertical, 20)
                 }
                 .scrollClipDisabled()
             }
@@ -200,23 +247,23 @@ struct ContinueShelf: View {
 
     var body: some View {
         if !library.continueWatching.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Continue Watching").font(.title3.bold()).padding(.leading, 60)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Continue Watching").font(.system(size: 32, weight: .semibold)).padding(.leading, CardMetrics.rowInset)
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 40) {
+                    LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(library.continueWatching) { entry in
                             NavigationLink(value: AutoPlayRoute(item: entry.meta)) {
                                 ContinueCard(entry: entry, subtitle: subtitle(entry),
                                              progress: library.progress(for: entry.videoId ?? entry.id), onFocus: onFocus)
                             }
-                            .buttonStyle(.card)
+                            .buttonStyle(.focusRing)
                             .contextMenu {
                                 Button("Remove from Continue Watching", role: .destructive) { library.removeContinue(entry.id) }
                             }
                         }
                     }
-                    .padding(.horizontal, 60)
-                    .padding(.vertical, 24)
+                    .padding(.horizontal, CardMetrics.rowInset)
+                    .padding(.vertical, 20)
                 }
                 .scrollClipDisabled()
             }
@@ -224,69 +271,118 @@ struct ContinueShelf: View {
     }
 
     private func subtitle(_ entry: ContinueItem) -> String? {
-        guard let vid = entry.videoId else { return "Resume" }
+        guard let vid = entry.videoId else { return nil }
         // Cinemeta episode ids look like tt123:1:4.
         let parts = vid.split(separator: ":")
         if parts.count >= 3, let s = Int(parts[parts.count - 2]), let e = Int(parts[parts.count - 1]) {
             return "S\(s) E\(e)"
         }
-        return "Resume"
+        return nil
     }
 }
 
 // MARK: - Home
 
-/// The big header at the top of Home: the focused title's art, info and a one-press Play.
+/// Home's header, as in Android TV's Modern view: the focused title's logo (or name), its details and
+/// description. Nothing in it takes focus; pressing a card opens or resumes that title.
 struct HeroHeader: View {
-    @EnvironmentObject var profiles: ProfileStore
     let item: MetaItem
-    let accent: Color
-    let resumeLabel: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("MEOWIO")
-                .font(.caption.weight(.heavy))
-                .kerning(6)
-                .foregroundStyle(accent)
-                .fixedSize()
-            Text(item.name)
-                .font(.system(size: 64, weight: .bold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.6)
-                .frame(maxWidth: 1100, alignment: .leading)
-            HStack(spacing: 18) {
-                Text(item.type == "movie" ? "Movie" : "Series").padding(.horizontal, 12).padding(.vertical, 4).glass(radius: 8)
-                if let r = item.releaseInfo { Text(r) }
-                if let r = item.imdbRating { Label(r, systemImage: "star.fill") }
-                if let g = item.genres, !g.isEmpty { Text(g.prefix(3).joined(separator: " · ")) }
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            if let d = item.description {
-                Text(d).font(.callout).lineLimit(3).frame(maxWidth: 1000, alignment: .leading).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 24) {
-                NavigationLink(value: AutoPlayRoute(item: item)) {
-                    Label(resumeLabel ?? "Play", systemImage: "play.fill").padding(.horizontal, 24)
+        VStack(alignment: .leading, spacing: 16) {
+            HeroTitle(item: item)
+            HStack(spacing: 16) {
+                let leading = [item.type == "movie" ? "Movie" : "Series", item.genres?.first].compactMap { $0 }
+                Text(leading.joined(separator: " • "))
+                let trailing = [item.runtime, item.releaseInfo].compactMap { $0 }.filter { !$0.isEmpty }
+                ForEach(trailing, id: \.self) { part in
+                    Divider().frame(height: 22)
+                    Text(part)
                 }
-                NavigationLink(value: item) {
-                    Label("More Info", systemImage: "info.circle").padding(.horizontal, 12)
-                }
-                if let profile = profiles.active, profiles.profiles.count > 1 {
-                    Button { profiles.showPicker() } label: {
-                        HStack(spacing: 12) {
-                            ProfileAvatar(profile: profile, size: 36)
-                            Text(profile.name)
-                        }
+                if let r = item.imdbRating, !r.isEmpty {
+                    Divider().frame(height: 22)
+                    HStack(spacing: 8) {
+                        Text("IMDb").font(.system(size: 18, weight: .heavy)).foregroundStyle(.black)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color(red: 0.96, green: 0.77, blue: 0.09), in: RoundedRectangle(cornerRadius: 4))
+                        Text(r)
                     }
                 }
             }
-            .padding(.top, 8)
+            .font(.system(size: 24, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            if let d = item.description {
+                Text(d)
+                    .font(.system(size: 26))
+                    .lineSpacing(4)
+                    .lineLimit(4)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: 860, alignment: .leading)
+            }
         }
-        .padding(.horizontal, 60)
-        .padding(.top, 40)
-        .frame(maxWidth: .infinity, minHeight: 600, alignment: .bottomLeading)
+        .frame(maxWidth: 960, alignment: .leading)
+        .animation(.easeInOut(duration: 0.25), value: item.id)
+    }
+}
+
+/// The title's logo art, or its name in large type when there is no logo.
+private struct HeroTitle: View {
+    let item: MetaItem
+    @State private var logoFailed = false
+
+    var body: some View {
+        Group {
+            if let url = item.logoURL, !logoFailed {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().aspectRatio(contentMode: .fit)
+                    case .failure: Color.clear.onAppear { logoFailed = true }
+                    default: Color.clear
+                    }
+                }
+                .frame(maxWidth: 440, maxHeight: 200, alignment: .leading)
+                .frame(height: 200, alignment: .bottomLeading)
+            } else {
+                Text(item.name)
+                    .font(.system(size: 64, weight: .bold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+            }
+        }
+        .id(item.id)
+    }
+}
+
+/// Home's backdrop: the art fills the top right, fading into the background to the left and below,
+/// so the rows underneath read cleanly (Android TV draws its hero at 72% of the width).
+struct HeroBackdrop: View {
+    let url: URL?
+    let background: Color
+    var trailerFor: MetaItem? = nil
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .topTrailing) {
+                background
+                ZStack {
+                    if let url {
+                        Artwork(url: url).id(url).transition(.opacity)
+                    }
+                    if let trailerFor { HeroTrailerLayer(item: trailerFor).id(trailerFor.id) }
+                    LinearGradient(stops: [.init(color: background, location: 0), .init(color: background.opacity(0.6), location: 0.25),
+                                           .init(color: .clear, location: 0.6)],
+                                   startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(stops: [.init(color: .clear, location: 0.45), .init(color: background.opacity(0.75), location: 0.8),
+                                           .init(color: background, location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                }
+                .frame(width: geo.size.width * 0.72, height: geo.size.height * 0.7)
+                .clipped()
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.4), value: url)
     }
 }
 
@@ -312,55 +408,69 @@ struct HomeView: View {
     @StateObject private var updates = UpdateChecker()
 
     private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? movies.first ?? series.first }
-    private var backdropItem: MetaItem? { focusedItem ?? featured }
+    /// What the header shows: the focused card, or a featured title before anything is focused.
+    private var heroShown: MetaItem? { focusedItem ?? featured }
+
+    /// Setup hints, the update card and an open watch party sit above the rows.
+    @ViewBuilder private var notices: some View {
+        if settings.addons.isEmpty && !servers.hasEnabled {
+            Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
+                .padding(24).glass().padding(.horizontal, CardMetrics.rowInset)
+        }
+        if case .available(let tag) = updates.state {
+            UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
+                .padding(.horizontal, CardMetrics.rowInset)
+        }
+        if party.party != nil {
+            Button { party.reopen() } label: {
+                Label("Watch party \(party.party?.formattedCode ?? "") · open what everyone is watching", systemImage: "person.2.fill")
+            }
+            .padding(.horizontal, CardMetrics.rowInset)
+        }
+    }
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Backdrop(url: backdropItem?.backgroundURL, background: settings.theme.background,
-                         trailerFor: settings.heroTrailers && focusedItem == nil ? featured : nil)
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 20) {
-                        if let featured {
-                            HeroHeader(item: featured, accent: settings.theme.accent,
-                                       resumeLabel: library.continueWatching.contains { $0.id == featured.id } ? "Resume" : nil)
-                        } else {
-                            Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
-                                .padding(.leading, 60).padding(.top, 40)
-                        }
-                        if settings.addons.isEmpty && !servers.hasEnabled {
-                            Text("Add a stream add-on or a media server in Settings and Meowio will pick and play sources for you.")
-                                .padding(24).glass().padding(.horizontal, 60)
-                        }
-                        if case .available(let tag) = updates.state {
-                            UpdateCard(tag: tag, url: updates.releaseURL, notes: updates.notes)
-                                .padding(.horizontal, 60)
-                        }
-                        if party.party != nil {
-                            Button { party.reopen() } label: {
-                                Label("Watch party \(party.party?.formattedCode ?? "") · open what everyone is watching", systemImage: "person.2.fill")
-                            }
-                            .padding(.horizontal, 60)
-                        }
-                        ContinueShelf(onFocus: focus)
-                        ForEach(serverShelves) { shelf in
-                            Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
-                        }
-                        ForEach(collections.ordered) { collection in
-                            CollectionShelf(collection: collection)
-                        }
-                        Shelf(title: "Popular Movies", items: movies, onFocus: focus)
-                        Shelf(title: "Popular Series", items: series, onFocus: focus)
-                        ForEach(addonRows) { row in
-                            Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
-                        }
-                        if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
-                            Text("Couldn't load the catalog. Check your connection.").padding(60)
-                        }
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    HeroBackdrop(url: heroShown?.backgroundURL, background: settings.theme.background,
+                                 trailerFor: settings.heroTrailers ? heroShown : nil)
+                    if let heroShown {
+                        HeroHeader(item: heroShown)
+                            .padding(.leading, CardMetrics.rowInset)
+                            .padding(.top, 80)
+                    } else {
+                        Text("Meowio").font(.largeTitle.bold()).foregroundStyle(settings.theme.accent)
+                            .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
                     }
-                    .padding(.bottom, 80)
+                    // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 12) {
+                            notices
+                            ContinueShelf(onFocus: focus)
+                            ForEach(serverShelves) { shelf in
+                                Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
+                            }
+                            ForEach(collections.ordered) { collection in
+                                CollectionShelf(collection: collection)
+                            }
+                            Shelf(title: "Popular Movies", items: movies, onFocus: focus)
+                            Shelf(title: "Popular Series", items: series, onFocus: focus)
+                            ForEach(addonRows) { row in
+                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
+                            }
+                            if loaded && movies.isEmpty && series.isEmpty && addonRows.isEmpty {
+                                Text("Couldn't load the catalog. Check your connection.").padding(CardMetrics.rowInset)
+                            }
+                        }
+                        .padding(.bottom, 80)
+                    }
+                    .scrollClipDisabled()
+                    .frame(height: geo.size.height * 0.56)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
                 }
             }
+            .ignoresSafeArea(edges: .bottom)
             .meowioDestinations()
         }
         .task {
