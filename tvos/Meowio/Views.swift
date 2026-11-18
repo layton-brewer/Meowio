@@ -14,6 +14,7 @@ extension View {
             .navigationDestination(for: MetaItem.self) { DetailView(item: $0) }
             .navigationDestination(for: AutoPlayRoute.self) { DetailView(item: $0.item, autoplay: true) }
             .navigationDestination(for: FolderRoute.self) { FolderView(route: $0) }
+            .navigationDestination(for: AddonClient.AddonCatalog.self) { CatalogSeeAllView(catalog: $0) }
     }
 }
 
@@ -331,6 +332,8 @@ struct Shelf: View {
     let title: String
     let items: [MetaItem]
     var onFocus: ((MetaItem) -> Void)? = nil
+    /// The add-on catalog behind this row; when set, the row ends with a See all card, like Android TV.
+    var catalog: AddonClient.AddonCatalog? = nil
 
     var body: some View {
         if !items.isEmpty {
@@ -340,6 +343,10 @@ struct Shelf: View {
                     LazyHStack(alignment: .top, spacing: CardMetrics.spacing) {
                         ForEach(items) { item in
                             NavigationLink(value: item) { PosterCard(item: item, onFocus: onFocus) }
+                                .buttonStyle(.focusRing)
+                        }
+                        if let catalog {
+                            NavigationLink(value: catalog) { SeeAllCard() }
                                 .buttonStyle(.focusRing)
                         }
                     }
@@ -619,7 +626,7 @@ struct HomeView: View {
                                 CollectionShelf(collection: collection)
                             }
                             ForEach(addonRows) { row in
-                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus)
+                                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
                             }
                             if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
                                 Text("No catalogs to show. Check your connection, or turn catalogs on in Settings > Content & Discovery > Home catalogs.")
@@ -1007,6 +1014,22 @@ struct DetailView: View {
                     .padding(.bottom, 24)
             }
             metaInfoRow
+            creditsLine
+        }
+    }
+
+    /// Starring and director, like the cast line on Android TV's detail page.
+    @ViewBuilder private var creditsLine: some View {
+        let cast = (meta.cast ?? []).prefix(4).joined(separator: ", ")
+        let director = (meta.director ?? []).prefix(2).joined(separator: ", ")
+        if !cast.isEmpty || !director.isEmpty {
+            HStack(spacing: 28) {
+                if !cast.isEmpty { Text("Starring ").foregroundStyle(.tertiary) + Text(cast) }
+                if !director.isEmpty { Text("Director ").foregroundStyle(.tertiary) + Text(director) }
+            }
+            .font(.system(size: 22, weight: .medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
     }
 
@@ -1256,5 +1279,64 @@ private struct SourceCard: View {
         .frame(width: 1060, alignment: .leading)
         .background(.white.opacity(focused ? 0.16 : 0.07), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
         .overlay(RoundedRectangle(cornerRadius: CardMetrics.radius).strokeBorder(.white, lineWidth: focused ? 4 : 0))
+    }
+}
+
+
+/// The last card of a catalog row: opens the whole catalog.
+struct SeeAllCard: View {
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "square.grid.2x2").font(.system(size: 48, weight: .semibold))
+            Text("See all").font(.system(size: 26, weight: .semibold))
+        }
+        .frame(width: CardMetrics.posterWidth, height: CardMetrics.posterHeight)
+        .background(.white.opacity(focused ? 0.18 : 0.08), in: RoundedRectangle(cornerRadius: CardMetrics.radius))
+        .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+    }
+}
+
+/// Android TV's See all screen: the whole catalog as a poster grid, loading more pages as you scroll down.
+struct CatalogSeeAllView: View {
+    let catalog: AddonClient.AddonCatalog
+    @State private var items: [MetaItem] = []
+    @State private var loading = false
+    @State private var finished = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text(catalog.title).font(.system(size: 44, weight: .bold)).padding(.leading, CardMetrics.rowInset)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: CardMetrics.posterWidth, maximum: CardMetrics.posterWidth),
+                                             spacing: CardMetrics.spacing, alignment: .top)],
+                          alignment: .leading, spacing: 36) {
+                    ForEach(items) { item in
+                        NavigationLink(value: item) { PosterCard(item: item) }
+                            .buttonStyle(.focusRing)
+                            .onAppear { if item.id == items.last?.id { Task { await loadMore() } } }
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                if loading { ProgressView().frame(maxWidth: .infinity) }
+                if finished && items.isEmpty {
+                    Text("This catalog is empty.").foregroundStyle(.secondary).padding(.leading, CardMetrics.rowInset)
+                }
+            }
+            .padding(.vertical, 40)
+        }
+        .task { if items.isEmpty { await loadMore() } }
+    }
+
+    private func loadMore() async {
+        guard !loading, !finished else { return }
+        loading = true
+        let page = await AddonClient.page(base: catalog.base, type: catalog.type, catalogId: catalog.id, extra: [:], skip: items.count)
+        let known = Set(items.map(\.id))
+        let fresh = page.filter { !known.contains($0.id) }
+        items.append(contentsOf: fresh)
+        if fresh.isEmpty { finished = true }
+        loading = false
     }
 }
