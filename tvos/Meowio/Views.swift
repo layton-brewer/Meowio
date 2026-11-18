@@ -541,6 +541,7 @@ struct DetailView: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var streams: StreamStore
     @EnvironmentObject var servers: MediaServerStore
+    @EnvironmentObject var plugins: PluginStore
     let item: MetaItem
     var autoplay = false
     @State private var full: MetaItem?
@@ -633,7 +634,7 @@ struct DetailView: View {
                                       systemImage: library.isWatched(meta.id) ? "eye.fill" : "eye")
                             }
                         }
-                        if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled {
+                        if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
                             Button { Task { await chooseSource() } } label: {
                                 Label("Sources", systemImage: "list.bullet")
                             }
@@ -789,7 +790,7 @@ struct DetailView: View {
 
     private func play(videoId: String, title: String, forcePicker: Bool = false) async {
         message = nil
-        guard !settings.addons.isEmpty || servers.hasEnabled else {
+        guard !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers else {
             message = "Add a stream add-on or a media server in Settings first."
             return
         }

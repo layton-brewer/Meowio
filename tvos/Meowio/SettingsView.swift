@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var library: LibraryStore
     @EnvironmentObject var profiles: ProfileStore
     @EnvironmentObject var account: AccountStore
+    @EnvironmentObject var plugins: PluginStore
     @EnvironmentObject var trakt: TraktStore
     @EnvironmentObject var simkl: SimklStore
     @EnvironmentObject var mdblist: MDBListStore
@@ -74,6 +75,12 @@ struct SettingsView: View {
                             Spacer()
                             Text(party.party.map { "In party \($0.formattedCode)" } ?? "Join or host").foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                Section("Plugins") {
+                    NavigationLink { PluginsSettingsView() } label: {
+                        LabeledContent("Nuvio plugins", value: "\(plugins.scrapers.filter(\.enabled).count) on")
                     }
                 }
 

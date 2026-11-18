@@ -48,6 +48,7 @@ struct ProfileRoot: View {
     @StateObject private var servers = MediaServerStore()
     @StateObject private var collections = CollectionsStore()
     @StateObject private var party = PartyRepository()
+    @StateObject private var plugins = PluginStore()
     @Environment(\.scenePhase) private var scenePhase
 
     init(profile: Profile) {
@@ -68,6 +69,7 @@ struct ProfileRoot: View {
             .environmentObject(servers)
             .environmentObject(collections)
             .environmentObject(party)
+            .environmentObject(plugins)
             .tint(settings.theme.accent)
             .task {
                 wire()
@@ -88,6 +90,9 @@ struct ProfileRoot: View {
             }
     }
 
+    /// Profiles set to share the main profile's plugins use profile 1's list, like Android.
+    private var pluginProfile: Int { profile.usesPrimaryPlugins == true ? 1 : profile.id }
+
     private func syncAll() async {
         if account.signedIn {
             await account.sync(profile: profile, settings: settings, library: library)
@@ -97,6 +102,7 @@ struct ProfileRoot: View {
         if simkl.connected { await simkl.sync(into: library) }
         if mdblist.connected { await mdblist.sync(into: library) }
         if account.signedIn { await collections.sync(account: account, profileId: profile.id) }
+        if let remote = await account.pullPluginRepos(profileId: pluginProfile) { await plugins.adopt(remote: remote) }
         party.configure(account: account, profiles: profiles)
         await party.refreshAvailability()
     }
@@ -109,6 +115,9 @@ struct ProfileRoot: View {
         let sk = simkl
         let md = mdblist
         streams.servers = servers
+        streams.plugins = plugins
+        let pluginId = pluginProfile
+        plugins.onReposChanged = { [weak acc] repos in Task { await acc?.pushPluginRepos(repos, profileId: pluginId) } }
         account.onSignedIn = { [profiles] in
             await acc.pullProfiles(into: profiles)
             await self.syncAll()
