@@ -217,6 +217,12 @@ struct ContinueItem: Codable, Identifiable, Hashable {
     var meta: MetaItem
     var videoId: String?
     var updated: Date
+
+    /// Synced entries can arrive with only an id, or without the description and episode details Home shows.
+    var needsDetails: Bool {
+        meta.poster == nil || meta.name.isEmpty || meta.name == id || meta.description == nil
+            || (videoId != nil && meta.videos?.contains { $0.id == videoId } != true)
+    }
 }
 
 /// One finished or partly watched item, kept for watch statistics.

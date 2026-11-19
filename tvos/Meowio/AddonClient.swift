@@ -117,6 +117,8 @@ enum AddonClient {
         var type: String
         var id: String
         var title: String
+        /// The add-on's own name, for the Home catalogs page.
+        var addonName: String = ""
         var rowId: String { "\(base)|\(type)|\(id)" }
     }
 
@@ -161,10 +163,11 @@ enum AddonClient {
                 case "series": kind = "Series"
                 default: kind = c.type.capitalized
                 }
-                let base = c.name ?? addon
+                // (Named `label`, not `base`: shadowing the add-on's address here sent every row's request to its name.)
+                let label = c.name ?? addon
                 // "Popular Movies", but not "Movies Movies".
-                let title = base.lowercased().contains(kind.lowercased()) || base.lowercased().contains(c.type) ? base : "\(base) \(kind)"
-                out.append(AddonCatalog(base: base, type: c.type, id: c.id, title: title))
+                let title = label.lowercased().contains(kind.lowercased()) || label.lowercased().contains(c.type) ? label : "\(label) \(kind)"
+                out.append(AddonCatalog(base: base, type: c.type, id: c.id, title: title, addonName: addon))
             }
         }
         return out

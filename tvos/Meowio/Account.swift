@@ -876,7 +876,7 @@ struct AccountSettingsView: View {
             }
             if let m = account.message { Text(m).foregroundStyle(.orange) }
         }
-        .navigationTitle("Account")
+        .meowioPageTitle("Account")
         .onDisappear { account.cancelCodeSignIn() }
     }
 }

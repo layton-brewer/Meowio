@@ -618,6 +618,6 @@ struct PluginsSettingsView: View {
                 }
             }
         }
-        .navigationTitle("Plugins")
+        .meowioPageTitle("Plugins")
     }
 }

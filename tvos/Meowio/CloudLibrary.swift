@@ -194,6 +194,9 @@ struct CloudLibraryView: View {
 
     var body: some View {
         List {
+            Section {
+                TextField("Search your \(settings.debridService.title) cloud", text: $query)
+            }
             if items == nil && !failed { ProgressView() }
             if failed { Text("Couldn't load your \(settings.debridService.title) cloud. Check the key in Settings.").foregroundStyle(.orange) }
             if let items, items.isEmpty { Text("Nothing in your \(settings.debridService.title) cloud yet.") }
@@ -208,8 +211,7 @@ struct CloudLibraryView: View {
                 }
             }
         }
-        .searchable(text: $query)
-        .navigationTitle("\(settings.debridService.title) cloud")
+        .meowioPageTitle("\(settings.debridService.title) cloud")
         .task(id: "\(settings.debridService.rawValue)|\(settings.debridKey)") {
             items = nil
             failed = false
@@ -244,7 +246,7 @@ struct CloudItemView: View {
                 .disabled(resolving != nil)
             }
         }
-        .navigationTitle(item.name)
+        .meowioPageTitle(item.name)
         .fullScreenCover(item: $playing) { req in PlayerScreen(request: req, settings: settings) }
     }
 
