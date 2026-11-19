@@ -1397,7 +1397,7 @@ struct PartySettingsView: View {
                 }
             }
         }
-        .navigationTitle("Watch party")
+        .meowioPageTitle("Watch party")
         .task { await party.refreshAvailability() }
     }
 }

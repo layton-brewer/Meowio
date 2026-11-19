@@ -542,7 +542,7 @@ struct MediaServersSettingsView: View {
                 if let m = servers.message { Text(m).foregroundStyle(.orange) }
             }
         }
-        .navigationTitle("Media servers")
+        .meowioPageTitle("Media servers")
     }
 }
 
@@ -580,7 +580,7 @@ struct MediaServerDetailView: View {
                 }
             }
         }
-        .navigationTitle(connection?.name ?? "Server")
+        .meowioPageTitle(connection?.name ?? "Server")
     }
 }
 

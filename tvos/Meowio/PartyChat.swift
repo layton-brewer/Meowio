@@ -149,7 +149,7 @@ struct PartyChatView: View {
                 Button("Send") { send() }.disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .navigationTitle("Party chat")
+        .meowioPageTitle("Party chat")
         .onAppear { party.chatOpen = true }
         .onDisappear { party.chatOpen = false }
     }

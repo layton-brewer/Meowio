@@ -182,11 +182,14 @@ final class LibraryStore: ObservableObject {
 
     /// Fills in names and artwork for Continue Watching entries that came from sync with only an id.
     func refreshContinueMeta(_ meta: MetaItem) {
-        var slim = meta
-        slim.videos = nil
         var changed = false
-        for i in continueWatching.indices where continueWatching[i].id == meta.id
-            && (continueWatching[i].meta.poster == nil || continueWatching[i].meta.name.isEmpty || continueWatching[i].meta.name == meta.id) {
+        for i in continueWatching.indices where continueWatching[i].id == meta.id && continueWatching[i].needsDetails {
+            // Keep only the episode being watched, for its title and still on the card, like Android TV.
+            var slim = meta
+            let vid = continueWatching[i].videoId
+            let episode = meta.videos?.filter { $0.id == vid } ?? []
+            slim.videos = episode.isEmpty ? nil : episode
+            if slim.description == nil, slim.videos == nil, continueWatching[i].meta.description != nil { continue }
             continueWatching[i].meta = slim
             changed = true
         }
