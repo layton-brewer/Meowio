@@ -11,9 +11,9 @@
 [![License](https://img.shields.io/badge/License-GPL%20v3-E17055?style=for-the-badge)](LICENSE)
 ![Platforms](https://img.shields.io/badge/Android%20%7C%20Android%20TV%20%7C%20iOS%20%7C%20Apple%20TV%20%7C%20Mac%20%7C%20Windows-0984E3?style=for-the-badge)
 
-A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**, with **one-tap Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
+Meowio is a free, open-source fork of [Nuvio](https://github.com/NuvioMedia) that runs on **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**. It adds **Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
 
-🆕 Current release: **v0.2.53** · every app, Apple TV included, is on the same release page.
+Every app, Apple TV included, is on one release page. The badge above always shows the newest version.
 
 [⬇️ Download](#-download-and-install) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
 
@@ -23,15 +23,15 @@ A free, open-source fork of [Nuvio](https://github.com/NuvioMedia) for **Android
 
 ## 🤔 What is Meowio?
 
-Normally, streaming apps make you scroll through a long list of sources and guess which one works.
+Most apps like this make you dig through a long list of sources and guess which one will actually play.
 
-**Meowio does that for you.** Tap Play and it picks a good stream. If that stream breaks, it quietly switches to another one. No menus, no fuss. 🎬
+Meowio skips that part. Hit Play and it picks a stream for you. If the stream breaks halfway through, it quietly moves to another one, so you can keep watching. 🎬
 
 ---
 
 ## ⬇️ Download and install
 
-Every file lives on the **[latest release page](https://github.com/layton-brewer/Meowio/releases/latest)**. Find your device below and follow the steps.
+Everything is on the **[latest release page](https://github.com/layton-brewer/Meowio/releases/latest)**, named "Meowio vX.Y.Z". Find your device below and follow the steps.
 
 ### 📱 Android phone or tablet
 
@@ -53,22 +53,21 @@ Needs Android 7.0 or newer.
 
 ### 🍎 iPhone and iPad
 
-1. Download **`Meowio-ios.ipa`** from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest).
+1. Download **[Meowio-ios.ipa](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-ios.ipa)**.
 2. Install it with [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io) using your own Apple ID.
-3. Free Apple IDs need a re-sign every 7 days. AltStore and SideStore can do this for you.
+3. Free Apple IDs need a re-sign every 7 days. AltStore and SideStore can do that for you.
 
 💡 **Tip:** In AltStore or SideStore, go to **Sources → +** and add this link to get updates automatically:
 `https://github.com/layton-brewer/Meowio/releases/latest/download/altstore.json`
 
 ### 📺 Apple TV
 
-1. Download **[Meowio-tvos.ipa](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tvos.ipa)** from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest).
+1. Download **[Meowio-tvos.ipa](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tvos.ipa)**.
 2. Install it with [Sideloadly](https://sideloadly.io) or Xcode (**Window → Devices and Simulators**) using your own Apple ID.
 
 ### 💻 Mac
 
-1. Download the right file from the [latest release](https://github.com/layton-brewer/Meowio/releases/latest):
-   - **Apple Silicon (M1 and newer):** `Meowio-macos-arm64.dmg`. Intel Macs aren't supported from 0.2.42 on.
+1. Download **[Meowio-macos-arm64.dmg](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-macos-arm64.dmg)**. It's for Apple Silicon (M1 and newer). Intel Macs haven't been supported since 0.2.42.
 2. Open the DMG and drag **Meowio** into **Applications**.
 3. First time only: **right-click** the app → **Open** → **Open** again. (macOS warns because the app isn't notarized.)
 
@@ -94,7 +93,7 @@ Needs Android 7.0 or newer.
 | 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide, plus a built-in VPN option. Or use your own M3U or Xtream playlist. |
 | 🎲 | **Surprise Me** | Can't decide? Let Meowio pick something for you. |
 | 📊 | **Tracking services** | Keep your watchlist and history synced with **Trakt**, **Simkl** and **MDBList**. |
-| ☁️ | **Debrid services** | Sign in to **Premiumize** or **TorBox** for fast cached streams. |
+| ☁️ | **Debrid services** | Sign in to **Real-Debrid**, **Premiumize** or **TorBox** for fast cached streams. |
 | 🎉 | **Watch party** | Watch together with friends, in sync. |
 | 🧊 | **Glass UI** | A frosted-glass, Netflix-style look with a cat theme. |
 | 🎨 | **Themes** | Pick the colors you like. |
@@ -134,13 +133,13 @@ Prefer to choose yourself? Set **Stream selection** to **Manual** in the playbac
 ## ❓ FAQ
 
 **🙋 Does Meowio include movies and shows?**
-No. You bring your own add-ons or sources. The only thing built in is the free Live TV channel list.
+No. You bring your own add-ons or sources, and Meowio picks from what they offer. The only thing built in is the free Live TV channel list.
 
 **🙋 Can I pick the stream myself?**
 Yes. Set **Stream selection** to **Manual** in playback settings.
 
 **🙋 How do I update?**
-Use the in-app updater, or download the latest file from the [release page](https://github.com/layton-brewer/Meowio/releases/latest) and install it over the old one.
+Use the in-app updater, or grab the newest file from the [release page](https://github.com/layton-brewer/Meowio/releases/latest) and install it over the old one.
 
 **🙋 Do I lose my stuff when I update?**
 No. Android updates install right over the old version and keep your data.
@@ -155,7 +154,7 @@ The code is fully open in this repo. Android files are signed with the same key 
 Meowio is a separate app made from Nuvio's code. It installs next to Nuvio and doesn't replace it.
 
 **🙋 Apple files show up late. Why?**
-Apple builds can appear up to an hour after the Android ones on the release page.
+The Apple and desktop builds take longer to finish, so they can show up on the release page up to an hour after the Android ones. If a file is missing, check back a bit later.
 
 **🙋 Something is broken!**
 [Open an issue](https://github.com/layton-brewer/Meowio/issues) and tell us your device, app version and what happened. Please leave out passwords and private links. 🙏
@@ -164,7 +163,7 @@ Apple builds can appear up to an hour after the Android ones on the release page
 
 ## ⚠️ Things to know
 
-Honest list of what doesn't work everywhere:
+A quick, honest list of what doesn't work everywhere:
 
 - 🧩 **CloudStream is Android-only.** It runs Android plugin code, so it only works on the Android phone and Android TV apps.
 - 📺 **No downloads on TV apps.** Android TV and Apple TV don't have downloads. Phones, iPhone/iPad, Mac and Windows do.
@@ -230,6 +229,6 @@ Live TV list from [Free-TV/IPTV](https://github.com/Free-TV/IPTV).
 
 Licensed under [GNU GPL v3.0](LICENSE).
 
-Made with ❤️ by the Meowio team 🐱
+Made with love by the Meowio team 🐱
 
 </div>
