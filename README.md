@@ -11,11 +11,24 @@
 [![License](https://img.shields.io/badge/License-GPL%20v3-E17055?style=for-the-badge)](LICENSE)
 ![Platforms](https://img.shields.io/badge/Android%20%7C%20Android%20TV%20%7C%20iOS%20%7C%20Apple%20TV%20%7C%20Mac%20%7C%20Windows-0984E3?style=for-the-badge)
 
-Meowio is a free, open-source fork of [Nuvio](https://github.com/NuvioMedia) that runs on **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**. It adds **Smart auto-play**, **free built-in Live TV** and a **frosted-glass look**.
+Meowio is a free, open-source fork of [Nuvio](https://github.com/NuvioMedia) that runs on **Android phones, Android TV, iPhone/iPad, Apple TV, Mac and Windows**. Nuvio shows you a list of sources. **Meowio picks one, plays it, and swaps it if it breaks.** 🍿
 
 Every app, Apple TV included, is on one release page. The badge above always shows the newest version.
 
-[⬇️ Download](#-download-and-install) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
+### ⬇️ Quick download
+
+| Your device | Get it |
+| --- | --- |
+| 📺 **Android TV / Google TV / Fire TV** | [**Meowio-tv.apk**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk) |
+| 📱 **Android phone / tablet** | [**Meowio-mobile.apk**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-mobile.apk) |
+| 🍎 **iPhone / iPad** | [**Meowio-ios.ipa**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-ios.ipa) · [AltStore source](https://github.com/layton-brewer/Meowio/releases/latest/download/altstore.json) |
+| 📺 **Apple TV** | [**Meowio-tvos.ipa**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tvos.ipa) |
+| 💻 **Mac (Apple Silicon)** | [**Meowio-macos-arm64.dmg**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-macos-arm64.dmg) |
+| 🪟 **Windows 10 / 11** | [**Meowio-windows-x64.exe**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-windows-x64.exe) |
+
+Step-by-step install help for each device is [just below](#-download-and-install).
+
+[⬇️ Download](#-download-and-install) · [🆚 Why Meowio?](#-why-meowio-over-nuvio) · [✨ Features](#-what-can-it-do) · [❓ FAQ](#-faq) · [⚠️ Limits](#️-things-to-know) · [🐛 Report a bug](https://github.com/layton-brewer/Meowio/issues)
 
 </div>
 
@@ -29,9 +42,30 @@ Meowio skips that part. Hit Play and it picks a stream for you. If the stream br
 
 ---
 
+## 🆚 Why Meowio over Nuvio?
+
+Meowio is built on Nuvio's code, so you keep what you like. Then it adds the stuff that makes it feel like Netflix instead of a source browser:
+
+| | Stock Nuvio | 🐱 Meowio |
+| --- | :-: | :-: |
+| Pick a stream for you when you press Play | ❌ you choose | ✅ **Smart auto-play** |
+| Stream dies? Switch to another without asking | ❌ | ✅ **Silent failover** (dead links remembered, stalls caught in 30 s) |
+| Debrid placeholder clips ("this file is unavailable") skipped | ❌ | ✅ detected and skipped |
+| Find streams while you browse | ❌ | ✅ **Preloading** |
+| Full-season packs first for shows, same pack next episode | ❌ | ✅ **Season packs** |
+| Real-Debrid: cached links first, your cloud library plays | ❌ | ✅ **Cached-first + cloud library** |
+| Never picks a lower resolution than your screen needs | ❌ | ✅ **Resolution matching** |
+| Can't decide? Random pick across all your add-ons | ❌ | ✅ **Surprise Me** |
+| Free built-in Live TV (~3,500 channels, guide, optional VPN) | ❌ | ✅ |
+| Mark a whole show unwatched in one tap, synced to Trakt, Simkl and MDBList | ❌ | ✅ **Unwatch all** |
+
+Prefer to choose yourself? Set **Stream selection** to **Manual** any time. 👍
+
+---
+
 ## ⬇️ Download and install
 
-Everything is on the **[latest release page](https://github.com/layton-brewer/Meowio/releases/latest)**, named "Meowio vX.Y.Z". Find your device below and follow the steps.
+Every link below always points at the newest version. Everything is on the **[latest release page](https://github.com/layton-brewer/Meowio/releases/latest)**, named "Meowio vX.Y.Z". Find your device below and follow the steps.
 
 ### 📱 Android phone or tablet
 
@@ -81,6 +115,16 @@ Needs Android 7.0 or newer.
 
 ---
 
+## 💾 Downloads and offline watching
+
+Going on a trip? Tap **Download** on a movie or episode and watch it later with no internet.
+
+- 📱 **Phone/tablet, iPhone/iPad, Mac and Windows** can download. Meowio uses the same smart pick as streaming, so you get a source that works.
+- 📶 Downloads run in the background, and you can watch them from the app's downloads list.
+- 📺 **TV apps (Android TV and Apple TV) don't have downloads** on purpose, because a TV stays at home on Wi-Fi.
+
+---
+
 ## ✨ What can it do?
 
 | | Feature | In plain English |
@@ -91,7 +135,13 @@ Needs Android 7.0 or newer.
 | 📐 | **Resolution matching** | It prefers streams that fit your screen. |
 | ⚡ | **Preloading** | It starts finding streams while you browse, so Play is fast. |
 | 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide, plus a built-in VPN option. Or use your own M3U or Xtream playlist. |
-| 🎲 | **Surprise Me** | Can't decide? Let Meowio pick something for you. |
+| 🎲 | **Surprise Me** | Can't decide? Meowio picks a title from your add-ons' catalogs. |
+| ⏭️ | **Skip Intro** | Jump past intros and recaps with one button. |
+| ☁️ | **Real-Debrid cloud library** | Browse and play files already in your Real-Debrid account. Cached links come first. |
+| 🗂️ | **Media servers** | Play from **Plex**, **Silo**, **Jellyfin** and **Emby** on every app. |
+| 🙈 | **Unwatch all** | Mark a whole show as unwatched in one tap. It syncs to Trakt, Simkl and MDBList. |
+| 🛡️ | **Placeholder-clip failover** | Debrid "file removed" clips are spotted and skipped for the next source. |
+| 💬 | **Subtitle auto-sync** | Optional. Nudges subtitles into sync with the audio. Off by default. |
 | 📊 | **Tracking services** | Keep your watchlist and history synced with **Trakt**, **Simkl** and **MDBList**. |
 | ☁️ | **Debrid services** | Sign in to **Real-Debrid**, **Premiumize** or **TorBox** for fast cached streams. |
 | 🎉 | **Watch party** | Watch together with friends, in sync. |
@@ -103,7 +153,7 @@ Needs Android 7.0 or newer.
 | 🎚️ | **Quality picker** | Don't like the auto choice? Pick the quality yourself. |
 | 📈 | **Watch stats** | See what you watch the most. |
 | 🤖 | **AI assistant** | Ask for suggestions. Uses your own API key. |
-| ⬇️ | **Downloads** | One-tap offline downloads on phone, iPhone/iPad, Mac and Windows. |
+| ⬇️ | **Downloads** | One-tap offline downloads on phone, iPhone/iPad, Mac and Windows (not on TV apps). |
 | 🧩 | **CloudStream plugins** | Extra sources on Android phone and Android TV. |
 
 Prefer to choose yourself? Set **Stream selection** to **Manual** in the playback settings. 👍
@@ -116,6 +166,9 @@ Prefer to choose yourself? Set **Stream selection** to **Manual** in the playbac
 | Live TV | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Glass UI + themes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Backup and restore | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Plex, Silo, Jellyfin, Emby | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Real-Debrid cloud library | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Skip Intro + Unwatch all | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Downloads | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
 | CloudStream plugins | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 
@@ -151,7 +204,7 @@ Channels come from free public lists, so some come and go. Try refreshing the li
 The code is fully open in this repo. Android files are signed with the same key every release. Windows and Apple builds show a generic warning because they aren't code-signed.
 
 **🙋 Does it work with Nuvio?**
-Meowio is a separate app made from Nuvio's code. It installs next to Nuvio and doesn't replace it.
+Meowio is a separate app made from Nuvio's code. It installs next to Nuvio and doesn't replace it. See [why you might want it](#-why-meowio-over-nuvio).
 
 **🙋 Apple files show up late. Why?**
 The Apple and desktop builds take longer to finish, so they can show up on the release page up to an hour after the Android ones. If a file is missing, check back a bit later.
@@ -172,7 +225,6 @@ A quick, honest list of what doesn't work everywhere:
 - 📺 **Apple TV is a separate native app,** so a few extras can differ from the other apps.
 - 🔊 **Audio passthrough settings are Android-only.** Apple devices use the system decoders.
 - 📡 **Live TV depends on free public lists.** Channels and guide data can change.
-- 🎞️ **Plex isn't supported yet.** Jellyfin and Emby are, on Apple TV.
 
 ---
 
