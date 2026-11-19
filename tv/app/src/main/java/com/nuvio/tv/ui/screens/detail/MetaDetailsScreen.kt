@@ -966,6 +966,10 @@ fun MetaDetailsScreen(
                     onMarkPreviousSeasonsWatched = { season ->
                         viewModel.onEvent(MetaDetailsEvent.OnMarkPreviousSeasonsWatched(season))
                     },
+                    onMarkShowUnwatched = {
+                        viewModel.onEvent(MetaDetailsEvent.OnMarkShowUnwatched)
+                    },
+                    hasShowHistory = { viewModel.hasAnyShowHistory() },
                     isSeasonFullyWatched = { season ->
                         viewModel.isSeasonFullyWatched(season)
                     },
@@ -1257,6 +1261,8 @@ private fun MetaDetailsContent(
     onMarkSeasonUnwatched: (Int) -> Unit,
     onMarkPreviousEpisodesWatched: (Video) -> Unit,
     onMarkPreviousSeasonsWatched: (Int) -> Unit,
+    onMarkShowUnwatched: () -> Unit = {},
+    hasShowHistory: () -> Boolean = { false },
     isSeasonFullyWatched: (Int) -> Boolean,
     trailerUrl: String?,
     trailerAudioUrl: String?,
@@ -3063,6 +3069,11 @@ private fun MetaDetailsContent(
                 },
                 onMarkPreviousSeasonsWatched = {
                     onMarkPreviousSeasonsWatched(season)
+                    seasonOptionsDialogSeason = null
+                },
+                canUnwatchShow = hasShowHistory(),
+                onMarkShowUnwatched = {
+                    onMarkShowUnwatched()
                     seasonOptionsDialogSeason = null
                 }
             )

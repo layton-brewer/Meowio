@@ -102,6 +102,7 @@ fun ClassicHomeContent(
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
     onRemoveContinueWatching: (String, Int?, Int?, Boolean) -> Unit,
     onMarkContinueWatchingWatched: (ContinueWatchingItem) -> Unit = {},
+    onUnwatchContinueWatchingShow: (ContinueWatchingItem) -> Unit = {},
     isCatalogItemWatched: (MetaPreview) -> Boolean = { false },
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     onRequestTrailerPreview: (MetaPreview) -> Unit,
@@ -663,6 +664,7 @@ fun ClassicHomeContent(
                         )
                     },
                     onMarkWatched = onMarkContinueWatchingWatched,
+                    onUnwatchShow = onUnwatchContinueWatchingShow,
                     onRemoveItem = { item ->
                         val contentId = when (item) {
                             is ContinueWatchingItem.InProgress -> item.progress.contentId
@@ -751,6 +753,7 @@ fun ClassicHomeContent(
                         )
                     },
                     onMarkWatched = onMarkContinueWatchingWatched,
+                    onUnwatchShow = onUnwatchContinueWatchingShow,
                     onRemoveItem = { item ->
                         val contentId = when (item) {
                             is ContinueWatchingItem.InProgress -> item.progress.contentId

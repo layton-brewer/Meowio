@@ -718,6 +718,7 @@ class HomeViewModel @Inject constructor(
             is HomeEvent.OnItemClick -> navigateToDetail(event.itemId, event.itemType)
             is HomeEvent.OnLoadMoreCatalog -> loadMoreCatalogItems(event.catalogId, event.addonId, event.type)
             is HomeEvent.OnMarkContinueWatchingWatched -> markContinueWatchingWatched(event.item)
+            is HomeEvent.OnUnwatchContinueWatchingShow -> unwatchContinueWatchingShow(event.item)
             is HomeEvent.OnRemoveContinueWatching -> removeContinueWatching(
                 contentId = event.contentId,
                 season = event.season,
@@ -831,6 +832,18 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { watchProgressRepository.markAsCompleted(item.toCompletedProgress()) }
                 .onFailure { error -> Log.w(TAG, "Failed to mark continue watching item as watched", error) }
+        }
+    }
+
+    private fun unwatchContinueWatchingShow(item: ContinueWatchingItem) {
+        if (!item.canUnwatchShow()) return
+        viewModelScope.launch {
+            runCatching {
+                watchProgressRepository.removeTitleFromHistory(
+                    contentId = item.contentId(),
+                    contentType = item.contentType()
+                )
+            }.onFailure { error -> Log.w(TAG, "Failed to mark show as unwatched", error) }
         }
     }
 

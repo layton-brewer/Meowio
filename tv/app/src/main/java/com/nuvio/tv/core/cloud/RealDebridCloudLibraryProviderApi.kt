@@ -33,12 +33,14 @@ class RealDebridCloudLibraryProviderApi @Inject constructor(
             }
             val torrents = response.body().orEmpty()
             val slots = Semaphore(4)
-            // ponytail: file names for at most 60 multi-file torrents per refresh (RD allows 250
-            // calls a minute); later ones show numbered files until the next refresh.
+            // At most MAX_INFO_LOOKUPS info calls per refresh (Real-Debrid allows 250 a minute); later
+            // torrents without links get one file that is looked up when it is played.
             var lookups = 0
             coroutineScope {
                 torrents.map { torrent ->
-                    val needsInfo = torrent.isDownloaded && torrent.links.orEmpty().size > 1 && lookups++ < 60
+                    // The list call often leaves `links` empty, so finished torrents without links are looked up too.
+                    val links = torrent.links.orEmpty()
+                    val needsInfo = torrent.isDownloaded && (links.isEmpty() || links.size > 1) && lookups++ < MAX_INFO_LOOKUPS
                     async {
                         val info = if (needsInfo) {
                             slots.withPermit { runCatching { api.getTorrentInfo(auth, torrent.id.orEmpty()).body() }.getOrNull() }
@@ -57,7 +59,8 @@ class RealDebridCloudLibraryProviderApi @Inject constructor(
         file: CloudLibraryFile
     ): CloudLibraryPlaybackResult {
         if (!file.playable) return CloudLibraryPlaybackResult.NotPlayable
-        val link = file.id?.takeIf { it.isNotBlank() } ?: return CloudLibraryPlaybackResult.Failed()
+        val link = (file.id?.takeIf { it.isNotBlank() } ?: return CloudLibraryPlaybackResult.Failed())
+            .let { id -> if (id.startsWith(RD_LOOKUP_PREFIX)) lookUpLargestVideoLink(apiKey, id.removePrefix(RD_LOOKUP_PREFIX)) ?: return CloudLibraryPlaybackResult.Failed() else id }
         return try {
             val response = api.unrestrictLink("Bearer $apiKey", link)
             val body = response.body()
@@ -73,7 +76,23 @@ class RealDebridCloudLibraryProviderApi @Inject constructor(
             CloudLibraryPlaybackResult.Failed(error.message)
         }
     }
+
+    /** The link of the torrent's largest video file (links follow the selected files in order). */
+    private suspend fun lookUpLargestVideoLink(apiKey: String, torrentId: String): String? {
+        val info = runCatching { api.getTorrentInfo("Bearer $apiKey", torrentId).body() }.getOrNull() ?: return null
+        val links = info.links.orEmpty().filter { it.isNotBlank() }
+        val selected = info.files.orEmpty().filter { it.selected == 1 }.sortedBy { it.id ?: 0 }
+        if (selected.size != links.size) return links.firstOrNull()
+        return selected.zip(links)
+            .filterNot { (file, _) -> looksLikeNonVideoFile(file.displayName()) }
+            .maxByOrNull { (file, _) -> file.bytes ?: 0L }
+            ?.second
+            ?: links.firstOrNull()
+    }
 }
+
+private const val MAX_INFO_LOOKUPS = 150
+internal const val RD_LOOKUP_PREFIX = "rd-torrent:"
 
 private val RealDebridTorrentInfoDto.isDownloaded: Boolean
     get() = status.equals("downloaded", ignoreCase = true)
@@ -87,9 +106,13 @@ internal fun realDebridCloudItem(
     val id = torrent.id?.takeIf { it.isNotBlank() } ?: return null
     val name = torrent.filename?.takeIf { it.isNotBlank() } ?: id
     val links = torrent.links.orEmpty().filter { it.isNotBlank() }
+        .ifEmpty { info?.links.orEmpty().filter { it.isNotBlank() } }
     val selected = info?.files.orEmpty().filter { it.selected == 1 }.sortedBy { it.id ?: 0 }
     val files = if (!torrent.isDownloaded) {
         emptyList()
+    } else if (links.isEmpty()) {
+        // Not looked up this refresh: one entry that finds the torrent's largest video when played.
+        listOf(CloudLibraryFile(id = RD_LOOKUP_PREFIX + id, name = name, sizeBytes = torrent.bytes, playable = true))
     } else {
         links.mapIndexed { index, link ->
             val selectedFile = selected.getOrNull(index)?.takeIf { selected.size == links.size }

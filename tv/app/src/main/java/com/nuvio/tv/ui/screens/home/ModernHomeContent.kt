@@ -135,6 +135,7 @@ fun ModernHomeContent(
     onLoadMoreCatalog: (String, String, String) -> Unit,
     onRemoveContinueWatching: (String, Int?, Int?, Boolean) -> Unit,
     onMarkContinueWatchingWatched: (ContinueWatchingItem) -> Unit = {},
+    onUnwatchContinueWatchingShow: (ContinueWatchingItem) -> Unit = {},
     isCatalogItemWatched: (MetaPreview) -> Boolean = { false },
     onCatalogItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
@@ -1316,6 +1317,15 @@ fun ModernHomeContent(
                 pendingRowFocusIndex.value = targetIndex
                 pendingRowFocusNonce.intValue++
                 onMarkContinueWatchingWatched(selectedOptionsItem)
+                optionsItem.value = null
+            },
+            onUnwatchShow = {
+                val targetIndex = if (uiState.continueWatchingItems.size <= 1) null
+                else (lastFocusedContinueWatchingIndex.intValue).coerceAtMost(uiState.continueWatchingItems.size - 2).coerceAtLeast(0)
+                pendingRowFocusKey.value = if (targetIndex != null) "continue_watching" else null
+                pendingRowFocusIndex.value = targetIndex
+                pendingRowFocusNonce.intValue++
+                onUnwatchContinueWatchingShow(selectedOptionsItem)
                 optionsItem.value = null
             }
         )

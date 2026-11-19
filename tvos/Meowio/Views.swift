@@ -429,6 +429,11 @@ struct ContinueShelf: View {
                             }
                             .buttonStyle(.focusRing)
                             .contextMenu {
+                                if entry.meta.type == "series" {
+                                    Button("Mark entire show as unwatched", role: .destructive) {
+                                        library.markAllUnwatched(meta: entry.meta)
+                                    }
+                                }
                                 Button("Remove from Continue Watching", role: .destructive) { library.removeContinue(entry.id) }
                             }
                         }
@@ -1340,6 +1345,11 @@ struct DetailView: View {
                             }
                             Button("Mark season \(season) as watched") {
                                 for e in episodes where !watched(e) { library.markWatched(meta: meta, videoId: e.id) }
+                            }
+                            if library.hasHistory(meta.id) {
+                                Button("Mark entire show as unwatched", role: .destructive) {
+                                    library.markAllUnwatched(meta: meta)
+                                }
                             }
                             Button("Choose source") { Task { await play(videoId: ep.id, title: ep.displayTitle, forcePicker: true) } }
                         }

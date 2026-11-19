@@ -449,6 +449,7 @@ class MetaDetailsViewModel @Inject constructor(
             is MetaDetailsEvent.OnToggleEpisodeWatched -> toggleEpisodeWatched(event.video)
             is MetaDetailsEvent.OnMarkSeasonWatched -> markSeasonWatched(event.season)
             is MetaDetailsEvent.OnMarkSeasonUnwatched -> markSeasonUnwatched(event.season)
+            MetaDetailsEvent.OnMarkShowUnwatched -> markShowUnwatched()
             is MetaDetailsEvent.OnMarkPreviousEpisodesWatched -> markPreviousEpisodesWatched(event.video)
             is MetaDetailsEvent.OnMarkPreviousSeasonsWatched -> markPreviousSeasonsWatched(event.season)
             MetaDetailsEvent.OnLibraryLongPress -> openListPicker()
@@ -2696,6 +2697,57 @@ class MetaDetailsViewModel @Inject constructor(
             }
             reevaluateSeriesWatchedBadge()
             showMessage(localizedContext.getString(R.string.detail_marked_episodes_unwatched, watched.size))
+        }
+    }
+
+    /** True when any episode of this title is watched or has a saved position. */
+    fun hasAnyShowHistory(): Boolean {
+        val state = _uiState.value
+        return state.watchedEpisodes.isNotEmpty() || state.episodeProgressMap.isNotEmpty()
+    }
+
+    private fun markShowUnwatched() {
+        val meta = _uiState.value.meta ?: return
+        suppressSeasonAutoSwitch = true
+        viewModelScope.launch {
+            val state = _uiState.value
+            val episodes = if (meta.apiType.equals("other", ignoreCase = true)) {
+                state.episodesForSeason.filter { it.season != null && it.episode != null }
+            } else {
+                meta.videos.filter { it.season != null && it.episode != null }
+            }
+            val touched = episodes.filter { video ->
+                val key = video.season!! to video.episode!!
+                state.episodeProgressMap.containsKey(key) || state.watchedEpisodes.contains(key)
+            }
+            val knownKeys = touched.map { it.season!! to it.episode!! }.toSet()
+            val strayKeys = (state.watchedEpisodes + state.episodeProgressMap.keys) - knownKeys
+            val allKeys = knownKeys + strayKeys
+
+            _optimisticMarks -= allKeys
+            _optimisticUnmarks += allKeys
+            val pendingKeys = touched.map { episodePendingKey(it) }.toSet()
+            _uiState.update {
+                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys + pendingKeys)
+            }
+
+            runCatching {
+                watchProgressRepository.removeTitleFromHistory(
+                    contentId = _effectiveContentId.value,
+                    contentType = "series",
+                    videoId = resolveFallbackVideoId(),
+                    knownEpisodes = touched.map { Triple(it.season!!, it.episode!!, it.id) } +
+                        strayKeys.map { (season, episode) -> Triple(season, episode, null) }
+                )
+            }.onFailure { error ->
+                Log.w(TAG, "Failed to mark show as unwatched: ${error.message}")
+            }
+
+            _uiState.update {
+                it.copy(episodeWatchedPendingKeys = it.episodeWatchedPendingKeys - pendingKeys)
+            }
+            reevaluateSeriesWatchedBadge()
+            showMessage(localizedContext.getString(R.string.detail_show_marked_unwatched))
         }
     }
 

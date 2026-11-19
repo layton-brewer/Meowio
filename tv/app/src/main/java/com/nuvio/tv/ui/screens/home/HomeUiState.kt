@@ -230,8 +230,13 @@ sealed class HomeEvent {
         val isNextUp: Boolean = false
     ) : HomeEvent()
     data class OnMarkContinueWatchingWatched(val item: ContinueWatchingItem) : HomeEvent()
+    data class OnUnwatchContinueWatchingShow(val item: ContinueWatchingItem) : HomeEvent()
     data object OnRetry : HomeEvent()
 }
+
+/** "Mark entire show as unwatched" is offered for shows, not movies. */
+internal fun ContinueWatchingItem.canUnwatchShow(): Boolean =
+    !contentType().equals("movie", ignoreCase = true)
 
 /** Upcoming episodes stay in Next Up but cannot be marked until they air. */
 internal fun ContinueWatchingItem.canMarkWatched(): Boolean = when (this) {
