@@ -598,6 +598,8 @@ struct HomeView: View {
     @State private var addonRows: [AddonRow] = []
     @State private var loaded = false
     @State private var focusedItem: MetaItem?
+    /// The row holding focus, so Modern can scroll it to the top with its title showing.
+    @State private var focusedRow: String?
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
@@ -624,7 +626,8 @@ struct HomeView: View {
     /// The rows shared by every layout; Grid shows each catalog as a wrapping grid instead of a row.
     @ViewBuilder private var rowsContent: some View {
         notices
-        ContinueShelf(onFocus: focus)
+        ContinueShelf(onFocus: { focus($0); focusedRow = "continue" })
+            .id("continue")
         ForEach(serverShelves) { shelf in
             Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
         }
@@ -635,7 +638,8 @@ struct HomeView: View {
             if settings.homeLayout == .grid {
                 GridSection(row: row, onFocus: focus)
             } else {
-                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
+                Shelf(title: row.catalog.title, items: row.items, onFocus: { focus($0); focusedRow = row.id }, catalog: row.catalog)
+                    .id(row.id)
             }
         }
         if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
@@ -657,13 +661,20 @@ struct HomeView: View {
                 .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
         }
         // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
-        ScrollView {
-            // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
-            VStack(alignment: .leading, spacing: 12) {
-                rowsContent
+        ScrollViewReader { proxy in
+            ScrollView {
+                // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
+                VStack(alignment: .leading, spacing: 12) {
+                    rowsContent
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 80)
             }
-            .padding(.top, 16)
-            .padding(.bottom, 80)
+            // The focused row goes to the top of the lower half, title and all, instead of being cut at its title.
+            .onChange(of: focusedRow) { _, row in
+                guard let row else { return }
+                withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(row, anchor: .top) }
+            }
         }
         // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
         .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
