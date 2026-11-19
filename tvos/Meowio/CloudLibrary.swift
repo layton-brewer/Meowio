@@ -24,6 +24,11 @@ enum CloudLibrary {
     private static let videoExtensions: Set<String> = ["3g2", "3gp", "avi", "divx", "flv", "m2ts", "m4v", "mkv", "mov", "mp4",
                                                        "mpeg", "mpg", "mts", "ogm", "ogv", "ts", "webm", "wmv"]
 
+    private static let nonVideoExtensions: Set<String> = ["srt", "sub", "idx", "ass", "ssa", "vtt", "sup", "nfo", "txt", "md",
+                                                          "url", "sfv", "md5", "sha1", "jpg", "jpeg", "png", "gif", "webp", "bmp",
+                                                          "pdf", "exe", "zip", "rar", "7z", "tar", "gz", "mp3", "flac", "aac",
+                                                          "m4a", "ogg", "wav", "opus"]
+
     static func isVideo(_ name: String, mime: String?) -> Bool {
         (mime ?? "").lowercased().hasPrefix("video/") || videoExtensions.contains((name as NSString).pathExtension.lowercased())
     }
@@ -110,8 +115,9 @@ enum CloudLibrary {
             }
             let files = links.enumerated().compactMap { (i, link) -> File? in
                 let shown = i < names.count ? names[i] : "\(name) (\(i + 1))"
-                // Unnamed parts might be videos; let the player decide.
-                guard i >= names.count || isVideo(shown, mime: nil) else { return nil }
+                // Every link is a file picked when the torrent was added, so keep it unless it is clearly not a
+                // video. A one-file torrent is often named after its folder ("Show.S01.1080p.x264").
+                guard isVideo(shown, mime: nil) || !nonVideoExtensions.contains((shown as NSString).pathExtension.lowercased()) else { return nil }
                 return File(id: link, name: shown, size: i < sizes.count ? sizes[i] : nil)
             }
             if !files.isEmpty { items.append(Item(id: id, kind: "rd", name: name, status: nil, files: files)) }
