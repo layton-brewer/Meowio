@@ -102,8 +102,9 @@ internal fun realDebridCloudItem(
                 id = link,
                 name = fileName,
                 sizeBytes = selectedFile?.bytes ?: torrent.bytes.takeIf { links.size == 1 },
-                // Unnamed parts of a multi-file torrent might be videos; let the player decide.
-                playable = isPlayablePremiumizeCloudFile(fileName, null) || (selectedFile == null && links.size > 1)
+                // Every link is a file picked when the torrent was added: playable unless clearly not a video.
+                // A one-file torrent is often named after its folder ("Show.S01.1080p.x264").
+                playable = isPlayablePremiumizeCloudFile(fileName, null) || !looksLikeNonVideoFile(fileName)
             )
         }.sortedWith(compareBy<CloudLibraryFile> { !it.playable }.thenBy { it.name.lowercase() })
     }
@@ -119,3 +120,13 @@ internal fun realDebridCloudItem(
         files = files
     )
 }
+
+private val nonVideoCloudExtensions = setOf(
+    "srt", "sub", "idx", "ass", "ssa", "vtt", "sup", "nfo", "txt", "md", "url", "sfv", "md5", "sha1",
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "pdf", "exe", "zip", "rar", "7z", "tar", "gz",
+    "mp3", "flac", "aac", "m4a", "ogg", "wav", "opus",
+)
+
+/** True only for names whose extension is a known non-video type. */
+internal fun looksLikeNonVideoFile(name: String): Boolean =
+    name.substringAfterLast('.', missingDelimiterValue = "").lowercase() in nonVideoCloudExtensions

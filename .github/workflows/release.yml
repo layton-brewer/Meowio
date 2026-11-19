@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.54 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.55 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.54 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.55 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.54"
+          tag="v0.2.55"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.54
+          ## What's new in 0.2.55
 
-          - **Real-Debrid on Mac and Windows.** Sign in with a code, cached-link checks, and your Real-Debrid files in the Library's Cloud tab, like the phone.
-          - **Mac and Windows match the phone.** Smart auto-play waits up to 10 seconds for a link at your screen's resolution before settling for a lower one, failover skips links already marked uncached or dead, subtitle auto-sync (optional) can match against the dialogue in the audio, Random Episode and Download sit beside Play, and guest mode starts with a profile.
-          - **Meowio branding everywhere on desktop**, in every language.
+          - **Real-Debrid cloud files play again.** Items in the Library's Cloud tab could show up but do nothing when clicked, because a one-file torrent named after its folder (like "Show.S01.1080p.x264") was not recognised as a video. Every picked file now plays unless it is clearly not a video (subtitles, images, text). Phone, Android TV, iPhone, Mac, Windows and Apple TV.
 
           ## Download
 
