@@ -1149,30 +1149,46 @@ struct LiveTVView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Live TV").font(.largeTitle.bold()).padding(.leading, 60)
-                if live.usingDefault {
-                    Text("Free channels from Pluto TV, Samsung TV Plus, Plex, Roku, Free-TV and iptv-org. Add your own playlist or login in Settings.")
-                        .font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
+            // Android TV's Live TV: a search box with Guide, Refresh and Playlists & VPN beside it, group chips,
+            // then channels as cards in three columns.
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(spacing: 20) {
+                    TextField("Search channels", text: $query)
+                        .frame(maxWidth: .infinity)
+                    Button(showGuide ? "Channels" : "Guide") { showGuide.toggle() }
+                        .buttonStyle(ChipButtonStyle(selected: false))
+                    Button("Refresh") { live.load(sources: settings.liveSources, force: true) }
+                        .buttonStyle(ChipButtonStyle(selected: false))
+                    NavigationLink { LiveSettingsView() } label: { Text("Playlists & VPN") }
+                        .buttonStyle(ChipButtonStyle(selected: false))
                 }
-                if !live.failedSources.isEmpty {
-                    Text("\(live.failedSources.count) of your playlists did not load. The rest are shown.")
-                        .font(.callout).foregroundStyle(.orange).padding(.leading, 60)
-                }
+                .padding(.horizontal, 60)
+                .padding(.top, 30)
+                .focusSection()
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        Button(showGuide ? "Channels" : "Guide") { showGuide.toggle() }
+                    HStack(spacing: 16) {
                         ForEach([LiveTvSelection.all, LiveTvSelection.favorites, LiveTvSelection.recent] + live.groups, id: \.self) { g in
                             Button(title(for: g)) { selection = g }
-                                .opacity(selection == g ? 1 : 0.7)
+                                .buttonStyle(ChipButtonStyle(selected: selection == g, accent: settings.theme.accent))
                         }
                     }
-                    .padding(.horizontal, 60).padding(.vertical, 10)
+                    .padding(.horizontal, 60).padding(.vertical, 12)
+                }
+                .scrollClipDisabled()
+                .focusSection()
+                Group {
+                    if live.usingDefault {
+                        Text("Free channels from Pluto TV, Samsung TV Plus, Plex, Roku, Free-TV and iptv-org. Hold OK on a channel to add or remove a favorite.")
+                    } else {
+                        Text("Hold OK on a channel to add or remove a favorite.")
+                    }
+                }
+                .font(.system(size: 22)).foregroundStyle(.secondary).padding(.horizontal, 60)
+                if !live.failedSources.isEmpty {
+                    Text("\(live.failedSources.count) of your playlists did not load. The rest are shown.")
+                        .font(.callout).foregroundStyle(.orange).padding(.horizontal, 60)
                 }
                 if live.loading { ProgressView().padding(60) }
-                if !live.loading, live.guideLoads > 0 {
-                    Text("Loading guide…").font(.callout).foregroundStyle(.secondary).padding(.leading, 60)
-                }
                 if let error = live.error {
                     Text(error.rawValue).foregroundStyle(.orange).padding(.horizontal, 60)
                 }
@@ -1188,23 +1204,28 @@ struct LiveTVView: View {
                         .padding(.horizontal, 60)
                     }
                 } else {
-                ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 4), spacing: 30) {
-                        ForEach(shown) { ch in
-                            Button { play(ch) } label: { ChannelCard(channel: ch, info: live.guide[ch.id], offline: live.offline.contains(ch.id), problem: live.playbackProblems[ch.id], favorite: live.favorites.contains(ch.id)) }
+                    ScrollView {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 30), count: 3), spacing: 30) {
+                            ForEach(shown) { ch in
+                                Button { play(ch) } label: {
+                                    ChannelCard(channel: ch, info: live.guide[ch.id], offline: live.offline.contains(ch.id),
+                                                problem: live.playbackProblems[ch.id], favorite: live.favorites.contains(ch.id),
+                                                loadingGuide: live.guideLoads > 0)
+                                }
                                 .buttonStyle(.card)
                                 .contextMenu {
                                     Button(live.favorites.contains(ch.id) ? "Remove from favorites" : "Add to favorites") { live.toggleFavorite(ch) }
                                 }
                                 .onAppear { live.requestChannelGuide(ch) }
+                            }
                         }
+                        .padding(.horizontal, 60)
+                        .padding(.vertical, 20)
                     }
-                    .padding(.horizontal, 60)
-                }
                 }
             }
+            .background(settings.theme.background.ignoresSafeArea())
         }
-        .searchable(text: $query)
         .task(id: settings.liveSources) {
             live.load(sources: settings.liveSources)
         }
@@ -1269,32 +1290,40 @@ struct ChannelCard: View {
     let offline: Bool
     var problem: LivePlaybackProblem? = nil
     let favorite: Bool
+    var loadingGuide = false
 
     var body: some View {
-        VStack(spacing: 8) {
-            ZStack(alignment: .topTrailing) {
-                AsyncImage(url: channel.logo.flatMap(URL.init(string:))) { phase in
-                    if case .success(let img) = phase { img.resizable().scaledToFit() }
-                    else { Image(systemName: "tv").font(.largeTitle) }
-                }
-                .frame(height: 90)
-                .frame(maxWidth: .infinity)
-                if favorite { Image(systemName: "star.fill").foregroundStyle(.yellow) }
+        // Android TV's channel card: the logo on a dark tile at the left, the name, what's on and what's next.
+        HStack(spacing: 22) {
+            AsyncImage(url: channel.logo.flatMap(URL.init(string:))) { phase in
+                if case .success(let img) = phase { img.resizable().scaledToFit().padding(8) }
+                else { Image(systemName: "tv").font(.title2).foregroundStyle(.secondary) }
             }
-            Text(channel.displayName).lineLimit(1).font(.headline)
-            if let problem {
-                Text(problem.rawValue).font(.caption).lineLimit(2).foregroundStyle(.orange)
-            } else if let now = info?.now?.title {
-                Text(now).font(.caption).lineLimit(1).foregroundStyle(.secondary)
-                if let next = info?.next?.title {
-                    Text("Next: \(next)").font(.caption2).lineLimit(1).foregroundStyle(.secondary)
+            .frame(width: 120, height: 120)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(channel.displayName).lineLimit(1).font(.system(size: 28, weight: .medium))
+                    if favorite { Image(systemName: "star.fill").font(.system(size: 20)).foregroundStyle(.yellow) }
                 }
-            } else if offline {
-                Text("Not responding").font(.caption).foregroundStyle(.orange)
+                if let problem {
+                    Text(problem.rawValue).font(.system(size: 20)).lineLimit(2).foregroundStyle(.orange)
+                } else if let now = info?.now?.title {
+                    Text(now).font(.system(size: 22)).lineLimit(1).foregroundStyle(.secondary)
+                    if let next = info?.next?.title {
+                        Text("Next: \(next)").font(.system(size: 20)).lineLimit(1).foregroundStyle(.tertiary)
+                    }
+                } else if offline {
+                    Text("Not responding").font(.system(size: 20)).foregroundStyle(.orange)
+                } else if loadingGuide {
+                    Text("Loading guide\u{2026}").font(.system(size: 20)).foregroundStyle(.secondary)
+                }
             }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding()
+        .padding(18)
+        .frame(maxWidth: .infinity, minHeight: 156, alignment: .leading)
+        .background(.white.opacity(0.07))
         .opacity(offline ? 0.55 : 1)
     }
 }

@@ -34,7 +34,7 @@ struct CollectionEditorView: View {
                 .disabled(newTitle.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .navigationTitle("Edit collections")
+        .meowioPageTitle("Edit collections")
     }
 }
 
@@ -83,7 +83,7 @@ struct CollectionDetailEditor: View {
                 Text("This collection was removed.")
             }
         }
-        .navigationTitle(collection?.title ?? "Collection")
+        .meowioPageTitle(collection?.title ?? "Collection")
         .onAppear { title = collection?.title ?? "" }
     }
 }
@@ -137,7 +137,7 @@ struct FolderEditor: View {
                 Text("This folder was removed.")
             }
         }
-        .navigationTitle(folder?.title ?? "Folder")
+        .meowioPageTitle(folder?.title ?? "Folder")
         .onAppear { title = folder?.title ?? "" }
         .task {
             catalogs = await AddonClient.addonCatalogs([AddonClient.cinemeta] + settings.addons)

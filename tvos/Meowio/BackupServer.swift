@@ -245,7 +245,7 @@ struct BackupView: View {
                 if let restoreMessage { Text(restoreMessage).foregroundStyle(.secondary) }
             }
         }
-        .navigationTitle("Backup and restore")
+        .meowioPageTitle("Backup and restore")
         .onAppear {
             let store = settings
             server.exportBackup = { includePrivate in store.exportBackup(includePrivateAddonLinks: includePrivate) }

@@ -310,7 +310,7 @@ struct ProfileEditView: View {
                     }
                 }
             }
-            .navigationTitle(profile == nil ? "New profile" : "Edit profile")
+            .meowioPageTitle(profile == nil ? "New profile" : "Edit profile")
         }
         .onAppear {
             if let p = profile {
@@ -414,7 +414,7 @@ struct ProfilesSettingsView: View {
                 Button("Switch profile") { profiles.showPicker() }
             }
         }
-        .navigationTitle("Profiles")
+        .meowioPageTitle("Profiles")
         .sheet(item: $editing) { ProfileEditView(profile: $0) }
         .sheet(isPresented: $adding) { ProfileEditView(profile: nil) }
     }

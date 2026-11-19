@@ -167,9 +167,15 @@ struct ContinueCard: View {
         return entry.meta.videos?.first(where: { $0.id == vid })?.displayTitle
     }
 
+    /// The episode's own still, as Android TV shows, when the add-on has one.
+    private var episodeStill: URL? {
+        guard let vid = entry.videoId else { return nil }
+        return entry.meta.videos?.first(where: { $0.id == vid })?.thumbnail.flatMap(URL.init(string:))
+    }
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            Artwork(url: entry.meta.backgroundURL, placeholder: entry.meta.name)
+            Artwork(url: episodeStill ?? entry.meta.backgroundURL, placeholder: entry.meta.name)
                 .frame(width: CardMetrics.wideWidth, height: CardMetrics.wideHeight)
             LinearGradient(stops: [.init(color: .clear, location: 0.3), .init(color: .black.opacity(0.85), location: 1)],
                            startPoint: .top, endPoint: .bottom)
@@ -318,17 +324,20 @@ struct CircleIconButtonStyle: ButtonStyle {
 /// Season picker chips: the chosen season filled white, like Android TV's season tabs.
 struct ChipButtonStyle: ButtonStyle {
     var selected: Bool
-    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected) }
+    /// When set, the selected chip is filled with this colour (Live TV's groups), otherwise white.
+    var accent: Color? = nil
+    func makeBody(configuration: Configuration) -> some View { StyledBody(configuration: configuration, selected: selected, accent: accent) }
     private struct StyledBody: View {
         let configuration: ButtonStyleConfiguration
         let selected: Bool
+        let accent: Color?
         @Environment(\.isFocused) private var focused
         var body: some View {
             configuration.label
                 .font(.system(size: 26, weight: selected ? .bold : .medium))
-                .foregroundStyle(selected ? .black : (focused ? .white : .white.opacity(0.7)))
+                .foregroundStyle(selected ? (accent == nil ? .black : .white) : (focused ? .white : .white.opacity(0.7)))
                 .padding(.horizontal, 28).frame(height: 60)
-                .background(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(focused ? 0.2 : 0.08)), in: Capsule())
+                .background(selected ? AnyShapeStyle(accent ?? .white) : AnyShapeStyle(.white.opacity(focused ? 0.2 : 0.08)), in: Capsule())
                 .overlay(Capsule().strokeBorder(.white, lineWidth: focused ? 3 : 0))
                 .animation(.easeOut(duration: 0.15), value: focused)
         }
@@ -448,7 +457,7 @@ struct ContinueShelf: View {
     }
 
     private var missingArt: [ContinueItem] {
-        library.continueWatching.filter { $0.meta.poster == nil || $0.meta.name.isEmpty || $0.meta.name == $0.id }
+        library.continueWatching.filter(\.needsDetails)
     }
 
     private func subtitle(_ entry: ContinueItem) -> String? {
@@ -594,6 +603,8 @@ struct HomeView: View {
     @State private var addonRows: [AddonRow] = []
     @State private var loaded = false
     @State private var focusedItem: MetaItem?
+    /// The row holding focus, so Modern can scroll it to the top with its title showing.
+    @State private var focusedRow: String?
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
@@ -620,7 +631,8 @@ struct HomeView: View {
     /// The rows shared by every layout; Grid shows each catalog as a wrapping grid instead of a row.
     @ViewBuilder private var rowsContent: some View {
         notices
-        ContinueShelf(onFocus: focus)
+        ContinueShelf(onFocus: { focus($0); focusedRow = "continue" })
+            .id("continue")
         ForEach(serverShelves) { shelf in
             Shelf(title: shelf.title, items: shelf.items, onFocus: focus)
         }
@@ -631,7 +643,8 @@ struct HomeView: View {
             if settings.homeLayout == .grid {
                 GridSection(row: row, onFocus: focus)
             } else {
-                Shelf(title: row.catalog.title, items: row.items, onFocus: focus, catalog: row.catalog)
+                Shelf(title: row.catalog.title, items: row.items, onFocus: { focus($0); focusedRow = row.id }, catalog: row.catalog)
+                    .id(row.id)
             }
         }
         if loaded && addonRows.isEmpty && !settings.addons.isEmpty {
@@ -653,13 +666,20 @@ struct HomeView: View {
                 .padding(.leading, CardMetrics.rowInset).padding(.top, 80)
         }
         // The rows fill the lower half, like Android TV's Modern view; the header above follows focus.
-        ScrollView {
-            // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
-            VStack(alignment: .leading, spacing: 12) {
-                rowsContent
+        ScrollViewReader { proxy in
+            ScrollView {
+                // A plain stack keeps every row in place, so focus can always move back up to Continue Watching.
+                VStack(alignment: .leading, spacing: 12) {
+                    rowsContent
+                }
+                .padding(.top, 16)
+                .padding(.bottom, 80)
             }
-            .padding(.top, 16)
-            .padding(.bottom, 80)
+            // The focused row goes to the top of the lower half, title and all, instead of being cut at its title.
+            .onChange(of: focusedRow) { _, row in
+                guard let row else { return }
+                withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(row, anchor: .top) }
+            }
         }
         // Rows scrolled up out of the lower half are clipped, so they never run over the title's text.
         .frame(height: geo.size.height * (settings.showHero ? 0.5 : 0.88))
@@ -741,10 +761,13 @@ struct HomeView: View {
                 }
                 // Rows appear as each catalog arrives instead of after the slowest one.
                 for await (index, items) in group where !items.isEmpty {
+                    if Task.isCancelled { continue }
                     found[index] = AddonRow(catalog: catalogs[index], items: Array(items.prefix(40)))
                     addonRows = found.keys.sorted().compactMap { found[$0] }
                 }
             }
+            // A newer load (add-ons arriving from the account) has taken over: leave the rows to it.
+            if Task.isCancelled { return }
             if found.isEmpty { addonRows = [] }
             if heroItem == nil { heroItem = addonRows.first?.items.prefix(5).randomElement() }
             loaded = true
@@ -787,6 +810,16 @@ struct SearchView: View {
                     if !searching && results.isEmpty && query.count >= 2 {
                         Text("Nothing found for \u{201C}\(query)\u{201D}.").padding(CardMetrics.rowInset)
                     }
+                    if query.trimmingCharacters(in: .whitespaces).count < 2 {
+                        // Android TV's empty search screen.
+                        VStack(spacing: 18) {
+                            Image(systemName: "magnifyingglass").font(.system(size: 80)).foregroundStyle(.secondary)
+                            Text("Start Searching").font(.system(size: 38, weight: .medium))
+                            Text("Enter at least 2 characters").font(.system(size: 24)).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 80)
+                    }
                 }
                 .padding(.bottom, 80)
             }
@@ -815,10 +848,15 @@ struct LibraryView: View {
     @EnvironmentObject var trakt: TraktStore
     @EnvironmentObject var simkl: SimklStore
     @EnvironmentObject var mdblist: MDBListStore
+    /// Android TV's tabs: Saved, Cloud and Lists.
+    @State private var tab = "saved"
     /// "all", "meowio", "trakt", "simkl" or "mdblist".
     @State private var showing = "all"
-    /// Android TV's library filter chips.
     @State private var kind = "all"
+    @State private var sort = "added"
+    @State private var genre = ""
+    @State private var year = ""
+    @State private var watched = "all"
 
     private struct Service: Identifiable {
         let id: String
@@ -828,17 +866,19 @@ struct LibraryView: View {
 
     /// Meowio's own list is always there; the others show "Not set up yet" until they are connected.
     private var services: [Service] {
-        [Service(id: "meowio", name: "Meowio", connected: true),
+        [Service(id: "meowio", name: "Meowio library", connected: true),
          Service(id: "trakt", name: "Trakt", connected: trakt.connected),
          Service(id: "simkl", name: "Simkl", connected: simkl.connected),
          Service(id: "mdblist", name: "MDBList", connected: mdblist.connected)]
     }
 
     private func name(_ id: String) -> String {
-        id == "all" ? "All services" : (services.first { $0.id == id }?.name ?? "Meowio")
+        id == "all" ? "All services" : (services.first { $0.id == id }?.name ?? "Meowio library")
     }
 
-    private var visible: [MetaItem] {
+    private var cloudAvailable: Bool { settings.debridReady && CloudLibrary.supports(settings.debridService) }
+
+    private var fromService: [MetaItem] {
         switch showing {
         case "all": return library.saved
         case "meowio": return library.saved.filter { (library.savedSources[$0.id] ?? []).isEmpty }
@@ -846,69 +886,214 @@ struct LibraryView: View {
         }
     }
 
+    private func yearOf(_ m: MetaItem) -> String? {
+        guard let r = m.releaseInfo, r.count >= 4 else { return nil }
+        let y = String(r.prefix(4))
+        return Int(y) == nil ? nil : y
+    }
+
+    private func isWatched(_ m: MetaItem) -> Bool {
+        library.records.contains { $0.contentId == m.id && $0.completed }
+    }
+
+    private var genres: [String] { Array(Set(fromService.flatMap { $0.genres ?? [] })).sorted() }
+    private var years: [String] { Array(Set(fromService.compactMap(yearOf))).sorted(by: >) }
+
+    private var visible: [MetaItem] {
+        var list = fromService.filter { m in
+            (kind == "all" || (kind == "movie" ? m.type == "movie" : m.type != "movie"))
+                && (genre.isEmpty || (m.genres ?? []).contains(genre))
+                && (year.isEmpty || yearOf(m) == year)
+                && (watched == "all" || (watched == "watched") == isWatched(m))
+        }
+        switch sort {
+        case "oldest": list.reverse()
+        case "title": list.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case "year": list.sort { (yearOf($0) ?? "") > (yearOf($1) ?? "") }
+        default: break
+        }
+        return list
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 30) {
-                    HStack(spacing: 30) {
-                        Text("Library").font(.system(size: 52, weight: .bold))
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 16) {
+                    ForEach([("saved", "Saved"), ("cloud", "Cloud"), ("lists", "Lists")], id: \.0) { id, title in
+                        Button { tab = id } label: { Text(title) }
+                            .buttonStyle(ChipButtonStyle(selected: tab == id))
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .padding(.top, 40)
+                .padding(.bottom, 20)
+                .focusSection()
+                switch tab {
+                case "cloud":
+                    if cloudAvailable {
+                        CloudLibraryView()
+                    } else {
+                        Text("Sign in to Real-Debrid, TorBox or Premiumize in Settings › Integrations › Connected Services to see your cloud files here.")
+                            .foregroundStyle(.secondary).padding(CardMetrics.rowInset)
                         Spacer()
-                        if settings.debridReady, CloudLibrary.supports(settings.debridService) {
-                            NavigationLink { CloudLibraryView() } label: {
-                                Label("\(settings.debridService.title) cloud", systemImage: "icloud")
-                            }
-                        }
-                        NavigationLink { DiscoverListsView() } label: {
-                            Label("Popular lists", systemImage: "list.star")
-                        }
-                        Menu {
-                            Button { showing = "all" } label: {
-                                Label("All services", systemImage: showing == "all" ? "checkmark" : "square.stack")
-                            }
-                            ForEach(services) { s in
-                                Button { if s.connected { showing = s.id } } label: {
-                                    Label(s.connected ? s.name : "\(s.name) · Not set up yet",
-                                          systemImage: showing == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
-                                }
-                                .disabled(!s.connected)
-                            }
-                        } label: {
-                            Label("Show: \(name(showing))", systemImage: "line.3.horizontal.decrease.circle")
-                        }
-                        Menu {
-                            ForEach(services) { s in
-                                Button { if s.connected { library.primaryService = s.id } } label: {
-                                    Label(s.connected ? s.name : "\(s.name) · Not set up yet",
-                                          systemImage: library.primaryService == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
-                                }
-                                .disabled(!s.connected)
-                            }
-                        } label: {
-                            Label("Primary: \(name(library.primaryService))", systemImage: "star")
-                        }
                     }
-                    .padding(.horizontal, CardMetrics.rowInset)
-                    .padding(.top, 40)
-                    HStack(spacing: 16) {
-                        ForEach([("all", "All"), ("movie", "Movies"), ("series", "Series")], id: \.0) { k, title in
-                            Button { kind = k } label: { Text(title) }
-                                .buttonStyle(ChipButtonStyle(selected: kind == k))
-                        }
-                    }
-                    .padding(.horizontal, CardMetrics.rowInset)
-                    if showing == "all" && kind == "all" { ContinueShelf() }
-                    PosterGrid(title: nil, items: visible.filter { kind == "all" || (kind == "movie" ? $0.type == "movie" : $0.type != "movie") })
-                    if visible.isEmpty && (showing != "all" || library.continueWatching.isEmpty) {
-                        Text(showing == "all"
-                             ? "Save titles from their detail page and they will show up here."
-                             : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in.").padding(CardMetrics.rowInset)
-                    }
-                    Text("Everything you watch is reported to every connected service. The primary one is the one marked here.")
-                        .font(.callout).foregroundStyle(.secondary).padding(.horizontal, CardMetrics.rowInset)
+                case "lists":
+                    DiscoverListsView()
+                default:
+                    savedTab
                 }
             }
             .background(settings.theme.background.ignoresSafeArea())
             .meowioDestinations()
+        }
+    }
+
+    private var savedTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Android TV's filter boxes.
+                Grid(horizontalSpacing: 20, verticalSpacing: 20) {
+                    GridRow {
+                        FilterBox(label: "Type", value: ["all": "All", "movie": "Movies", "series": "Series"][kind] ?? "All") {
+                            choice("All", kind == "all") { kind = "all" }
+                            choice("Movies", kind == "movie") { kind = "movie" }
+                            choice("Series", kind == "series") { kind = "series" }
+                        }
+                        .gridCellColumns(3)
+                        FilterBox(label: "Sort", value: ["added": "Added \u{2193}", "oldest": "Added \u{2191}", "title": "Title A\u{2013}Z", "year": "Year"][sort] ?? "") {
+                            choice("Added \u{2193}", sort == "added") { sort = "added" }
+                            choice("Added \u{2191}", sort == "oldest") { sort = "oldest" }
+                            choice("Title A\u{2013}Z", sort == "title") { sort = "title" }
+                            choice("Year", sort == "year") { sort = "year" }
+                        }
+                        .gridCellColumns(3)
+                    }
+                    GridRow {
+                        FilterBox(label: "Genre", value: genre.isEmpty ? "All" : genre) {
+                            choice("All", genre.isEmpty) { genre = "" }
+                            ForEach(genres, id: \.self) { g in choice(g, genre == g) { genre = g } }
+                        }
+                        .gridCellColumns(2)
+                        FilterBox(label: "Year", value: year.isEmpty ? "All" : year) {
+                            choice("All", year.isEmpty) { year = "" }
+                            ForEach(years, id: \.self) { y in choice(y, year == y) { year = y } }
+                        }
+                        .gridCellColumns(2)
+                        FilterBox(label: "Watched", value: ["all": "All", "watched": "Watched", "unwatched": "Not watched"][watched] ?? "All") {
+                            choice("All", watched == "all") { watched = "all" }
+                            choice("Watched", watched == "watched") { watched = "watched" }
+                            choice("Not watched", watched == "unwatched") { watched = "unwatched" }
+                        }
+                        .gridCellColumns(2)
+                    }
+                    GridRow {
+                        FilterBox(label: "Show library from", value: name(showing)) {
+                            choice("All services", showing == "all") { showing = "all" }
+                            ForEach(services) { s in
+                                Button { if s.connected { showing = s.id } } label: {
+                                    Label(s.connected ? s.name : "\(s.name) \u{00B7} Not set up yet",
+                                          systemImage: showing == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
+                                }
+                                .disabled(!s.connected)
+                            }
+                        }
+                        .gridCellColumns(2)
+                        FilterBox(label: "Primary service (watching syncs to all connected)",
+                                  value: library.primaryService == "meowio" ? "Meowio sync" : name(library.primaryService)) {
+                            ForEach(services) { s in
+                                Button { if s.connected { library.primaryService = s.id } } label: {
+                                    Label(s.connected ? (s.id == "meowio" ? "Meowio sync" : s.name) : "\(s.name) \u{00B7} Not set up yet",
+                                          systemImage: library.primaryService == s.id ? "checkmark" : (s.connected ? "circle" : "lock"))
+                                }
+                                .disabled(!s.connected)
+                            }
+                        }
+                        .gridCellColumns(2)
+                        Color.clear.gridCellColumns(2).frame(height: 1)
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .focusSection()
+
+                // Wide cards with the title underneath and a tick on watched titles, like Android TV.
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 36, alignment: .top), count: 4),
+                          alignment: .leading, spacing: 40) {
+                    ForEach(visible) { item in
+                        NavigationLink(value: item) { LibraryCard(item: item, watched: isWatched(item)) }
+                            .buttonStyle(.focusRing)
+                    }
+                }
+                .padding(.horizontal, CardMetrics.rowInset)
+                .padding(.vertical, 20)
+
+                if visible.isEmpty {
+                    Text(library.saved.isEmpty
+                         ? "Save titles from their detail page and they will show up here."
+                         : (showing == "all" ? "Nothing matches these filters." : "Nothing from \(name(showing)) yet. Sync in Settings to pull its lists in."))
+                        .foregroundStyle(.secondary).padding(.horizontal, CardMetrics.rowInset)
+                }
+            }
+            .padding(.bottom, 80)
+        }
+    }
+
+    private func choice(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+        }
+    }
+}
+
+/// One of Android TV's library filter boxes: a small grey label over the current value and a chevron.
+struct FilterBox<Content: View>: View {
+    let label: String
+    let value: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Menu { content() } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label).font(.system(size: 18)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(value).font(.system(size: 28)).lineLimit(1)
+                }
+                Spacer(minLength: 10)
+                Image(systemName: "chevron.down").font(.system(size: 22, weight: .semibold))
+            }
+            .padding(.horizontal, 22)
+            .frame(maxWidth: .infinity, minHeight: 86, alignment: .leading)
+        }
+    }
+}
+
+/// A saved title in the library grid: its backdrop, the name under it and a tick once watched.
+struct LibraryCard: View {
+    let item: MetaItem
+    let watched: Bool
+    @EnvironmentObject var settings: SettingsStore
+    @Environment(\.isFocused) private var focused
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Color.clear
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .overlay(Artwork(url: item.backgroundURL, placeholder: item.name))
+                .clipShape(RoundedRectangle(cornerRadius: CardMetrics.radius))
+                .overlay(alignment: .topTrailing) {
+                    if watched {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 34))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, settings.theme.accent)
+                            .padding(14)
+                    }
+                }
+                .modifier(FocusRing(focused: focused, radius: CardMetrics.radius))
+            Text(item.name)
+                .font(.system(size: 26, weight: .medium))
+                .lineLimit(1)
+                .foregroundStyle(focused ? .primary : .secondary)
         }
     }
 }

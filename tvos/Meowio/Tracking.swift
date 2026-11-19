@@ -302,7 +302,7 @@ struct SimklSettingsView: View {
             }
             if let m = simkl.message { Text(m).foregroundStyle(.secondary) }
         }
-        .navigationTitle("Simkl")
+        .meowioPageTitle("Simkl")
     }
 }
 
@@ -600,6 +600,6 @@ struct MDBListSettingsView: View {
             }
             if let m = mdb.message { Text(m).foregroundStyle(.secondary) }
         }
-        .navigationTitle("MDBList")
+        .meowioPageTitle("MDBList")
     }
 }

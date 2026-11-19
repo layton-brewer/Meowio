@@ -377,6 +377,6 @@ struct TraktSettingsView: View {
             }
             if let m = trakt.message { Text(m).foregroundStyle(.secondary) }
         }
-        .navigationTitle("Trakt")
+        .meowioPageTitle("Trakt")
     }
 }
