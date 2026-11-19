@@ -208,7 +208,12 @@ enum PlexAPI {
         ]
     }
 
-    private static func call(_ method: String = "GET", _ base: String, _ path: String, query: [String: String?] = [:],
+    private static func call(_ base: String, _ path: String, query: [String: String?] = [:],
+                             token: String?, extra: [String: String] = [:], timeout: TimeInterval = 15) async throws -> Data {
+        try await call("GET", base, path, query: query, token: token, extra: extra, timeout: timeout)
+    }
+
+    private static func call(_ method: String, _ base: String, _ path: String, query: [String: String?] = [:],
                              token: String?, extra: [String: String] = [:], timeout: TimeInterval = 15) async throws -> Data {
         guard let url = ServerHTTP.url(base, path, query) else { throw MediaServerError.badAddress }
         var h = headers.merging(extra) { _, new in new }
@@ -245,7 +250,8 @@ enum PlexAPI {
     /// The account's Plex Home users; just the account itself when it has no Plex Home.
     static func homeUsers(_ owner: PlexAccount) async -> [PlexHomeUser] {
         let data = try? await call(clientsBase, "/api/v2/home/users", token: owner.token)
-        let users = (data.map { ServerJSON.parse($0).list("users") } ?? []).compactMap { u -> PlexHomeUser? in
+        let listed: [ServerJSON] = data.map { ServerJSON.parse($0).list("users") } ?? []
+        let users = listed.compactMap { u -> PlexHomeUser? in
             guard let uuid = u.text("uuid") else { return nil }
             return PlexHomeUser(id: u.s("id") ?? uuid, uuid: uuid, name: u.text("title") ?? u.text("username") ?? "User",
                                 hasPin: u.b("protected"))
@@ -594,7 +600,12 @@ enum SiloAPI {
          "X-Client-Name": "Meowio", "X-Client-Version": ServerHTTP.appVersion]
     }
 
-    private static func call(_ method: String = "GET", _ address: String, _ path: String, query: [String: String?] = [:],
+    private static func call(_ address: String, _ path: String, query: [String: String?] = [:],
+                             headers: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
+        try await call("GET", address, path, query: query, headers: headers, json: nil)
+    }
+
+    private static func call(_ method: String, _ address: String, _ path: String, query: [String: String?] = [:],
                              headers: [String: String] = [:], json: Any? = nil) async throws -> (Data, HTTPURLResponse) {
         guard let url = ServerHTTP.url(address, path, query) else { throw MediaServerError.badAddress }
         var h = ["Accept": "application/json", "User-Agent": deviceName].merging(headers) { _, new in new }
@@ -793,7 +804,12 @@ enum SiloAPI {
     }
 
     /// A signed-in request; a refused token is renewed once and the request sent again.
-    private static func send(_ method: String = "GET", _ c: ServerConnection, _ path: String, query: [String: String?] = [:],
+    private static func send(_ c: ServerConnection, _ path: String, query: [String: String?] = [:],
+                             device: Bool = false) async throws -> ServerJSON {
+        try await send("GET", c, path, query: query, json: nil, device: device)
+    }
+
+    private static func send(_ method: String, _ c: ServerConnection, _ path: String, query: [String: String?] = [:],
                              json: Any? = nil, device: Bool = false) async throws -> ServerJSON {
         for attempt in 0..<2 {
             guard var h = await auth(c, force: attempt > 0) else { throw MediaServerError.rejected }
@@ -859,7 +875,9 @@ enum SiloAPI {
         let reply = try? await send(c, "/api/v2/catalog", query: [
             "source": "query", "library_id": library.id, "type": type, "q": name, "image_size": "small", "limit": "10"
         ])
-        return (reply?.list("items") ?? []).filter { $0.text("imdb_id")?.lowercased() == wanted }.compactMap { $0.text("content_id") }
+        let items: [ServerJSON] = reply?.list("items") ?? []
+        let matching = items.filter { ($0.text("imdb_id") ?? "").lowercased() == wanted }
+        return matching.compactMap { $0.text("content_id") }
     }
 
     private static func seasonEpisodes(_ c: ServerConnection, _ seriesId: String, _ season: Int) async -> [ServerJSON] {
