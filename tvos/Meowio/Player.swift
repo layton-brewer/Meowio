@@ -114,6 +114,8 @@ final class PlaybackController: ObservableObject {
     private var timeObserver: Any?
     private var ticker: Timer?
     private var resolved: [Int: URL] = [:]
+    /// Request headers a resolved link needs (a Silo playback link takes the sign-in's headers).
+    private var resolvedHeaders: [Int: [String: String]] = [:]
     private var pendingSubtitle: SubtitleItem?
     /// The file mpv is playing, for Automatic subtitle sync.
     private var mpvSource: (url: URL, headers: [String: String])?
@@ -144,7 +146,7 @@ final class PlaybackController: ObservableObject {
 
     private let serverReport = ServerPlayReporter()
 
-    /// Tells Trakt, Simkl and MDBList (through onScrobble) and the Jellyfin or Emby server that served the file.
+    /// Tells Trakt, Simkl and MDBList (through onScrobble) and the media server that served the file.
     private func emitProgress() {
         serverReport.report("progress", stream: request.candidates.indices.contains(index) ? request.candidates[index] : nil,
                             seconds: lastSeconds, paused: false)
@@ -430,7 +432,34 @@ final class PlaybackController: ObservableObject {
         activeIndex = i
         failedAll = false
         cancellables.removeAll()
-        if let url = stream.playableURL ?? resolved[i] {
+        if let url = resolved[i] {
+            open(url: url, stream: Self.withHeaders(stream, resolvedHeaders[i]), at: i)
+            return
+        }
+        if SiloAPI.needsStart(stream) {
+            // A Silo copy: Silo plans the playback (original file or a conversion) when it is asked to play.
+            status = "Starting on Silo…"
+            timeout?.cancel()
+            Task { [weak self] in
+                let started = await SiloAPI.start(stream)
+                guard let self, self.index == i, !self.stopped else { return }
+                self.status = nil
+                if let started {
+                    self.resolved[i] = started.url
+                    self.resolvedHeaders[i] = started.headers
+                    self.open(url: started.url, stream: Self.withHeaders(stream, started.headers), at: i)
+                } else {
+                    self.nextSource()
+                }
+            }
+            return
+        }
+        if stream.isServer, stream.url?.hasPrefix("silo://") == true {
+            // A Silo source from before the app restarted: it has to be listed again before it can start.
+            nextSource()
+            return
+        }
+        if let url = stream.playableURL {
             open(url: url, stream: stream, at: i)
             return
         }
@@ -452,6 +481,15 @@ final class PlaybackController: ObservableObject {
                 self.nextSource()
             }
         }
+    }
+
+    private static func withHeaders(_ stream: StreamItem, _ headers: [String: String]?) -> StreamItem {
+        guard let headers, !headers.isEmpty else { return stream }
+        var s = stream
+        var hints = s.behaviorHints ?? StreamItem.BehaviorHints(notWebReady: nil, filename: nil, bingeGroup: nil, proxyHeaders: nil)
+        hints.proxyHeaders = StreamItem.ProxyHeaders(request: (hints.proxyHeaders?.request ?? [:]).merging(headers) { _, new in new })
+        s.behaviorHints = hints
+        return s
     }
 
     private func open(url: URL, stream: StreamItem, at i: Int) {
@@ -677,6 +715,7 @@ final class PlaybackController: ObservableObject {
         request = next
         triedMPV.removeAll()
         resolved.removeAll()
+        resolvedHeaders.removeAll()
         switches = 0
         lastSeconds = 0
         lastDuration = 0
