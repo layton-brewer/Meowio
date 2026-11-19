@@ -76,7 +76,6 @@ struct SettingsView: View {
                     }
                     // Each choice reads as a row with its current value, like Android TV, rather than a segmented bar.
                     .pickerStyle(.navigationLink)
-                    .scrollContentBackground(.hidden)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 32))
