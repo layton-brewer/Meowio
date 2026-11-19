@@ -43,6 +43,7 @@ struct SettingsView: View {
                 }
                 .scrollClipDisabled()
                 .frame(width: 500)
+                .focusSection()
                 // Moving along the rail opens each category, like Android TV.
                 .onChange(of: railFocus) { _, c in if let c { category = c } }
                 .padding(.leading, 80)
@@ -79,6 +80,9 @@ struct SettingsView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 32))
+                    // One focus area, so Right from any rail item lands on the page's rows even when the page
+                    // has a single row above or below that item (a guest's lone "Sign in to Nuvio" was unreachable).
+                    .focusSection()
                 }
                 .padding(.top, 110)
                 .padding(.trailing, 70)
