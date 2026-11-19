@@ -1,0 +1,35 @@
+name: Retry Mac jobs
+
+# GitHub sometimes never hands a macOS job a runner and cancels it after about 15 minutes.
+# When that happens to an Apple build, run the cancelled jobs again automatically (up to 3 extra tries),
+# so a release never ships with the previous version's Mac or Apple TV file.
+
+on:
+  workflow_run:
+    workflows: ["Apple builds", "Apple TV"]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  retry:
+    if: github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.run_attempt < 4
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-run jobs that never got a runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          # Only jobs that were cancelled before any step ran: real build errors are left alone.
+          starved=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.conclusion == "cancelled" and ([.steps[]? | select(.conclusion != null and .conclusion != "skipped")] | length) == 0)] | length')
+          failed=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.conclusion == "failure")] | length')
+          echo "Jobs that never started: $starved, jobs with real failures: $failed"
+          if [ "$starved" -gt 0 ] && [ "$failed" -eq 0 ]; then
+            gh api -X POST "repos/$REPO/actions/runs/$RUN_ID/rerun-failed-jobs"
+            echo "Re-ran the cancelled jobs."
+          fi
