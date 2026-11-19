@@ -223,6 +223,26 @@ final class TraktStore: ObservableObject {
         }
     }
 
+    /// Removes a whole title from Trakt history (every episode of a show) and drops its paused playback.
+    func removeTitleFromHistory(meta: MetaItem) {
+        guard connected, meta.id.hasPrefix("tt") else { return }
+        let entry: [String: Any] = ["ids": ["imdb": meta.id]]
+        let body: [String: Any] = meta.type == "movie" ? ["movies": [entry]] : ["shows": [entry]]
+        Task {
+            await refreshIfNeeded()
+            _ = await post("/sync/history/remove", body)
+            // Paused playback would bring the title back to Continue Watching on the next sync.
+            if let playback = await get("/sync/playback?limit=100").json as? [[String: Any]] {
+                for it in playback {
+                    let owner = (it["movie"] as? [String: Any]) ?? (it["show"] as? [String: Any])
+                    let imdb = (owner?["ids"] as? [String: Any])?["imdb"] as? String
+                    guard imdb == meta.id, let playbackId = it["id"] as? Int else { continue }
+                    _ = await request("/sync/playback/\(playbackId)", method: "DELETE", body: nil, auth: true)
+                }
+            }
+        }
+    }
+
     func setInWatchlist(_ add: Bool, meta: MetaItem) {
         guard connected, meta.id.hasPrefix("tt"), meta.type == "movie" || meta.type == "series" else { return }
         let entry: [String: Any] = ["ids": ["imdb": meta.id]]

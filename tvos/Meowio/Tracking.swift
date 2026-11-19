@@ -189,6 +189,14 @@ final class SimklStore: ObservableObject {
         Task { _ = await request(watched ? "/sync/history" : "/sync/history/remove", method: "POST", body: body) }
     }
 
+    /// Removes a whole title (every episode of a show) from Simkl history.
+    func removeTitleFromHistory(meta: MetaItem) {
+        guard connected, meta.id.hasPrefix("tt") else { return }
+        let entry: [String: Any] = ["ids": ["imdb": meta.id]]
+        let body: [String: Any] = meta.type == "movie" ? ["movies": [entry]] : ["shows": [entry]]
+        Task { _ = await request("/sync/history/remove", method: "POST", body: body) }
+    }
+
     /// Adding puts the title on Plan to watch. Simkl has no plain remove, so removal stays local.
     func setInWatchlist(_ add: Bool, meta: MetaItem) {
         guard meta.id.hasPrefix("tt"), meta.type == "movie" || meta.type == "series" else { return }
@@ -487,6 +495,14 @@ final class MDBListStore: ObservableObject {
         guard connected, let item = TrackingHTTP.item(meta: meta, videoId: videoId) else { return }
         let body = TrackingHTTP.historyBody(item, watched: watched)
         Task { _ = await post(watched ? "/sync/watched" : "/sync/watched/remove", body) }
+    }
+
+    /// Removes a whole title (every episode of a show) from MDBList watched history.
+    func removeTitleFromHistory(meta: MetaItem) {
+        guard connected, meta.id.hasPrefix("tt") else { return }
+        let entry: [String: Any] = ["ids": ["imdb": meta.id]]
+        let body: [String: Any] = meta.type == "movie" ? ["movies": [entry]] : ["shows": [entry]]
+        Task { _ = await post("/sync/watched/remove", body) }
     }
 
     func setInWatchlist(_ add: Bool, meta: MetaItem) {

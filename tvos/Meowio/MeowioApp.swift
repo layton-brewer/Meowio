@@ -174,6 +174,12 @@ struct ProfileRoot: View {
             sk?.setWatched(watched, meta: meta, videoId: videoId)
             md?.setWatched(watched, meta: meta, videoId: videoId)
         }
+        library.onTitleUnwatched = { [weak acc, weak tr, weak sk, weak md] meta, records in
+            tr?.removeTitleFromHistory(meta: meta)
+            sk?.removeTitleFromHistory(meta: meta)
+            md?.removeTitleFromHistory(meta: meta)
+            Task { @MainActor in await acc?.removeTitle(contentId: meta.id, records: records, profileId: id) }
+        }
     }
 }
 

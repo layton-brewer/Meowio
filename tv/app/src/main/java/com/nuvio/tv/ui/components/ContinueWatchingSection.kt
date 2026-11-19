@@ -70,6 +70,7 @@ import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Text
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
 import com.nuvio.tv.ui.screens.home.canMarkWatched
+import com.nuvio.tv.ui.screens.home.canUnwatchShow
 import com.nuvio.tv.ui.theme.NuvioTheme
 import androidx.compose.ui.platform.LocalContext
 import coil3.compose.AsyncImage
@@ -133,6 +134,7 @@ fun ContinueWatchingSection(
     showManualPlayOption: Boolean = false,
     onPlayManually: (ContinueWatchingItem) -> Unit = {},
     onMarkWatched: (ContinueWatchingItem) -> Unit = {},
+    onUnwatchShow: (ContinueWatchingItem) -> Unit = {},
     modifier: Modifier = Modifier,
     title: String? = null,
     focusedItemIndex: Int = -1,
@@ -316,6 +318,11 @@ fun ContinueWatchingSection(
             onMarkWatched = {
                 pendingFocusIndex = if (items.size <= 1) null else minOf(lastFocusedIndex, items.lastIndex)
                 onMarkWatched(menuItem)
+                optionsItem = null
+            },
+            onUnwatchShow = {
+                pendingFocusIndex = if (items.size <= 1) null else minOf(lastFocusedIndex, items.size - 2)
+                onUnwatchShow(menuItem)
                 optionsItem = null
             }
         )
@@ -1122,7 +1129,8 @@ fun ContinueWatchingOptionsDialog(
     onStartFromBeginning: () -> Unit = {},
     showPlayManually: Boolean = false,
     onPlayManually: () -> Unit = {},
-    onMarkWatched: () -> Unit = {}
+    onMarkWatched: () -> Unit = {},
+    onUnwatchShow: () -> Unit = {}
 ) {
     val isPlayEnabled = LocalPlaybackAvailability.current.canStream(item)
     val title = when (item) {
@@ -1190,6 +1198,19 @@ fun ContinueWatchingOptionsDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.hero_mark_watched))
+            }
+        }
+
+        if (item.canUnwatchShow()) {
+            Button(
+                onClick = onUnwatchShow,
+                colors = ButtonDefaults.colors(
+                    containerColor = NuvioTheme.colors.BackgroundCard,
+                    contentColor = NuvioTheme.colors.TextPrimary
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.episodes_mark_show_unwatched))
             }
         }
 

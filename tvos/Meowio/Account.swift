@@ -756,6 +756,22 @@ final class AccountStore: ObservableObject {
         _ = await rpc("sync_push_watched_items", ["p_items": items, "p_profile_id": profileId, "p_origin_client_id": clientId])
     }
 
+    /// Deletes every watched mark and saved position of one title from the account ("Mark entire show as unwatched").
+    func removeTitle(contentId: String, records: [WatchRecord], profileId: Int) async {
+        guard signedIn else { return }
+        var watchedKeys: [[String: Any]] = [["content_id": contentId]]
+        var progressKeys: [String] = [contentId]
+        for r in records {
+            if r.isEpisode, let ref = EpisodeRef(r.id) {
+                watchedKeys.append(["content_id": contentId, "season": ref.season, "episode": ref.episode])
+            }
+            progressKeys.append(Self.progressKey(contentId: contentId, videoId: r.isEpisode ? r.id : nil))
+        }
+        _ = await rpc("sync_delete_watched_items", ["p_keys": watchedKeys, "p_profile_id": profileId])
+        _ = await rpc("sync_delete_watch_progress", ["p_keys": Array(Set(progressKeys)), "p_profile_id": profileId,
+                                                     "p_origin_client_id": clientId])
+    }
+
     func removeWatched(_ record: WatchRecord, profileId: Int) async {
         guard signedIn else { return }
         var key: [String: Any] = ["content_id": record.contentId]

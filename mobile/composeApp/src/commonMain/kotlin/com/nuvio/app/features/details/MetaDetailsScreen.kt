@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
+import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -127,6 +128,7 @@ import com.nuvio.app.features.details.components.formatRating
 import com.nuvio.app.features.details.components.ratingReference
 import com.nuvio.app.features.details.components.rememberRatingState
 import com.nuvio.app.features.details.components.SeasonWatchedActionSheet
+import com.nuvio.app.features.watching.application.UnwatchAll
 import com.nuvio.app.features.details.components.TabletArtworkBackdropAlignment
 import com.nuvio.app.features.details.components.TabletDetailBackdrop
 import com.nuvio.app.features.details.components.TabletDetailHero
@@ -1538,6 +1540,10 @@ fun MetaDetailsScreen(
                                     onEpisodeManualPlayClick(selectedEpisode)
                                 },
                                 ratingMedia = remember(meta, selectedEpisode) { meta.ratingReference(selectedEpisode) },
+                                canUnwatchShow = remember(meta, watchedUiState.watchedKeys, progressByVideoId) {
+                                    UnwatchAll.hasAnyHistory(meta)
+                                },
+                                onUnwatchShow = { UnwatchAll.unwatchAll(meta) },
                             )
                         }
 
@@ -1594,6 +1600,10 @@ fun MetaDetailsScreen(
                                         areCurrentlyWatched = false,
                                     )
                                 },
+                                canUnwatchShow = remember(meta, watchedUiState.watchedKeys, progressByVideoId) {
+                                    UnwatchAll.hasAnyHistory(meta)
+                                },
+                                onUnwatchShow = { UnwatchAll.unwatchAll(meta) },
                             )
                         }
 
@@ -1852,6 +1862,15 @@ fun MetaDetailsScreen(
                             },
                         ),
                     )
+                    if (UnwatchAll.hasAnyHistory(meta)) {
+                        add(
+                            PosterZoomOverlayAction(
+                                icon = Icons.Default.RemoveDone,
+                                label = stringResource(Res.string.episode_mark_show_unwatched),
+                                onSelected = { UnwatchAll.unwatchAll(meta) },
+                            ),
+                        )
+                    }
                     if (episodeRating.isAvailable) {
                         val rated = episodeRating.rating
                         add(
