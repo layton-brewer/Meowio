@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.58 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.59 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.58 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.59 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.58"
+          tag="v0.2.59"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.58
+          ## What's new in 0.2.59
 
-          - **Plex and Silo media servers, on every app.** Settings > Media servers now adds Plex and Silo next to Jellyfin and Emby. Plex signs in with a code at plex.tv/link (with Plex Home users and PINs) and finds the best home or internet address by itself. Silo signs in with a code or your Silo account, with profiles and PINs. Titles on your server become sources that Smart play can pick, recent additions show on Home, and what you watch is reported back so watched marks and resume points stay in step. Android TV, phone, iPhone, Mac, Windows and Apple TV.
-          - Jellyfin and Emby sign-ins now stay separate per profile.
+          - **Apple TV: sign in after choosing guest.** If you skipped sign-in, Settings now lets you move to "Sign in to Nuvio" and sign in from there.
+          - **Plex and Silo on Mac and Windows.** The new media server sign-ins from the phone and TV apps (Plex sign-in with a code, Silo, and the updated Jellyfin and Emby sign-in) are now in Settings > Media servers on desktop too, with Plex and Silo artwork and playback.
 
           ## Download
 
