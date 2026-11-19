@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Jellyfin and Emby media servers, like the Android TV app's "Media servers": sign in once, pick libraries, and
+// Jellyfin, Emby, Plex and Silo media servers, like the Android TV app's "Media servers": sign in once, pick libraries, and
 // titles you own show up as extra sources (ranked first by default) and as "Recently added" rows on Home.
 
 struct ServerLibrary: Codable, Hashable, Identifiable {
@@ -13,7 +13,7 @@ struct ServerLibrary: Codable, Hashable, Identifiable {
 
 struct ServerConnection: Codable, Hashable, Identifiable {
     var id: String
-    /// "jellyfin" or "emby".
+    /// "jellyfin", "emby", "plex" or "silo".
     var provider: String
     var name: String
     var address: String
@@ -22,12 +22,40 @@ struct ServerConnection: Codable, Hashable, Identifiable {
     var token: String
     var libraries: [ServerLibrary]
     var enabled: Bool = true
+    /// Plex: the server's machine id, so a moved server can be found again.
+    var machineId: String? = nil
+    /// Silo: the token pair and the chosen profile; the access token is renewed from the refresh token.
+    var silo: SiloCredential? = nil
 
     var isEmby: Bool { provider == "emby" }
-    var providerTitle: String { isEmby ? "Emby" : "Jellyfin" }
+    var isMediaBrowser: Bool { provider == "jellyfin" || provider == "emby" }
+    var providerTitle: String {
+        switch provider {
+        case "emby": return "Emby"
+        case "plex": return "Plex"
+        case "silo": return "Silo"
+        default: return "Jellyfin"
+        }
+    }
     var apiRoot: String { address + (isEmby ? "/emby" : "") }
     /// What the source list shows for results from this server.
     var sourceLabel: String { "\(providerTitle) · \(name)" }
+}
+
+/// A title or episode from any kind of server, as Home rows and title pages use it.
+struct ServerItem {
+    var id: String
+    var name: String?
+    var overview: String?
+    var year: Int?
+    var rating: Double?
+    var genres: [String]?
+    var poster: String?
+    var backdrop: String?
+    var season: Int?
+    var episode: Int?
+    var released: String?
+    var imdb: String?
 }
 
 private struct MBItem: Decodable {
@@ -98,7 +126,7 @@ enum MediaServerError: LocalizedError {
         case .badAddress: return "That server address does not look right."
         case .unreachable: return "Could not reach the server. Check the address and that this Apple TV can reach it."
         case .rejected: return "The server refused that user name or password."
-        case .notSupported: return "That does not look like a Jellyfin or Emby server."
+        case .notSupported: return "That does not look like a server of that kind."
         }
     }
 }
@@ -290,6 +318,74 @@ private enum MediaBrowserAPI {
         }
         return out
     }
+
+    static func serverItem(_ c: ServerConnection, _ item: MBItem, posterWidth: Int = 500) -> ServerItem {
+        ServerItem(
+            id: item.Id, name: item.Name, overview: item.Overview, year: item.ProductionYear,
+            rating: item.CommunityRating, genres: item.Genres,
+            poster: (item.ImageTags?["Primary"]).map { imageURL(c, itemId: item.Id, kind: "Primary", tag: $0, width: posterWidth) },
+            backdrop: item.BackdropImageTags?.first.map { imageURL(c, itemId: item.Id, kind: "Backdrop", tag: $0, width: 1280) },
+            season: item.ParentIndexNumber, episode: item.IndexNumber, released: item.PremiereDate, imdb: item.imdb)
+    }
+
+    static func recentItems(_ c: ServerConnection, library: ServerLibrary, limit: Int) async -> [ServerItem] {
+        await recent(c, library: library, limit: limit).map { serverItem(c, $0) }
+    }
+
+    static func episodeItems(_ c: ServerConnection, seriesId: String) async -> [ServerItem] {
+        await allEpisodes(c, seriesId: seriesId).map { serverItem(c, $0, posterWidth: 640) }
+    }
+}
+
+/// Sends each request to the API of the connection's kind of server.
+enum ServerAPI {
+    static func libraries(_ c: ServerConnection) async throws -> [ServerLibrary] {
+        switch c.provider {
+        case "plex": return try await PlexAPI.libraries(c)
+        case "silo": return try await SiloAPI.libraries(c)
+        default: return try await MediaBrowserAPI.libraries(c)
+        }
+    }
+
+    static func recent(_ c: ServerConnection, library: ServerLibrary, limit: Int) async -> [ServerItem] {
+        switch c.provider {
+        case "plex": return await PlexAPI.recent(c, library: library, limit: limit)
+        case "silo": return await SiloAPI.recent(c, library: library, limit: limit)
+        default: return await MediaBrowserAPI.recentItems(c, library: library, limit: limit)
+        }
+    }
+
+    static func lookup(_ c: ServerConnection, library: ServerLibrary, imdb: String, name: String?) async -> [String] {
+        switch c.provider {
+        case "plex": return await PlexAPI.lookup(c, library: library, imdb: imdb, name: name)
+        case "silo": return await SiloAPI.lookup(c, library: library, imdb: imdb, name: name)
+        default: return await MediaBrowserAPI.lookup(c, library: library, imdb: imdb, name: name)
+        }
+    }
+
+    static func episodeId(_ c: ServerConnection, seriesId: String, season: Int, episode: Int) async -> String? {
+        switch c.provider {
+        case "plex": return await PlexAPI.episodeId(c, seriesId: seriesId, season: season, episode: episode)
+        case "silo": return await SiloAPI.episodeId(c, seriesId: seriesId, season: season, episode: episode)
+        default: return await MediaBrowserAPI.episodeId(c, seriesId: seriesId, season: season, episode: episode)
+        }
+    }
+
+    static func allEpisodes(_ c: ServerConnection, seriesId: String) async -> [ServerItem] {
+        switch c.provider {
+        case "plex": return await PlexAPI.allEpisodes(c, seriesId: seriesId)
+        case "silo": return await SiloAPI.allEpisodes(c, seriesId: seriesId)
+        default: return await MediaBrowserAPI.episodeItems(c, seriesId: seriesId)
+        }
+    }
+
+    static func streams(_ c: ServerConnection, itemId: String) async -> [StreamItem] {
+        switch c.provider {
+        case "plex": return await PlexAPI.streams(c, itemId: itemId)
+        case "silo": return await SiloAPI.streams(c, itemId: itemId)
+        default: return await MediaBrowserAPI.streams(c, itemId: itemId)
+        }
+    }
 }
 
 /// A row of titles from a server, for Home.
@@ -319,6 +415,23 @@ final class MediaServerStore: ObservableObject {
             connections = []
         }
         preferServers = d.object(forKey: "preferServers") as? Bool ?? true
+        SiloAPI.onRenew = { [weak self] id, credential in
+            Task { @MainActor in self?.updateSilo(id, credential) }
+        }
+    }
+
+    /// Adds a server signed in elsewhere (Plex, Silo), replacing the same sign-in if it was there.
+    func add(_ conn: ServerConnection) {
+        connections.removeAll { $0.provider == conn.provider && $0.address == conn.address && $0.userId == conn.userId }
+        connections.append(conn)
+        lookups.removeAll()
+        message = conn.libraries.isEmpty ? "Signed in, but no movie or show libraries were found." : nil
+    }
+
+    /// Keeps a renewed Silo token pair, so the sign-in survives a restart.
+    func updateSilo(_ id: String, _ credential: SiloCredential) {
+        guard let i = connections.firstIndex(where: { $0.id == id }) else { return }
+        connections[i].silo = credential
     }
 
     private func save() {
@@ -346,13 +459,16 @@ final class MediaServerStore: ObservableObject {
     }
 
     func remove(_ id: String) {
+        if let conn = connections.first(where: { $0.id == id }), conn.provider == "silo" {
+            Task { await SiloAPI.signOut(conn) }
+        }
         connections.removeAll { $0.id == id }
         lookups = lookups.filter { !$0.key.hasPrefix(id) }
     }
 
     func refreshLibraries(_ id: String) async {
         guard let i = connections.firstIndex(where: { $0.id == id }),
-              let fresh = try? await MediaBrowserAPI.libraries(connections[i]) else { return }
+              let fresh = try? await ServerAPI.libraries(connections[i]) else { return }
         let old = connections[i].libraries
         connections[i].libraries = fresh.map { lib in
             var l = lib
@@ -394,7 +510,7 @@ final class MediaServerStore: ObservableObject {
         guard !servers.isEmpty else { return [] }
         if let ref = Self.parse(id) {
             guard let conn = servers.first(where: { $0.id == ref.connection }) else { return [] }
-            return await MediaBrowserAPI.streams(conn, itemId: ref.item)
+            return await ServerAPI.streams(conn, itemId: ref.item)
         }
         let ref = EpisodeRef(id)
         let imdb = ref?.showId ?? id
@@ -409,9 +525,9 @@ final class MediaServerStore: ObservableObject {
                     var found: [StreamItem] = []
                     for titleId in ids {
                         if kind == "movie" {
-                            found += await MediaBrowserAPI.streams(conn, itemId: titleId)
-                        } else if let ref, let ep = await MediaBrowserAPI.episodeId(conn, seriesId: titleId, season: ref.season, episode: ref.episode) {
-                            found += await MediaBrowserAPI.streams(conn, itemId: ep)
+                            found += await ServerAPI.streams(conn, itemId: titleId)
+                        } else if let ref, let ep = await ServerAPI.episodeId(conn, seriesId: titleId, season: ref.season, episode: ref.episode) {
+                            found += await ServerAPI.streams(conn, itemId: ep)
                         }
                     }
                     return found
@@ -427,8 +543,10 @@ final class MediaServerStore: ObservableObject {
         if let hit = lookups[key] { return hit }
         var ids: [String] = []
         for lib in conn.libraries where lib.selected && lib.kind == kind {
-            ids += await MediaBrowserAPI.lookup(conn, library: lib, imdb: imdb, name: name)
+            ids += await ServerAPI.lookup(conn, library: lib, imdb: imdb, name: name)
         }
+        var seen = Set<String>()
+        ids = ids.filter { seen.insert($0).inserted }
         lookups[key] = ids
         return ids
     }
@@ -439,7 +557,7 @@ final class MediaServerStore: ObservableObject {
         var out: [ServerShelf] = []
         for conn in enabled {
             for lib in conn.libraries where lib.selected {
-                let items = await MediaBrowserAPI.recent(conn, library: lib, limit: 30)
+                let items = await ServerAPI.recent(conn, library: lib, limit: 30)
                 let metas = items.map { meta(from: $0, conn: conn, kind: lib.kind) }
                 if !metas.isEmpty { out.append(ServerShelf(id: "\(conn.id)|\(lib.id)", title: "\(lib.name) · \(conn.name)", items: metas)) }
             }
@@ -447,17 +565,15 @@ final class MediaServerStore: ObservableObject {
         return out
     }
 
-    private func meta(from item: MBItem, conn: ServerConnection, kind: String) -> MetaItem {
-        let id = item.imdb ?? Self.nativeId(connection: conn.id, item: item.Id)
-        var m = MetaItem(id: id, type: kind, name: item.Name ?? "Untitled")
-        m.poster = (item.ImageTags?["Primary"]).map { MediaBrowserAPI.imageURL(conn, itemId: item.Id, kind: "Primary", tag: $0, width: 500) }
-        if let tag = item.BackdropImageTags?.first {
-            m.background = MediaBrowserAPI.imageURL(conn, itemId: item.Id, kind: "Backdrop", tag: tag, width: 1280)
-        }
-        m.description = item.Overview
-        m.releaseInfo = item.ProductionYear.map(String.init)
-        m.imdbRating = item.CommunityRating.map { String(format: "%.1f", $0) }
-        m.genres = item.Genres
+    private func meta(from item: ServerItem, conn: ServerConnection, kind: String) -> MetaItem {
+        let id = item.imdb ?? Self.nativeId(connection: conn.id, item: item.id)
+        var m = MetaItem(id: id, type: kind, name: item.name ?? "Untitled")
+        m.poster = item.poster
+        m.background = item.backdrop
+        m.description = item.overview
+        m.releaseInfo = item.year.map(String.init)
+        m.imdbRating = item.rating.map { String(format: "%.1f", $0) }
+        m.genres = item.genres
         return m
     }
 
@@ -466,13 +582,14 @@ final class MediaServerStore: ObservableObject {
         guard let ref = Self.parse(item.id), let conn = enabled.first(where: { $0.id == ref.connection }) else { return nil }
         var m = item
         if item.type != "movie" {
-            let episodes = await MediaBrowserAPI.allEpisodes(conn, seriesId: ref.item)
+            let episodes = await ServerAPI.allEpisodes(conn, seriesId: ref.item)
             m.videos = episodes.compactMap { ep in
-                guard let s = ep.ParentIndexNumber, let n = ep.IndexNumber else { return nil }
-                var v = Video(id: Self.nativeId(connection: conn.id, item: ep.Id), season: s, episode: n)
-                v.title = ep.Name
-                v.thumbnail = (ep.ImageTags?["Primary"]).map { MediaBrowserAPI.imageURL(conn, itemId: ep.Id, kind: "Primary", tag: $0, width: 640) }
-                v.released = ep.PremiereDate
+                guard let s = ep.season, let n = ep.episode else { return nil }
+                var v = Video(id: Self.nativeId(connection: conn.id, item: ep.id), season: s, episode: n)
+                v.title = ep.name
+                v.thumbnail = ep.poster
+                v.released = ep.released
+                v.overview = ep.overview
                 return v
             }
         }
@@ -512,14 +629,29 @@ struct MediaServersSettingsView: View {
             } header: {
                 Text("Your servers")
             } footer: {
-                Text("Titles on your Jellyfin or Emby server become sources that Smart play can pick, and recent additions show on Home. Sign-in details stay on this Apple TV and are not in backups.")
+                Text("Titles on your Jellyfin, Emby, Plex or Silo server become sources that Smart play can pick, and recent additions show on Home. Sign-in details stay on this Apple TV and are not in backups.")
             }
 
             Section("Preferences") {
                 Toggle("Play my server's copy first", isOn: $servers.preferServers)
             }
 
-            Section("Add a server") {
+            Section("Add Plex or Silo") {
+                NavigationLink { PlexSignInView() } label: {
+                    VStack(alignment: .leading) {
+                        Text("Plex")
+                        Text("Sign in with a code at plex.tv/link.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                NavigationLink { SiloSignInView() } label: {
+                    VStack(alignment: .leading) {
+                        Text("Silo")
+                        Text("Sign in with a code or your Silo account.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section("Add Jellyfin or Emby") {
                 Picker("Server", selection: $provider) {
                     Text("Jellyfin").tag("jellyfin")
                     Text("Emby").tag("emby")
@@ -598,6 +730,8 @@ final class ServerPlayReporter {
 
     private var target: Target?
     private var lastSent = Date.distantPast
+    /// The link of a Plex or Silo copy that is playing; those servers keep their own report state.
+    private var external: String?
 
     private static func target(for stream: StreamItem) -> Target? {
         guard stream.isServer, let raw = stream.url, let comps = URLComponents(string: raw),
@@ -613,6 +747,25 @@ final class ServerPlayReporter {
 
     /// action is start, pause, progress or stop.
     func report(_ action: String, stream: StreamItem?, seconds: Double, paused: Bool) {
+        if action == "start" {
+            external = nil
+            if let stream, stream.isServer, let url = stream.url, ExternalServerReports.handles(url) {
+                target = nil
+                external = url
+                lastSent = Date()
+                ExternalServerReports.report("start", url: url, seconds: seconds, paused: false)
+                return
+            }
+        }
+        if let url = external {
+            if action == "progress" {
+                guard Date().timeIntervalSince(lastSent) >= 10 else { return }
+            }
+            lastSent = Date()
+            ExternalServerReports.report(action, url: url, seconds: seconds, paused: paused)
+            if action == "stop" { external = nil }
+            return
+        }
         if action == "start" {
             guard let stream, let t = Self.target(for: stream) else {
                 target = nil

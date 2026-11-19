@@ -208,7 +208,7 @@ struct SettingsView: View {
             }
             NavigationLink { MediaServersSettingsView() } label: {
                 SettingsIconRow(icon: "server.rack", title: "Media servers",
-                                detail: "Connect Jellyfin or Emby to browse and play your own library.",
+                                detail: "Connect Jellyfin, Emby, Plex or Silo to browse and play your own library.",
                                 value: servers.hasEnabled ? "\(servers.enabled.count) connected" : nil)
             }
             NavigationLink { PluginsSettingsView() } label: {

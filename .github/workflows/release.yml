@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.57 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.58 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.57 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.58 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.57"
+          tag="v0.2.58"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.57
+          ## What's new in 0.2.58
 
-          - **Real-Debrid cloud files really play now.** Real-Debrid's torrent list often leaves out the file links, so every item showed "No playable files". Meowio now asks Real-Debrid for each torrent's files, so single files play straight away and season packs list their episodes. Phone, Android TV, iPhone, Mac, Windows and Apple TV.
-          - **Mac and Windows:** the unused video quality option is removed from the player.
-          - **Mark entire show as unwatched, on every app.** Clears every watched episode and saved position of a show so you can rewatch it from the start and it keeps track again. The removal reaches Meowio sync, Trakt, Simkl and MDBList, so it doesn't come back. Find it in the Season actions on Android TV, the season and episode menus on phone, iPhone, Mac and Windows, the episode menu on Apple TV, and the Continue Watching menu everywhere.
+          - **Plex and Silo media servers, on every app.** Settings > Media servers now adds Plex and Silo next to Jellyfin and Emby. Plex signs in with a code at plex.tv/link (with Plex Home users and PINs) and finds the best home or internet address by itself. Silo signs in with a code or your Silo account, with profiles and PINs. Titles on your server become sources that Smart play can pick, recent additions show on Home, and what you watch is reported back so watched marks and resume points stay in step. Android TV, phone, iPhone, Mac, Windows and Apple TV.
+          - Jellyfin and Emby sign-ins now stay separate per profile.
 
           ## Download
 
