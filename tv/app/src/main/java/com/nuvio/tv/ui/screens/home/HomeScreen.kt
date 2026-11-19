@@ -558,6 +558,9 @@ private fun ClassicHomeRoute(
         onMarkContinueWatchingWatched = remember(viewModel) {
             { item -> viewModel.onEvent(HomeEvent.OnMarkContinueWatchingWatched(item)) }
         },
+        onUnwatchContinueWatchingShow = remember(viewModel) {
+            { item -> viewModel.onEvent(HomeEvent.OnUnwatchContinueWatchingShow(item)) }
+        },
         onRemoveContinueWatching = { contentId, season, episode, isNextUp ->
             viewModel.onEvent(HomeEvent.OnRemoveContinueWatching(contentId, season, episode, isNextUp))
         },
@@ -617,6 +620,9 @@ private fun GridHomeRoute(
         onNavigateToFolderDetail = onNavigateToFolderDetail,
         onMarkContinueWatchingWatched = remember(viewModel) {
             { item -> viewModel.onEvent(HomeEvent.OnMarkContinueWatchingWatched(item)) }
+        },
+        onUnwatchContinueWatchingShow = remember(viewModel) {
+            { item -> viewModel.onEvent(HomeEvent.OnUnwatchContinueWatchingShow(item)) }
         },
         onRemoveContinueWatching = remember(viewModel) {
             { contentId, season, episode, isNextUp ->
@@ -705,6 +711,9 @@ private fun ModernHomeRoute(
         onLoadMoreCatalog = loadMoreCatalog,
         onMarkContinueWatchingWatched = remember(viewModel) {
             { item -> viewModel.onEvent(HomeEvent.OnMarkContinueWatchingWatched(item)) }
+        },
+        onUnwatchContinueWatchingShow = remember(viewModel) {
+            { item -> viewModel.onEvent(HomeEvent.OnUnwatchContinueWatchingShow(item)) }
         },
         onRemoveContinueWatching = removeContinueWatching,
         isCatalogItemWatched = isCatalogItemWatched,

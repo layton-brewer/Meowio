@@ -23,6 +23,8 @@ final class LibraryStore: ObservableObject {
     var onRecordChanged: ((WatchRecord, MetaItem?) -> Void)?
     /// Called when the user marks something watched or unwatched by hand.
     var onManualMark: ((MetaItem, String?, Bool) -> Void)?
+    /// Called with every record dropped by "Mark entire show as unwatched", so sync and trackers clear the whole title.
+    var onTitleUnwatched: ((MetaItem, [WatchRecord]) -> Void)?
 
     init() {
         let d = store
@@ -142,6 +144,21 @@ final class LibraryStore: ObservableObject {
         cleared.seconds = 0
         onRecordChanged?(cleared, meta)
         onManualMark?(meta, videoId, false)
+    }
+
+    /// True when any episode (or the movie) of a title is watched or was started.
+    func hasHistory(_ contentId: String) -> Bool {
+        records.contains { $0.contentId == contentId } || continueWatching.contains { $0.id == contentId }
+    }
+
+    /// "Mark entire show as unwatched": forgets every watched mark and saved position of a title so it can be
+    /// rewatched from the start with tracking working again. Account sync and trackers are told to clear it too.
+    func markAllUnwatched(meta: MetaItem) {
+        let dropped = records.filter { $0.contentId == meta.id }
+        records.removeAll { $0.contentId == meta.id }
+        continueWatching.removeAll { $0.id == meta.id }
+        persist()
+        onTitleUnwatched?(meta, dropped)
     }
 
     /// Adds titles from the account or Trakt to My List without sending them back.

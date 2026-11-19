@@ -199,6 +199,7 @@
     <string name="episodes_mark_season_unwatched">Mark season as unwatched</string>
     <string name="episodes_mark_previous_watched">Mark previous in this season as watched</string>
     <string name="episodes_mark_previous_seasons_watched">Mark previous seasons as watched</string>
+    <string name="episodes_mark_show_unwatched">Mark entire show as unwatched</string>
     <string name="episodes_play">Play</string>
     <string name="episodes_open_comments">Open episode comments</string>
     <string name="play_manually">Play manually</string>
@@ -217,6 +218,7 @@
     <string name="detail_all_previous_seasons_watched">All previous seasons already watched</string>
     <string name="detail_marked_episodes_watched">Episodes marked as watched: %1$d</string>
     <string name="detail_marked_episodes_unwatched">Episodes marked as unwatched: %1$d</string>
+    <string name="detail_show_marked_unwatched">Show marked as unwatched. Progress will start fresh.</string>
     <string name="detail_marked_previous_watched">Previous episodes marked as watched: %1$d</string>
 
     <string name="playback_unavailable">Playback unavailable</string>

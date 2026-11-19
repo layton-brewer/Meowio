@@ -158,3 +158,5 @@ commonMain/composeResources/values-ja/strings_pip.xml
 commonMain/composeResources/values-hu/strings_mdblist.xml
 commonMain/composeResources/values-hu/strings_party.xml
 commonMain/composeResources/values-hu/strings_pip.xml
+commonMain/kotlin/com/nuvio/app/features/details/components/EpisodeWatchedActionSheet.kt
+commonMain/kotlin/com/nuvio/app/features/watching/application/UnwatchAll.kt

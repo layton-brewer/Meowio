@@ -266,6 +266,7 @@ jobs:
 
           - **Real-Debrid cloud files really play now.** Real-Debrid's torrent list often leaves out the file links, so every item showed "No playable files". Meowio now asks Real-Debrid for each torrent's files, so single files play straight away and season packs list their episodes. Phone, Android TV, iPhone, Mac, Windows and Apple TV.
           - **Mac and Windows:** the unused video quality option is removed from the player.
+          - **Mark entire show as unwatched, on every app.** Clears every watched episode and saved position of a show so you can rewatch it from the start and it keeps track again. The removal reaches Meowio sync, Trakt, Simkl and MDBList, so it doesn't come back. Find it in the Season actions on Android TV, the season and episode menus on phone, iPhone, Mac and Windows, the episode menu on Apple TV, and the Continue Watching menu everywhere.
 
           ## Download
 
