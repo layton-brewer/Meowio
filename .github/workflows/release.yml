@@ -264,6 +264,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new in 0.2.59
 
+          - **Apple TV: sign in after choosing guest.** If you skipped sign-in, Settings now lets you move to "Sign in to Nuvio" and sign in from there.
           - **Plex and Silo on Mac and Windows.** The new media server sign-ins from the phone and TV apps (Plex sign-in with a code, Silo, and the updated Jellyfin and Emby sign-in) are now in Settings > Media servers on desktop too, with Plex and Silo artwork and playback.
 
           ## Download
