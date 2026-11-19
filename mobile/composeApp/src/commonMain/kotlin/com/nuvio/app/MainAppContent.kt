@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -71,6 +72,7 @@ import com.nuvio.app.core.ui.DisintegrationRequestController
 import com.nuvio.app.core.ui.NativeTabBridge
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.NuvioContinueWatchingActionSheet
+import com.nuvio.app.features.watching.application.UnwatchAll
 import com.nuvio.app.core.ui.NuvioFloatingPrompt
 import com.nuvio.app.core.ui.NuvioPosterZoomActionOverlay
 import com.nuvio.app.core.ui.NuvioStatusModal
@@ -1324,6 +1326,11 @@ internal fun MainAppContent(
             WatchingActions.markContinueWatchingWatched(item)
         }
 
+        val onContinueWatchingUnwatchShow: (ContinueWatchingItem) -> Unit = { item ->
+            continueWatchingDisintegrationRequests.arm(continueWatchingItemKey(item))
+            UnwatchAll.unwatchAll(item)
+        }
+
         val onContinueWatchingLongPress: (ContinueWatchingItem) -> Unit = { item ->
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
             val zoomAnchor = PosterZoomAnchorHolder.consume()
@@ -2013,6 +2020,15 @@ internal fun MainAppContent(
                                         ),
                                     )
                                 }
+                                if (UnwatchAll.isSeriesLike(item.parentMetaType) && !item.isCloudLibraryContinueWatchingItem()) {
+                                    add(
+                                        PosterZoomOverlayAction(
+                                            icon = Icons.Default.RemoveDone,
+                                            label = stringResource(Res.string.episode_mark_show_unwatched),
+                                            onSelected = { onContinueWatchingUnwatchShow(item) },
+                                        ),
+                                    )
+                                }
                                 add(
                                     PosterZoomOverlayAction(
                                         icon = Icons.Default.DeleteOutline,
@@ -2060,6 +2076,9 @@ internal fun MainAppContent(
                 onRemove = {
                     selectedContinueWatchingForActions?.let(onContinueWatchingRemove)
                 },
+                onUnwatchShow = selectedContinueWatchingForActions
+                    ?.takeIf { UnwatchAll.isSeriesLike(it.parentMetaType) && !it.isCloudLibraryContinueWatchingItem() }
+                    ?.let { item -> { onContinueWatchingUnwatchShow(item) } },
             )
 
             TrackingListPickerDialog(

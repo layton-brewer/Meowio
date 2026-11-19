@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
+import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,6 +68,8 @@ fun EpisodeWatchedActionSheet(
     showPlayManually: Boolean = false,
     onPlayManually: (() -> Unit)? = null,
     ratingMedia: TrackingMediaReference? = null,
+    canUnwatchShow: Boolean = false,
+    onUnwatchShow: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
@@ -150,6 +153,16 @@ fun EpisodeWatchedActionSheet(
                                 dismiss()
                             },
                         )
+                        if (canUnwatchShow) {
+                            NuvioBottomSheetActionRow(
+                                icon = Icons.Default.RemoveDone,
+                                title = stringResource(Res.string.episode_mark_show_unwatched),
+                                onClick = {
+                                    onUnwatchShow()
+                                    dismiss()
+                                },
+                            )
+                        }
                         if (ratingState.isAvailable) {
                             val rated = ratingState.rating
                             NuvioBottomSheetActionRow(
@@ -196,6 +209,8 @@ fun SeasonWatchedActionSheet(
     onDismiss: () -> Unit,
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
+    canUnwatchShow: Boolean = false,
+    onUnwatchShow: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
@@ -243,6 +258,18 @@ fun SeasonWatchedActionSheet(
                     title = stringResource(Res.string.episode_mark_previous_seasons_watched),
                     onClick = {
                         onMarkPreviousSeasonsWatched()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
+            if (canUnwatchShow) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Default.RemoveDone,
+                    title = stringResource(Res.string.episode_mark_show_unwatched),
+                    onClick = {
+                        onUnwatchShow()
                         coroutineScope.launch {
                             dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
                         }

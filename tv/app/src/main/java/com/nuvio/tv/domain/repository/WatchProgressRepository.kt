@@ -157,6 +157,27 @@ interface WatchProgressRepository {
         videoId: String?,
         episodes: List<Triple<Int, Int, String?>>
     )
+
+    /**
+     * Clears every watched mark and saved position for one title so it can be rewatched
+     * from the start with tracking working again ("Mark entire show as unwatched").
+     * Removals are pushed to Meowio sync and to connected trackers like the other removals.
+     */
+    suspend fun removeTitleFromHistory(
+        contentId: String,
+        contentType: String,
+        videoId: String? = null,
+        knownEpisodes: List<Triple<Int, Int, String?>> = emptyList()
+    ) {
+        if (contentType.equals("movie", ignoreCase = true)) {
+            removeFromHistory(contentId, videoId = videoId)
+            return
+        }
+        if (knownEpisodes.isNotEmpty()) {
+            removeFromHistoryBatch(contentId, videoId, knownEpisodes)
+        }
+        removeProgress(contentId)
+    }
     
     /**
      * Clear all watch progress

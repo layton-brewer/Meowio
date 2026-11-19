@@ -24,6 +24,8 @@ enum CloudLibrary {
     private static let videoExtensions: Set<String> = ["3g2", "3gp", "avi", "divx", "flv", "m2ts", "m4v", "mkv", "mov", "mp4",
                                                        "mpeg", "mpg", "mts", "ogm", "ogv", "ts", "webm", "wmv"]
 
+    private static let rdLookupPrefix = "rd-torrent:"
+
     private static let nonVideoExtensions: Set<String> = ["srt", "sub", "idx", "ass", "ssa", "vtt", "sup", "nfo", "txt", "md",
                                                           "url", "sfv", "md5", "sha1", "jpg", "jpeg", "png", "gif", "webp", "bmp",
                                                           "pdf", "exe", "zip", "rar", "7z", "tar", "gz", "mp3", "flac", "aac",
@@ -87,7 +89,7 @@ enum CloudLibrary {
     }
 
     /// A finished torrent's `links` are its selected files in order. The list has no file names, so torrents with
-    /// several files are looked up one by one (at most 60 a refresh, to stay under Real-Debrid's rate limit).
+    /// several files (and any listed without links) are looked up one by one (at most 150 a refresh, under Real-Debrid's rate limit).
     private static func realDebridItems(key: String) async -> [Item]? {
         let rd = "https://api.real-debrid.com/rest/1.0"
         guard let bearer = try? await Debrid.rdBearer(key),
@@ -97,13 +99,36 @@ enum CloudLibrary {
         for row in rows {
             guard let id = row["id"] as? String, (row["status"] as? String) == "downloaded" else { continue }
             let name = (row["filename"] as? String) ?? id
-            let links = (row["links"] as? [String] ?? []).filter { !$0.isEmpty }
+            var links = (row["links"] as? [String] ?? []).filter { !$0.isEmpty }
             var names: [String] = []
             var sizes: [Int64?] = []
-            if links.count == 1 {
+            var lookedUp = false
+            // The list call often leaves `links` empty; the torrent's info has them.
+            if links.isEmpty, lookups < 150 {
+                lookups += 1
+                lookedUp = true
+                let info = await json("\(rd)/torrents/info/\(id)", token: bearer) as? [String: Any]
+                links = (info?["links"] as? [String] ?? []).filter { !$0.isEmpty }
+                let files = (info?["files"] as? [[String: Any]] ?? [])
+                    .filter { ($0["selected"] as? Int) == 1 }
+                    .sorted { ($0["id"] as? Int ?? 0) < ($1["id"] as? Int ?? 0) }
+                if files.count == links.count, links.count > 1 {
+                    names = files.map { ((($0["path"] as? String) ?? "") as NSString).lastPathComponent }
+                    sizes = files.map { ($0["bytes"] as? NSNumber)?.int64Value }
+                }
+            }
+            if links.isEmpty {
+                // Not looked up this refresh: one entry that finds the largest video when played.
+                items.append(Item(id: id, kind: "rd", name: name, status: nil,
+                                  files: [File(id: rdLookupPrefix + id, name: name, size: (row["bytes"] as? NSNumber)?.int64Value)]))
+                continue
+            }
+            if !names.isEmpty {
+                // Already named from the info call above.
+            } else if links.count == 1 {
                 names = [name]
                 sizes = [(row["bytes"] as? NSNumber)?.int64Value]
-            } else if links.count > 1, lookups < 60 {
+            } else if links.count > 1, !lookedUp, lookups < 150 {
                 lookups += 1
                 let files = ((await json("\(rd)/torrents/info/\(id)", token: bearer) as? [String: Any])?["files"] as? [[String: Any]] ?? [])
                     .filter { ($0["selected"] as? Int) == 1 }
@@ -148,6 +173,25 @@ enum CloudLibrary {
             // file.id is Real-Debrid's host link; unrestricting it gives the playable one.
             guard let bearer = try? await Debrid.rdBearer(token),
                   let u = URL(string: "https://api.real-debrid.com/rest/1.0/unrestrict/link") else { return nil }
+            var hostLink = file.id
+            if hostLink.hasPrefix(rdLookupPrefix) {
+                let torrentId = String(hostLink.dropFirst(rdLookupPrefix.count))
+                guard let info = await json("https://api.real-debrid.com/rest/1.0/torrents/info/\(torrentId)", token: bearer) as? [String: Any] else { return nil }
+                let links = (info["links"] as? [String] ?? []).filter { !$0.isEmpty }
+                let files = (info["files"] as? [[String: Any]] ?? [])
+                    .filter { ($0["selected"] as? Int) == 1 }
+                    .sorted { ($0["id"] as? Int ?? 0) < ($1["id"] as? Int ?? 0) }
+                if files.count == links.count {
+                    let best = zip(files, links)
+                        .filter { !nonVideoExtensions.contains(((($0.0["path"] as? String) ?? "") as NSString).pathExtension.lowercased()) }
+                        .max { (($0.0["bytes"] as? NSNumber)?.int64Value ?? 0) < (($1.0["bytes"] as? NSNumber)?.int64Value ?? 0) }
+                    guard let chosen = best?.1 ?? links.first else { return nil }
+                    hostLink = chosen
+                } else {
+                    guard let first = links.first else { return nil }
+                    hostLink = first
+                }
+            }
             var r = URLRequest(url: u)
             r.httpMethod = "POST"
             r.timeoutInterval = 20
@@ -155,7 +199,7 @@ enum CloudLibrary {
             r.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
             var allowed = CharacterSet.alphanumerics
             allowed.insert(charactersIn: "-._~")
-            r.httpBody = "link=\(file.id.addingPercentEncoding(withAllowedCharacters: allowed) ?? file.id)".data(using: .utf8)
+            r.httpBody = "link=\(hostLink.addingPercentEncoding(withAllowedCharacters: allowed) ?? hostLink)".data(using: .utf8)
             guard let (data, _) = try? await URLSession.shared.data(for: r),
                   let s = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["download"] as? String else { return nil }
             return URL(string: s)

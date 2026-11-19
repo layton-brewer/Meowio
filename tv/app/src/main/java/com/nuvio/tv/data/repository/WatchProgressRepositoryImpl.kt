@@ -1032,6 +1032,46 @@ class WatchProgressRepositoryImpl @Inject constructor(
         triggerRemoteSync(profileId = profileId)
     }
 
+    override suspend fun removeTitleFromHistory(
+        contentId: String,
+        contentType: String,
+        videoId: String?,
+        knownEpisodes: List<Triple<Int, Int, String?>>
+    ) {
+        if (contentType.equals("movie", ignoreCase = true)) {
+            removeFromHistory(contentId, videoId = videoId)
+            return
+        }
+        val profileId = profileManager.activeProfileId.value
+        // Episodes the caller listed, plus any watched/started episode stored for this title
+        // (local marks, saved positions and the active tracker's watched list), so nothing is missed.
+        val episodes = LinkedHashMap<Pair<Int, Int>, String?>()
+        knownEpisodes.forEach { (season, episode, epVideoId) -> episodes[season to episode] = epVideoId }
+        runCatching {
+            watchedItemsPreferences.getAllItems(profileId)
+                .filter { it.contentId == contentId && it.season != null && it.episode != null }
+                .forEach { item -> episodes.putIfAbsent(item.season!! to item.episode!!, null) }
+        }
+        runCatching {
+            getAllEpisodeProgress(contentId).first().keys
+                .forEach { key -> episodes.putIfAbsent(key, null) }
+        }
+        runCatching {
+            getWatchedShowEpisodes()[contentId].orEmpty()
+                .forEach { key -> episodes.putIfAbsent(key, null) }
+        }
+        if (episodes.isNotEmpty()) {
+            removeFromHistoryBatch(
+                contentId = contentId,
+                videoId = videoId,
+                episodes = episodes.map { (key, epVideoId) -> Triple(key.first, key.second, epVideoId) }
+            )
+        }
+        // Clears every remaining saved position (local, Meowio sync and tracker playback) for the title.
+        removeProgress(contentId)
+        runCatching { watchedItemsPreferences.unmarkAsWatched(contentId, null, null, profileId = profileId) }
+    }
+
     override suspend fun markAsCompleted(progress: WatchProgress, broadcastTrackingHistory: Boolean) {
         val profileId = profileManager.activeProfileId.value
         markAsCompleted(progress, profileId, broadcastTrackingHistory)

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +36,7 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.cw_action_go_to_details
 import nuvio.composeapp.generated.resources.cw_action_remove
+import nuvio.composeapp.generated.resources.episode_mark_show_unwatched
 import nuvio.composeapp.generated.resources.cw_action_start_from_beginning
 import nuvio.composeapp.generated.resources.hero_mark_watched
 import nuvio.composeapp.generated.resources.play_manually
@@ -52,6 +54,7 @@ fun NuvioContinueWatchingActionSheet(
     onPlayManually: (() -> Unit)? = null,
     onMarkWatched: (() -> Unit)? = null,
     onRemove: () -> Unit,
+    onUnwatchShow: (() -> Unit)? = null,
 ) {
     if (item == null) return
     val tokens = MaterialTheme.nuvio
@@ -106,6 +109,13 @@ fun NuvioContinueWatchingActionSheet(
                     icon = Icons.Default.CheckCircle,
                     title = stringResource(Res.string.hero_mark_watched),
                     onClick = { dismissAfter(onMarkWatched) },
+                )
+            }
+            if (onUnwatchShow != null) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Default.RemoveDone,
+                    title = stringResource(Res.string.episode_mark_show_unwatched),
+                    onClick = { dismissAfter(onUnwatchShow) },
                 )
             }
             NuvioBottomSheetActionRow(

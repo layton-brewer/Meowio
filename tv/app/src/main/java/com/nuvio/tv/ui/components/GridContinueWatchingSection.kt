@@ -51,6 +51,7 @@ fun GridContinueWatchingSection(
     showManualPlayOption: Boolean = false,
     onPlayManually: (ContinueWatchingItem) -> Unit = {},
     onMarkWatched: (ContinueWatchingItem) -> Unit = {},
+    onUnwatchShow: (ContinueWatchingItem) -> Unit = {},
     modifier: Modifier = Modifier,
     title: String? = null,
     fullWidth: Dp = Dp.Unspecified,
@@ -207,6 +208,11 @@ fun GridContinueWatchingSection(
             onMarkWatched = {
                 pendingFocusIndex = if (items.size <= 1) null else minOf(lastFocusedIndex.intValue, items.lastIndex)
                 onMarkWatched(menuItem)
+                optionsItem = null
+            },
+            onUnwatchShow = {
+                pendingFocusIndex = if (items.size <= 1) null else minOf(lastFocusedIndex.intValue, items.size - 2)
+                onUnwatchShow(menuItem)
                 optionsItem = null
             }
         )
