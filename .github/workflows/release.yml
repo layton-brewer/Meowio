@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.55 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.56 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.55 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.56 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,11 +260,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.55"
+          tag="v0.2.56"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.55
+          ## What's new in 0.2.56
 
-          - **Real-Debrid cloud files play again.** Items in the Library's Cloud tab could show up but do nothing when clicked, because a one-file torrent named after its folder (like "Show.S01.1080p.x264") was not recognised as a video. Every picked file now plays unless it is clearly not a video (subtitles, images, text). Phone, Android TV, iPhone, Mac, Windows and Apple TV.
+          - **Apple TV: your add-on catalogs are back on Home.** Home said "No catalogs to show" even with add-ons installed; every row now loads.
+          - **Apple TV: Continue Watching shows full details**, with the description, episode title and episode still for titles synced from other devices.
+          - **Apple TV looks like Android TV.** Settings has Android TV's rail, page titles and grouped cards (account sync table, Addons, Connected Services, TMDB, Playlists & VPN). Library has Saved, Cloud and Lists tabs with type, sort, genre, year and watched filters. Live TV has a channel search box, Guide, Refresh and Playlists & VPN buttons and three-column channel cards. Search shows a Start Searching screen.
+          - **Apple TV: no more titles overlapping the page** on Home catalogs, the cloud search and settings pages.
 
           ## Download
 
