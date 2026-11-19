@@ -15,11 +15,19 @@ Meowio is a free, open-source fork of [Nuvio](https://github.com/NuvioMedia) tha
 
 Every app, Apple TV included, is on one release page. The badge above always shows the newest version.
 
+### 📺 On your TV? Use the Downloader app
+
+Open the **Downloader** app on your Android TV, Google TV or Fire TV and enter this code:
+
+# `3576757`
+
+(or go to `aftv.news/3576757`). It always gets the newest Meowio.
+
 ### ⬇️ Quick download
 
 | Your device | Get it |
 | --- | --- |
-| 📺 **Android TV / Google TV / Fire TV** | [**Meowio-tv.apk**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk) |
+| 📺 **Android TV / Google TV / Fire TV** | Downloader code **`3576757`** or [**Meowio-tv.apk**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk) |
 | 📱 **Android phone / tablet** | [**Meowio-mobile.apk**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-mobile.apk) |
 | 🍎 **iPhone / iPad** | [**Meowio-ios.ipa**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-ios.ipa) · [AltStore source](https://github.com/layton-brewer/Meowio/releases/latest/download/altstore.json) |
 | 📺 **Apple TV** | [**Meowio-tvos.ipa**](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tvos.ipa) |
@@ -78,8 +86,12 @@ Needs Android 7.0 or newer.
 
 ### 📺 Android TV, Google TV, Fire TV (Android-based)
 
+**Easiest:** install the free **Downloader** app on your TV, open it, enter **`3576757`**, and tap **Install**. ✅
+
+Other ways:
+
 1. Download **[Meowio-tv.apk](https://github.com/layton-brewer/Meowio/releases/latest/download/Meowio-tv.apk)** on your phone or computer.
-2. Get it onto your TV. The easy ways: a USB stick, the **Send Files to TV** app, or any "downloader" app on the TV.
+2. Get it onto your TV with a USB stick or the **Send Files to TV** app.
 3. Open it with a file manager on the TV and tap **Install**.
 4. Find **Meowio** in your apps. ✅
 
