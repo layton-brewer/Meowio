@@ -51,7 +51,10 @@ class SharedSourcesTest(unittest.TestCase):
         self.downloader.write_text('get() = File(DesktopStorage.rootDir.resolve("downloads").also { it.createDirectories() }.toUri())\n')
         self.home = src / "commonMain/kotlin/com/nuvio/app/features/home/HomeScreen.kt"
         self.home.parent.mkdir(parents=True, exist_ok=True)
-        self.home.write_text("            items.withCustomPosterUrls(cwPosterPattern)\n")
+        self.home.write_text(
+            "            items.withCustomPosterUrls(cwPosterPattern)\n"
+            "        effectiveWatchProgressEntries.continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)\n"
+        )
         (self.desktop / "composeApp/build.gradle.kts").write_text(
             'packageName = "Nuvio"\nbundleID = "com.nuvio.media.desktop"\nTargetFormat.Msi,\n'
         )

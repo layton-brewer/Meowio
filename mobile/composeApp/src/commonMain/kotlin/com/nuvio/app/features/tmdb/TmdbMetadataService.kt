@@ -740,6 +740,7 @@ object TmdbMetadataService {
         type: String,
         id: String,
         settings: TmdbSettings,
+        episodeIdBase: String? = null,
     ): MetaDetails? {
         val tmdbId = id
             .takeIf { it.startsWith("tmdb:", ignoreCase = true) }
@@ -755,12 +756,55 @@ object TmdbMetadataService {
             settings = settings,
         ) ?: return null
 
-        return buildStandaloneMeta(
+        val base = buildStandaloneMeta(
             type = type,
             id = id,
             tmdbId = tmdbId,
             enrichment = enrichment,
         )
+        if (tmdbType != "tv") return base
+        // A show without episodes would play like a movie and save progress without season and
+        // episode, so list TMDB's episodes (ids in the add-on style "<id>:<season>:<episode>").
+        val videos = fetchStandaloneEpisodes(
+            tmdbId = tmdbId,
+            idBase = episodeIdBase?.takeIf(String::isNotBlank) ?: id,
+            language = settings.language,
+        )
+        return if (videos.isEmpty()) base else base.copy(videos = videos)
+    }
+
+    private suspend fun fetchStandaloneEpisodes(
+        tmdbId: Int,
+        idBase: String,
+        language: String,
+    ): List<MetaVideo> {
+        val details = fetch<TmdbDetailsResponse>(
+            endpoint = "tv/$tmdbId",
+            query = mapOf("language" to normalizeTmdbLanguage(language)),
+        ) ?: return emptyList()
+        val seasonCount = (details.numberOfSeasons ?: 0).coerceIn(0, 60)
+        if (seasonCount == 0) return emptyList()
+        val episodes = fetchEpisodeEnrichment(
+            tmdbId = tmdbId.toString(),
+            seasonNumbers = (1..seasonCount).toList(),
+            language = language,
+        )
+        return episodes.entries
+            .sortedWith(compareBy({ it.key.first }, { it.key.second }))
+            .map { (key, episode) ->
+                val (season, number) = key
+                MetaVideo(
+                    id = "$idBase:$season:$number",
+                    title = episode.title ?: "Episode $number",
+                    released = episode.airDate,
+                    thumbnail = episode.thumbnail,
+                    seasonPoster = episode.seasonPoster,
+                    season = season,
+                    episode = number,
+                    overview = episode.overview,
+                    runtime = episode.runtimeMinutes,
+                )
+            }
     }
 
     internal fun buildStandaloneMeta(

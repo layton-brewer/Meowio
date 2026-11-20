@@ -303,6 +303,7 @@ object MetaDetailsRepository {
     private const val CINEMETA_MANIFEST_URL = "https://v3-cinemeta.strem.io/manifest.json"
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_ENRICH_TIMEOUT_MS = 5_000L
+    private const val TMDB_FALLBACK_TIMEOUT_MS = 15_000L
     private const val MDBLIST_ENRICH_TIMEOUT_MS = 5_000L
 
     private suspend fun tryFetchMeta(
@@ -441,7 +442,7 @@ object MetaDetailsRepository {
 
     private suspend fun tryFetchTmdbFallbackMeta(type: String, id: String): MetaDetails? =
         try {
-            withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
+            withTimeoutOrNull(TMDB_FALLBACK_TIMEOUT_MS) {
                 val settings = TmdbSettingsRepository.snapshot()
                 TmdbMetadataService.fetchStandaloneMeta(type = type, id = id, settings = settings)
                     ?: run {
@@ -451,7 +452,12 @@ object MetaDetailsRepository {
                         val tmdbId = TmdbService.ensureTmdbId(id.substringBefore(':'), tmdbType)
                             ?.takeIf(String::isNotBlank)
                             ?: return@run null
-                        TmdbMetadataService.fetchStandaloneMeta(type = type, id = "tmdb:$tmdbId", settings = settings)
+                        TmdbMetadataService.fetchStandaloneMeta(
+                            type = type,
+                            id = "tmdb:$tmdbId",
+                            settings = settings,
+                            episodeIdBase = id.substringBefore(':'),
+                        )
                             ?.copy(id = id.substringBefore(':'), imdbId = id.substringBefore(':'))
                     }
             }
