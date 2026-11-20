@@ -1221,7 +1221,7 @@ struct DetailView: View {
                 }
                 Button { library.toggleSaved(meta) } label: {
                     Label(library.isSaved(meta) ? "Remove from library" : "Add to library",
-                          systemImage: library.isSaved(meta) ? "checkmark" : "plus")
+                          systemImage: library.isSaved(meta) ? "bookmark.fill" : "bookmark")
                 }
                 .buttonStyle(CircleIconButtonStyle(selected: library.isSaved(meta)))
                 if meta.type == "movie" {
