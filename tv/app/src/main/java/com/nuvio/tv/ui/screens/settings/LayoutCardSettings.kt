@@ -364,6 +364,28 @@ internal fun LayoutCustomPosterSection(
 ) {
     val pattern = uiState.customPosterUrlPattern
     val isActive = pattern.isNotBlank()
+    val ratingKey = RatingPosterKey.keyFrom(pattern).orEmpty()
+    var showRatingKeyDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    SettingsActionRow(
+        title = "Ratings on posters",
+        subtitle = if (ratingKey.isNotBlank()) "On (RatingPosterDB key added)" else "Add your RatingPosterDB key",
+        onClick = { showRatingKeyDialog = true }
+    )
+    if (showRatingKeyDialog) {
+        RatingPosterKeyDialog(
+            currentKey = ratingKey,
+            onSave = { key ->
+                onEvent(LayoutSettingsEvent.SetCustomPosterUrlPattern(RatingPosterKey.patternFor(key)))
+                showRatingKeyDialog = false
+            },
+            onRemove = {
+                onEvent(LayoutSettingsEvent.ClearCustomPosterSettings)
+                showRatingKeyDialog = false
+            },
+            onDismiss = { showRatingKeyDialog = false }
+        )
+    }
 
     SettingsNote(text = stringResource(R.string.layout_custom_poster_description))
     if (isActive) {
