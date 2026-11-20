@@ -398,6 +398,10 @@ object TraktProgressRepository {
                 errorMessage = null,
                 hasLoadedRemoteProgress = false,
             )
+            // Still fill in names and art for what is on screen.
+            _uiState.value.entries.takeIf { it.isNotEmpty() }?.let { entries ->
+                launchHydration(requestId = requestId, entries = entries)
+            }
             return
         }
 
@@ -436,6 +440,29 @@ object TraktProgressRepository {
             }
         }
     }
+
+    // Entries played locally (optimistic) can arrive with only the id as their title and no art,
+    // and a full refresh may not run for a while, so they are hydrated on their own.
+    private fun launchOptimisticHydration(entry: WatchProgressEntry) {
+        val requestId = refreshRequestId
+        scope.launch {
+            runCatching {
+                hydrateEntriesFromAddonMeta(
+                    requestId = requestId,
+                    entries = listOf(entry),
+                )
+            }.onFailure { error ->
+                if (error is CancellationException) return@onFailure
+                log.w { "Failed to hydrate Trakt metadata: ${error.message}" }
+            }
+        }
+    }
+
+    private fun WatchProgressEntry.needsTraktMetadataHydration(): Boolean =
+        title.isBlank() ||
+            title.trim().equals(parentMetaId, ignoreCase = true) ||
+            poster.isNullOrBlank() ||
+            background.isNullOrBlank()
 
     private fun publishProgressState(
         entries: List<WatchProgressEntry> = remoteEntriesSnapshot,
@@ -532,6 +559,9 @@ object TraktProgressRepository {
         if (!TraktAuthRepository.isAuthenticated.value) return
         val normalizedEntry = entry.normalizedCompletion()
         putOptimisticProgress(normalizedEntry)
+        if (normalizedEntry.needsTraktMetadataHydration()) {
+            launchOptimisticHydration(normalizedEntry)
+        }
         if (normalizedEntry.isCompleted && normalizedEntry.seasonNumber != null && normalizedEntry.episodeNumber != null) {
             optimisticallyAddWatchedEpisode(
                 contentId = normalizedEntry.parentMetaId,
@@ -1087,6 +1117,7 @@ object TraktProgressRepository {
 
     private fun metadataScore(entry: WatchProgressEntry): Int {
         var score = 0
+        if (entry.title.isNotBlank() && !entry.title.trim().equals(entry.parentMetaId, ignoreCase = true)) score += 2
         if (!entry.logo.isNullOrBlank()) score += 1
         if (!entry.poster.isNullOrBlank()) score += 1
         if (!entry.background.isNullOrBlank()) score += 1
@@ -1255,7 +1286,10 @@ object TraktProgressRepository {
             }
 
             entry.copy(
-                title = entry.title.takeIf { it.isNotBlank() } ?: meta.name,
+                // A title that is only the raw id ("tt0773262") is a placeholder, not a name.
+                title = entry.title.takeIf { it.isNotBlank() && !it.trim().equals(entry.parentMetaId, ignoreCase = true) }
+                    ?: meta.name.takeIf(String::isNotBlank)
+                    ?: entry.title,
                 logo = entry.logo?.takeIf(String::isNotBlank) ?: meta.logo,
                 poster = entry.poster?.takeIf(String::isNotBlank) ?: meta.poster,
                 background = entry.background?.takeIf(String::isNotBlank) ?: meta.background,

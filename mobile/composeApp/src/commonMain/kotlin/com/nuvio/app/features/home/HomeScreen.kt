@@ -529,7 +529,7 @@ fun HomeScreen(
             todayIsoDate = CurrentDateProvider.todayIsoDate(),
             cloudLibraryUiState = cloudLibraryUiState,
         ).let { items ->
-            items.withCustomPosterUrls(cwPosterPattern)
+            items.withShowLevelFallbacks(cachedInProgressItems.values + effectivNextUpItems.values.map { it.second } + visibleContinueWatchingEntries.map { it.toContinueWatchingItem() }).withCustomPosterUrls(cwPosterPattern)
         }
     }
     val shuffleCandidates = remember(completedSeriesCandidates, continueWatchingPreferences.dismissedNextUpKeys) {

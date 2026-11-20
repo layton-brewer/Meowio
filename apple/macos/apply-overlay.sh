@@ -31,6 +31,12 @@ sed -i.bak 's|get() = File(DesktopStorage.rootDir.resolve("downloads").also { it
 grep -q 'DownloadLocation.directory()' "$dl" || { echo "download folder patch did not apply" >&2; exit 1; }
 rm -f "$dl.bak"
 
+# Continue Watching cards that only know the raw id borrow the show's name and art (HomeShowFallback.kt).
+home="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeScreen.kt"
+sed -i.bak 's|^            items.withCustomPosterUrls(cwPosterPattern)$|            items.withShowLevelFallbacks(cachedInProgressItems.values + effectivNextUpItems.values.map { it.second } + visibleContinueWatchingEntries.map { it.toContinueWatchingItem() }).withCustomPosterUrls(cwPosterPattern)|' "$home"
+grep -q 'withShowLevelFallbacks' "$home" || { echo "Continue Watching fallback patch did not apply" >&2; exit 1; }
+rm -f "$home.bak"
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \

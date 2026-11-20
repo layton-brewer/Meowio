@@ -2003,7 +2003,10 @@ private suspend fun HomeViewModel.enrichInProgressItem(
 
     val meta = resolveMetaForProgress(item.progress, metaCache, debug)
     if (meta == null) {
-        return@coroutineScope item
+        return@coroutineScope item.withShowFallbackMetadata(
+            inProgressFallback = cwEnrichedInProgressOverlay[item.progress.contentId],
+            nextUpFallback = cwEnrichedNextUpOverlay[item.progress.contentId]
+        )
     }
     val video = resolveVideoForProgress(item.progress, meta)
     val genres = meta.genres.take(3)
@@ -3400,3 +3403,34 @@ internal fun NextUpInfo.withSeriesFieldsFrom(source: ContinueWatchingItem.InProg
     contentLanguage = source.contentLanguage ?: contentLanguage,
     mdbListRatings = source.mdbListRatings ?: mdbListRatings
 )
+
+
+/**
+ * When the add-on meta can't be fetched, a card whose title is still the raw id (for example
+ * "tt0773262") borrows the show's name and art from any other enriched card of the same title.
+ */
+internal fun ContinueWatchingItem.InProgress.withShowFallbackMetadata(
+    inProgressFallback: ContinueWatchingItem.InProgress?,
+    nextUpFallback: NextUpInfo?
+): ContinueWatchingItem.InProgress {
+    val current = progress
+    val nameIsPlaceholder = current.name.isBlank() ||
+        current.name.trim().equals(current.contentId, ignoreCase = true)
+    val fallbackName = inProgressFallback?.progress?.name
+        ?.takeIf { it.isNotBlank() && !it.trim().equals(current.contentId, ignoreCase = true) }
+        ?: nextUpFallback?.name
+            ?.takeIf { it.isNotBlank() && !it.trim().equals(current.contentId, ignoreCase = true) }
+    val fallbackPoster = inProgressFallback?.progress?.poster?.takeIf { it.isNotBlank() }
+        ?: nextUpFallback?.poster?.takeIf { it.isNotBlank() }
+    val fallbackBackdrop = inProgressFallback?.progress?.backdrop?.takeIf { it.isNotBlank() }
+        ?: nextUpFallback?.backdrop?.takeIf { it.isNotBlank() }
+    val fallbackLogo = inProgressFallback?.progress?.logo?.takeIf { it.isNotBlank() }
+        ?: nextUpFallback?.logo?.takeIf { it.isNotBlank() }
+    val updated = current.copy(
+        name = if (nameIsPlaceholder && fallbackName != null) fallbackName else current.name,
+        poster = current.poster?.takeIf { it.isNotBlank() } ?: fallbackPoster,
+        backdrop = current.backdrop?.takeIf { it.isNotBlank() } ?: fallbackBackdrop,
+        logo = current.logo?.takeIf { it.isNotBlank() } ?: fallbackLogo
+    )
+    return if (updated == current) this else copy(progress = updated)
+}
