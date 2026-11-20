@@ -173,6 +173,7 @@ internal fun LazyListScope.posterCustomizationSettingsContent(
             }
         }
     }
+    item { RatingPosterKeySection(isTablet = isTablet) }
     item {
         CustomPosterUrlRepository.ensureLoaded()
         val currentPattern by CustomPosterUrlRepository.pattern.collectAsState()

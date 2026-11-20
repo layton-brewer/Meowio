@@ -294,6 +294,18 @@ enum Languages {
 /// Placeholders: {imdb_id}, {id}, {type}. Titles without the needed id keep their own poster.
 enum CustomPosterSource {
     static let key = "customPosterPattern"
+    private static let ratingPrefix = "https://api.ratingposterdb.com/"
+    private static let ratingSuffix = "/imdb/poster-default/{imdb_id}.jpg"
+
+    /// RatingPosterDB pattern for a key, so the user only pastes the key.
+    static func ratingPattern(for key: String) -> String { ratingPrefix + key + ratingSuffix }
+
+    /// The RatingPosterDB key inside a pattern made by ratingPattern, or "".
+    static func ratingKey(from pattern: String) -> String {
+        guard pattern.hasPrefix(ratingPrefix), pattern.hasSuffix(ratingSuffix) else { return "" }
+        let key = String(pattern.dropFirst(ratingPrefix.count).dropLast(ratingSuffix.count))
+        return key.contains("/") ? "" : key
+    }
 
     static func url(for item: MetaItem) -> URL? {
         let pattern = (ProfileScope.defaults.string(forKey: key) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)

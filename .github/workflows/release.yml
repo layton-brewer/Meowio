@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.64 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.65 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.64 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.65 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.64"
+          tag="v0.2.65"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.64
+          ## What's new in 0.2.65
 
-          - **Bookmark for your Library.** The Library button on title pages is now a bookmark (outlined when not saved, filled when saved), so it no longer looks like the Mark as watched checkmark next to it. On every app.
-          - **Rating posters on Apple TV.** Apple TV now has the Custom posters setting that phone, Android TV and desktop already have (Settings, Home layout). With a poster service such as RPDB, every poster shows its IMDb, TMDB and Rotten Tomatoes ratings.
-          - From 0.2.63: shows stay shows when a title page falls back to TMDB, and title pages open even when your details add-on fails.
+          - **Ratings on posters, with just a key.** Paste your RatingPosterDB key (ratingposterdb.com) and every poster shows its IMDb, TMDB and Rotten Tomatoes ratings. No URL to build. Phone and desktop: Settings > Appearance > Poster Card Style. Android TV: Settings > Layout > Custom posters. Apple TV: Settings > Home layout. The key stays on your device, and a custom poster source still works as before.
+          - From 0.2.64: the Library button on title pages is a bookmark on every app, so it no longer looks like the Mark as watched checkmark.
 
           ## Download
 

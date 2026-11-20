@@ -55,6 +55,9 @@ class SharedSourcesTest(unittest.TestCase):
             "            items.withCustomPosterUrls(cwPosterPattern)\n"
             "        effectiveWatchProgressEntries.continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)\n"
         )
+        self.posters = src / "commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
+        self.posters.parent.mkdir(parents=True, exist_ok=True)
+        self.posters.write_text("fun x() {\n    item {\n        CustomPosterUrlRepository.ensureLoaded()\n    }\n}\n")
         (self.desktop / "composeApp/build.gradle.kts").write_text(
             'packageName = "Nuvio"\nbundleID = "com.nuvio.media.desktop"\nTargetFormat.Msi,\n'
         )
@@ -81,6 +84,7 @@ class SharedSourcesTest(unittest.TestCase):
         self.assertEqual((target / "platform-only.txt").read_text(), "keep platform-specific code")
         self.assertIn("DownloadLocation.directory()", self.downloader.read_text())
         self.assertIn("withShowLevelFallbacks", self.home.read_text())
+        self.assertIn("RatingPosterKeySection", self.posters.read_text())
         gradle = (self.desktop / "composeApp/build.gradle.kts").read_text()
         self.assertIn('packageName = "Meowio"', gradle)
         self.assertIn("TargetFormat.Exe", gradle)
