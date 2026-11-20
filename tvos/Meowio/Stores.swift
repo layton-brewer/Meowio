@@ -206,7 +206,9 @@ final class LibraryStore: ObservableObject {
             let vid = continueWatching[i].videoId
             let episode = meta.videos?.filter { $0.id == vid } ?? []
             slim.videos = episode.isEmpty ? nil : episode
-            if slim.description == nil, slim.videos == nil, continueWatching[i].meta.description != nil { continue }
+            let current = continueWatching[i].meta
+            let hasRealName = !current.name.isEmpty && current.name != continueWatching[i].id
+            if slim.description == nil, slim.videos == nil, current.description != nil, hasRealName, current.poster != nil { continue }
             continueWatching[i].meta = slim
             changed = true
         }

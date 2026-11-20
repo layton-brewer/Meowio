@@ -26,7 +26,7 @@ on:
 env:
   # Builds attach to this release page. Bump together with the version numbers below and the tag in release.yml.
   # Apple TV builds in appletv.yml and attaches to the same page, so tvOS changes never rebuild these.
-  MEOWIO_TAG: v0.2.60
+  MEOWIO_TAG: v0.2.61
 
 permissions:
   contents: write
@@ -213,7 +213,7 @@ jobs:
         run: |
           printf 'NUVIO_SUPABASE_URL=%s\nNUVIO_SUPABASE_ANON_KEY=%s\n' "$NUVIO_SUPABASE_URL" "$NUVIO_SUPABASE_ANON_KEY" > local.properties
           bash "$GITHUB_WORKSPACE/.github/scripts/add_tracking_keys.sh" local.properties
-          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.2.60 --no-daemon --no-configuration-cache --max-workers=2
+          ./gradlew :composeApp:packageReleaseDmg -Pcompose.desktop.packaging.checkJdkVendor=false -Pnuvio.macos.arch=${{ matrix.arch }} -Pnuvio.desktop.versionName=0.2.61 --no-daemon --no-configuration-cache --max-workers=2
           find composeApp/build -name "*.dmg"
 
       - name: Collect DMG

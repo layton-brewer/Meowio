@@ -49,6 +49,9 @@ class SharedSourcesTest(unittest.TestCase):
         self.downloader = src / "desktopMain/kotlin/com/nuvio/app/features/downloads/DownloadsPlatformDownloader.desktop.kt"
         self.downloader.parent.mkdir(parents=True)
         self.downloader.write_text('get() = File(DesktopStorage.rootDir.resolve("downloads").also { it.createDirectories() }.toUri())\n')
+        self.home = src / "commonMain/kotlin/com/nuvio/app/features/home/HomeScreen.kt"
+        self.home.parent.mkdir(parents=True, exist_ok=True)
+        self.home.write_text("            items.withCustomPosterUrls(cwPosterPattern)\n")
         (self.desktop / "composeApp/build.gradle.kts").write_text(
             'packageName = "Nuvio"\nbundleID = "com.nuvio.media.desktop"\nTargetFormat.Msi,\n'
         )
@@ -74,6 +77,7 @@ class SharedSourcesTest(unittest.TestCase):
             self.assertEqual((target / path).read_bytes(), (self.shared / path).read_bytes(), path)
         self.assertEqual((target / "platform-only.txt").read_text(), "keep platform-specific code")
         self.assertIn("DownloadLocation.directory()", self.downloader.read_text())
+        self.assertIn("withShowLevelFallbacks", self.home.read_text())
         gradle = (self.desktop / "composeApp/build.gradle.kts").read_text()
         self.assertIn('packageName = "Meowio"', gradle)
         self.assertIn("TargetFormat.Exe", gradle)
