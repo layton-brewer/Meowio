@@ -444,28 +444,38 @@ object MetaDetailsRepository {
         try {
             withTimeoutOrNull(TMDB_FALLBACK_TIMEOUT_MS) {
                 val settings = TmdbSettingsRepository.snapshot()
-                TmdbMetadataService.fetchStandaloneMeta(type = type, id = id, settings = settings)
-                    ?: run {
-                        // IMDb ids can use TMDB too, once mapped to a TMDB id.
-                        if (!id.startsWith("tt", ignoreCase = true)) return@run null
-                        val tmdbType = if (type.equals("movie", ignoreCase = true)) "movie" else "tv"
-                        val tmdbId = TmdbService.ensureTmdbId(id.substringBefore(':'), tmdbType)
-                            ?.takeIf(String::isNotBlank)
-                            ?: return@run null
-                        TmdbMetadataService.fetchStandaloneMeta(
-                            type = type,
-                            id = "tmdb:$tmdbId",
-                            settings = settings,
-                            episodeIdBase = id.substringBefore(':'),
-                        )
-                            ?.copy(id = id.substringBefore(':'), imdbId = id.substringBefore(':'))
+                val isShow = !type.equals("movie", ignoreCase = true)
+                val direct = TmdbMetadataService.fetchStandaloneMeta(type = type, id = id, settings = settings)
+                if (direct != null) {
+                    val tmdbId = id.substringAfter(':').substringBefore(':').toIntOrNull()
+                    return@withTimeoutOrNull if (isShow && tmdbId != null) {
+                        direct.withFallbackEpisodes(tmdbId = tmdbId, idBase = "tmdb:$tmdbId", language = settings.language)
+                    } else {
+                        direct
                     }
+                }
+                // IMDb ids can use TMDB too, once mapped to a TMDB id.
+                if (!id.startsWith("tt", ignoreCase = true)) return@withTimeoutOrNull null
+                val imdbId = id.substringBefore(':')
+                val tmdbId = TmdbService.ensureTmdbId(imdbId, if (isShow) "tv" else "movie")
+                    ?.toIntOrNull()
+                    ?: return@withTimeoutOrNull null
+                val meta = TmdbMetadataService.fetchStandaloneMeta(type = type, id = "tmdb:$tmdbId", settings = settings)
+                    ?.copy(id = imdbId, imdbId = imdbId)
+                    ?: return@withTimeoutOrNull null
+                if (isShow) meta.withFallbackEpisodes(tmdbId = tmdbId, idBase = imdbId, language = settings.language) else meta
             }
         } catch (e: Throwable) {
             if (e is CancellationException) throw e
             log.w(e) { "TMDB fallback failed for $id" }
             null
         }
+
+    private suspend fun MetaDetails.withFallbackEpisodes(tmdbId: Int, idBase: String, language: String): MetaDetails {
+        if (videos.isNotEmpty()) return this
+        val episodes = TmdbFallbackEpisodes.fetch(tmdbId = tmdbId, idBase = idBase, language = language)
+        return if (episodes.isEmpty()) this else copy(videos = episodes)
+    }
 
     private suspend fun publishLoadedMeta(
         requestKey: String,
