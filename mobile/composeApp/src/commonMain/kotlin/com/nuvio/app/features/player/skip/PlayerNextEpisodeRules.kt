@@ -34,7 +34,11 @@ object PlayerNextEpisodeRules {
         thresholdMinutesBeforeEnd: Float,
     ): Boolean {
         if (isShortPlaceholderDuration(durationMs)) return false
-        val outroSegments = skipIntervals.filter { it.type in OUTRO_SEGMENT_TYPES }
+        // Outro times are crowd-sourced (IntroDB) for one release of the episode. An outro that starts
+        // at or after this file's end belongs to a longer cut, so it must not hold the card back.
+        val outroSegments = skipIntervals.filter {
+            it.type in OUTRO_SEGMENT_TYPES && (durationMs <= 0L || it.startTime * 1_000.0 < durationMs)
+        }
 
         if (outroSegments.isNotEmpty()) {
             if (durationMs <= 0L) return false
@@ -53,12 +57,17 @@ object PlayerNextEpisodeRules {
                 val isHeuristic = postCreditsScene.provider == "heuristic"
                 val sceneDurationMs = sceneEndMs - (postCreditsScene.startTime * 1_000.0).toLong()
                 val userThresholdFromEndMs = durationMs - userTriggerMs
-                return if (isHeuristic && sceneDurationMs < userThresholdFromEndMs) {
-                    false
-                } else if (isHeuristic) {
-                    positionMs >= userTriggerMs
-                } else {
-                    positionMs >= maxOf(sceneEndMs, userTriggerMs)
+                // A guessed "scene" shorter than the user's window is just the few seconds of logos after
+                // the credits, not a real post-credits scene: handle it like credits that run to the end
+                // (below). It used to return false here, so the Next Episode card never appeared at all
+                // for those episodes.
+                val shortGuessedScene = isHeuristic && sceneDurationMs < userThresholdFromEndMs
+                if (!shortGuessedScene) {
+                    return if (isHeuristic) {
+                        positionMs >= userTriggerMs
+                    } else {
+                        positionMs >= maxOf(sceneEndMs, userTriggerMs)
+                    }
                 }
             }
 
@@ -90,8 +99,10 @@ object PlayerNextEpisodeRules {
                     }
                 }
             } else {
-                // Outro ends close to the file end — fire at earliest outro start.
-                positionMs / 1_000.0 >= outroSegments.minOf { it.startTime }
+                // Outro ends close to the file end: fire at the earliest outro start, and at the user's
+                // threshold at the latest, so outro times from another release can't skip the card.
+                val outroStartMs = (outroSegments.minOf { it.startTime } * 1_000.0).toLong()
+                positionMs >= minOf(outroStartMs, durationMs - userThresholdMs)
             }
         }
 

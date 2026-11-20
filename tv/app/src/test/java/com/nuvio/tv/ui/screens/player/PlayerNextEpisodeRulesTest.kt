@@ -138,6 +138,31 @@ class PlayerNextEpisodeRulesTest {
     }
 
     @Test
+    fun `credits followed by a few seconds of logos still show the card`() {
+        // 45 min episode, credits end 15 s before the file does (shorter than the 97% window).
+        val durationMs = 45 * 60_000L
+        val skip = listOf(outro(startSec = 2_640.0, endSec = 2_685.0))
+        assertFalse(shouldShow(positionMs = 2_600_000L, durationMs = durationMs, skipIntervals = skip))
+        assertTrue(shouldShow(positionMs = 2_641_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `outro times from a longer release do not hide the card`() {
+        // Outro starts after this file ends: fall back to the normal threshold.
+        val durationMs = 40 * 60_000L
+        val skip = listOf(outro(startSec = 2_500.0, endSec = 2_560.0))
+        assertTrue(shouldShow(positionMs = 39 * 60_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `outro times past the card threshold still show the card at the threshold`() {
+        // Outro starts inside the file but only 10 s before the end: the 97% threshold comes first.
+        val durationMs = 40 * 60_000L
+        val skip = listOf(outro(startSec = 2_390.0, endSec = 2_400.0))
+        assertTrue(shouldShow(positionMs = 2_330_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
     fun `the end of the episode still fires within the epsilon`() {
         val durationMs = 45 * 60_000L
         assertTrue(shouldShow(positionMs = durationMs, durationMs = durationMs))
