@@ -50,23 +50,3 @@ rm -f "$gradle.bak"
 cp "$here/meowio-1024.png" "$icons/nuvio-app-icon-transparent.png"
 cp "$here/../../windows/meowio.ico" "$icons/nuvio-app-icon-transparent.ico"
 cp "$here/meowio.icns" "$icons/nuvio-app-icon-transparent.icns"
-
-# Cast pages: hide talk-show guest spots (TMDB genre 10767) from filmographies, like the phone app.
-tmdb="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/tmdb/TmdbMetadataService.kt"
-if [[ -f "$tmdb" ]] && grep -q 'credits?.cast.orEmpty()' "$tmdb" && grep -q 'private data class TmdbPersonCreditCast(' "$tmdb"; then
-  perl -0pi -e 's/(private data class TmdbPersonCreditCast\((?:(?!\n\)).)*?\n    val character: String\? = null,\n)/$1    \@SerialName("genre_ids") val genreIds: List<Int> = emptyList(),\n/s' "$tmdb"
-  if grep -q 'val genreIds: List<Int> = emptyList()' "$tmdb"; then
-    perl -pi -e 's/cast = credits\?\.cast\.orEmpty\(\),/cast = credits?.cast.orEmpty().withoutTalkShowGuestSpots(),/g' "$tmdb"
-    cat >> "$tmdb" <<'KT'
-
-private fun List<TmdbPersonCreditCast>.withoutTalkShowGuestSpots(): List<TmdbPersonCreditCast> =
-    filterNot { credit ->
-        credit.mediaType == "tv" &&
-            10767 in credit.genreIds &&
-            !credit.character.orEmpty().contains("host", ignoreCase = true)
-    }
-KT
-  else
-    echo "talk-show filter: genre field patch did not apply, skipping" >&2
-  fi
-fi
