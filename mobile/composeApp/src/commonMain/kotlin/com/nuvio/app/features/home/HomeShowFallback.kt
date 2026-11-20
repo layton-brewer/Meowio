@@ -51,3 +51,17 @@ private fun ContinueWatchingItem.withShowLevelFallback(fallback: ContinueWatchin
         imageUrl = imageUrl.nonBlankOr(resolvedBackground ?: resolvedPoster),
     )
 }
+
+/**
+ * A show's progress saved without a season and episode (for example played while its page had no
+ * episode list) can't be resumed as an episode and would show as a "Movie", so it is left out.
+ */
+internal fun List<com.nuvio.app.features.watchprogress.WatchProgressEntry>.withoutEpisodelessShowProgress():
+    List<com.nuvio.app.features.watchprogress.WatchProgressEntry> =
+    filterNot { entry ->
+        val type = entry.parentMetaType.ifBlank { entry.contentType }.trim().lowercase()
+        (type == "series" || type == "tv" || type == "show") &&
+            entry.seasonNumber == null &&
+            entry.episodeNumber == null &&
+            !entry.videoId.contains(':')
+    }

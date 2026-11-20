@@ -34,7 +34,9 @@ rm -f "$dl.bak"
 # Continue Watching cards that only know the raw id borrow the show's name and art (HomeShowFallback.kt).
 home="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeScreen.kt"
 sed -i.bak 's|^            items.withCustomPosterUrls(cwPosterPattern)$|            items.withShowLevelFallbacks(cachedInProgressItems.values + effectivNextUpItems.values.map { it.second } + visibleContinueWatchingEntries.map { it.toContinueWatchingItem() }).withCustomPosterUrls(cwPosterPattern)|' "$home"
+sed -i.bak 's|^        effectiveWatchProgressEntries.continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)$|        effectiveWatchProgressEntries.withoutEpisodelessShowProgress().continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)|' "$home"
 grep -q 'withShowLevelFallbacks' "$home" || { echo "Continue Watching fallback patch did not apply" >&2; exit 1; }
+grep -q 'withoutEpisodelessShowProgress' "$home" || { echo "Continue Watching show-progress patch did not apply" >&2; exit 1; }
 rm -f "$home.bak"
 
 sed -i.bak \

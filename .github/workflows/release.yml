@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.62 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.63 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.62 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.63 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.62"
+          tag="v0.2.63"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.62
+          ## What's new in 0.2.63
 
-          - **Title pages load again.** Some shows (for example American Dad!) opened to "Failed to load. Could not load details from any addon." on phone and desktop. Title pages now cope with add-ons that send details in an unexpected shape, still open when TMDB or MDBList extras fail, and fall back to Cinemeta (then TMDB, if you set a TMDB key) when every installed add-on fails.
-          - **Continue Watching shows the right names** (from 0.2.61). Cards that showed a bare code (like "tt0773262") with no artwork now get the show's name and art, on phone, Android TV, Mac, Windows and Apple TV.
+          - **Shows stay shows when add-ons fail.** When a title page has to fall back to TMDB, series now get their full season and episode list, so playing one saves the right episode instead of showing up in Continue Watching as a "Movie". Cards that were already saved that way are hidden. Phone and desktop.
+          - From 0.2.62: title pages open even when your details add-on fails (Cinemeta, then TMDB fallback), and Continue Watching shows real names instead of codes.
 
           ## Download
 

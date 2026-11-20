@@ -282,7 +282,7 @@ fun HomeScreen(
     }
 
     val visibleContinueWatchingEntries = remember(effectiveWatchProgressEntries) {
-        effectiveWatchProgressEntries.continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)
+        effectiveWatchProgressEntries.withoutEpisodelessShowProgress().continueWatchingEntries(limit = HomeContinueWatchingMaxRecentProgressItems)
     }
 
     val watchProgressSeedKey = remember(watchProgressUiState.entries) {
