@@ -264,7 +264,7 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new in 0.2.62
 
-          - **Title pages load again.** Some shows (for example American Dad!) opened to "Failed to load. Could not load details from any addon." on phone and desktop. Title pages now cope with add-ons that send details in an unexpected shape, still open when TMDB or MDBList extras fail, and fall back to Cinemeta when every installed add-on fails.
+          - **Title pages load again.** Some shows (for example American Dad!) opened to "Failed to load. Could not load details from any addon." on phone and desktop. Title pages now cope with add-ons that send details in an unexpected shape, still open when TMDB or MDBList extras fail, and fall back to Cinemeta (then TMDB, if you set a TMDB key) when every installed add-on fails.
           - **Continue Watching shows the right names** (from 0.2.61). Cards that showed a bare code (like "tt0773262") with no artwork now get the show's name and art, on phone, Android TV, Mac, Windows and Apple TV.
 
           ## Download

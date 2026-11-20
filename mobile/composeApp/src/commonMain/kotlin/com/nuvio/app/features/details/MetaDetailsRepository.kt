@@ -129,6 +129,17 @@ object MetaDetailsRepository {
             val manifests = findReadyMetaManifests(type = type, id = metaLookupId)
 
             if (manifests.isEmpty()) {
+                tryFetchCinemetaFallback(manifests = manifests, type = type, id = metaLookupId, includeMdbList = false)?.let { cinemeta ->
+                    publishLoadedMeta(
+                        requestKey = requestKey,
+                        meta = cinemeta,
+                        fallbackItemId = metaLookupId,
+                        fallbackItemType = type,
+                        mdbListSettings = mdbListSettings,
+                        metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
+                    )
+                    return@launch
+                }
                 val tmdbMeta = tryFetchTmdbFallbackMeta(type = type, id = id)
                 if (tmdbMeta != null) {
                     publishLoadedMeta(
@@ -429,12 +440,25 @@ object MetaDetailsRepository {
     }
 
     private suspend fun tryFetchTmdbFallbackMeta(type: String, id: String): MetaDetails? =
-        withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
-            TmdbMetadataService.fetchStandaloneMeta(
-                type = type,
-                id = id,
-                settings = TmdbSettingsRepository.snapshot(),
-            )
+        try {
+            withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
+                val settings = TmdbSettingsRepository.snapshot()
+                TmdbMetadataService.fetchStandaloneMeta(type = type, id = id, settings = settings)
+                    ?: run {
+                        // IMDb ids can use TMDB too, once mapped to a TMDB id.
+                        if (!id.startsWith("tt", ignoreCase = true)) return@run null
+                        val tmdbType = if (type.equals("movie", ignoreCase = true)) "movie" else "tv"
+                        val tmdbId = TmdbService.ensureTmdbId(id.substringBefore(':'), tmdbType)
+                            ?.takeIf(String::isNotBlank)
+                            ?: return@run null
+                        TmdbMetadataService.fetchStandaloneMeta(type = type, id = "tmdb:$tmdbId", settings = settings)
+                            ?.copy(id = id.substringBefore(':'), imdbId = id.substringBefore(':'))
+                    }
+            }
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            log.w(e) { "TMDB fallback failed for $id" }
+            null
         }
 
     private suspend fun publishLoadedMeta(
