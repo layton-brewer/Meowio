@@ -129,6 +129,17 @@ object MetaDetailsRepository {
             val manifests = findReadyMetaManifests(type = type, id = metaLookupId)
 
             if (manifests.isEmpty()) {
+                tryFetchCinemetaFallback(manifests = manifests, type = type, id = metaLookupId, includeMdbList = false)?.let { cinemeta ->
+                    publishLoadedMeta(
+                        requestKey = requestKey,
+                        meta = cinemeta,
+                        fallbackItemId = metaLookupId,
+                        fallbackItemType = type,
+                        mdbListSettings = mdbListSettings,
+                        metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
+                    )
+                    return@launch
+                }
                 val tmdbMeta = tryFetchTmdbFallbackMeta(type = type, id = id)
                 if (tmdbMeta != null) {
                     publishLoadedMeta(
@@ -165,6 +176,18 @@ object MetaDetailsRepository {
                     )
                     return@launch
                 }
+            }
+
+            tryFetchCinemetaFallback(manifests = manifests, type = type, id = metaLookupId, includeMdbList = false)?.let { cinemeta ->
+                publishLoadedMeta(
+                    requestKey = requestKey,
+                    meta = cinemeta,
+                    fallbackItemId = metaLookupId,
+                    fallbackItemType = type,
+                    mdbListSettings = mdbListSettings,
+                    metaScreenSettingsFingerprint = metaScreenSettingsFingerprint,
+                )
+                return@launch
             }
 
             val tmdbMeta = tryFetchTmdbFallbackMeta(type = type, id = id)
@@ -231,6 +254,13 @@ object MetaDetailsRepository {
             }
         }
 
+        tryFetchCinemetaFallback(manifests = manifests, type = type, id = metaLookupId, includeMdbList = false)?.let { result ->
+            if (cacheResult) {
+                cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
+            }
+            return result
+        }
+
         return tryFetchTmdbFallbackMeta(type = type, id = id)?.also { result ->
             if (cacheResult) {
                 cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = result)
@@ -270,6 +300,7 @@ object MetaDetailsRepository {
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L
+    private const val CINEMETA_MANIFEST_URL = "https://v3-cinemeta.strem.io/manifest.json"
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_ENRICH_TIMEOUT_MS = 5_000L
     private const val MDBLIST_ENRICH_TIMEOUT_MS = 5_000L
@@ -286,21 +317,43 @@ object MetaDetailsRepository {
             type = type,
             id = id,
         )
+        return tryFetchMetaFromUrl(url = url, id = id, includeMdbList = includeMdbList, source = manifest.transportUrl)
+    }
 
-        return try {
-            TmdbSettingsRepository.ensureLoaded()
+    private suspend fun tryFetchMetaFromUrl(
+        url: String,
+        id: String,
+        includeMdbList: Boolean,
+        source: String,
+    ): MetaDetails? {
+        val result = try {
             log.d { "Fetching meta from: $url" }
             val payload = fetchAddonResponseText(url)
             log.d { "Raw payload length=${payload.length}, first 500 chars: ${payload.take(500)}" }
-            val result = MetaDetailsParser.parse(payload)
-            val tmdbEnriched = withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
+            MetaDetailsParser.parse(payload)
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            log.e(e) { "Failed to fetch/parse meta from $url (manifest=$source)" }
+            return null
+        }
+
+        // Extra details are optional: if TMDB or MDBList fail, the add-on's own meta still shows.
+        val tmdbEnriched = try {
+            TmdbSettingsRepository.ensureLoaded()
+            withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
                 TmdbMetadataService.enrichMeta(
                     meta = result,
                     fallbackItemId = id,
                     settings = TmdbSettingsRepository.snapshot(),
                 )
             } ?: result
-            val enriched = if (includeMdbList) {
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            log.w(e) { "TMDB enrichment failed for $id, using add-on meta" }
+            result
+        }
+        val enriched = if (includeMdbList) {
+            try {
                 MdbListSettingsRepository.ensureLoaded()
                 withTimeoutOrNull(MDBLIST_ENRICH_TIMEOUT_MS) {
                     MdbListMetadataService.enrichMeta(
@@ -309,19 +362,37 @@ object MetaDetailsRepository {
                         settings = MdbListSettingsRepository.snapshot(),
                     )
                 } ?: tmdbEnriched
-            } else {
+            } catch (e: Throwable) {
+                if (e is CancellationException) throw e
+                log.w(e) { "MDBList enrichment failed for $id, using add-on meta" }
                 tmdbEnriched
             }
-            log.d { "Parsed meta: type=${enriched.type}, name=${enriched.name}, videos=${enriched.videos.size}" }
-            if (enriched.videos.isNotEmpty()) {
-                val first = enriched.videos.first()
-                log.d { "First video: id=${first.id} title=${first.title} s=${first.season} e=${first.episode} embeddedStreams=${first.streams.size}" }
-            }
-            enriched
-        } catch (e: Throwable) {
-            if (e is CancellationException) throw e
-            log.e(e) { "Failed to fetch/parse meta from $url (manifest=${manifest.transportUrl})" }
-            null
+        } else {
+            tmdbEnriched
+        }
+        log.d { "Parsed meta: type=${enriched.type}, name=${enriched.name}, videos=${enriched.videos.size}" }
+        return enriched
+    }
+
+    /**
+     * Last resort for IMDb ids when every installed meta add-on failed: the public Cinemeta add-on,
+     * so a title page or Continue Watching card still loads.
+     */
+    private suspend fun tryFetchCinemetaFallback(
+        manifests: List<AddonManifest>,
+        type: String,
+        id: String,
+        includeMdbList: Boolean,
+    ): MetaDetails? {
+        if (!id.startsWith("tt", ignoreCase = true)) return null
+        val url = buildAddonResourceUrl(
+            manifestUrl = CINEMETA_MANIFEST_URL,
+            resource = "meta",
+            type = if (type.equals("movie", ignoreCase = true)) "movie" else "series",
+            id = id.substringBefore(':'),
+        )
+        return withTimeoutOrNull(FETCH_TIMEOUT_MS * 2) {
+            tryFetchMetaFromUrl(url = url, id = id, includeMdbList = includeMdbList, source = CINEMETA_MANIFEST_URL)
         }
     }
 
@@ -369,12 +440,25 @@ object MetaDetailsRepository {
     }
 
     private suspend fun tryFetchTmdbFallbackMeta(type: String, id: String): MetaDetails? =
-        withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
-            TmdbMetadataService.fetchStandaloneMeta(
-                type = type,
-                id = id,
-                settings = TmdbSettingsRepository.snapshot(),
-            )
+        try {
+            withTimeoutOrNull(TMDB_ENRICH_TIMEOUT_MS) {
+                val settings = TmdbSettingsRepository.snapshot()
+                TmdbMetadataService.fetchStandaloneMeta(type = type, id = id, settings = settings)
+                    ?: run {
+                        // IMDb ids can use TMDB too, once mapped to a TMDB id.
+                        if (!id.startsWith("tt", ignoreCase = true)) return@run null
+                        val tmdbType = if (type.equals("movie", ignoreCase = true)) "movie" else "tv"
+                        val tmdbId = TmdbService.ensureTmdbId(id.substringBefore(':'), tmdbType)
+                            ?.takeIf(String::isNotBlank)
+                            ?: return@run null
+                        TmdbMetadataService.fetchStandaloneMeta(type = type, id = "tmdb:$tmdbId", settings = settings)
+                            ?.copy(id = id.substringBefore(':'), imdbId = id.substringBefore(':'))
+                    }
+            }
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            log.w(e) { "TMDB fallback failed for $id" }
+            null
         }
 
     private suspend fun publishLoadedMeta(
