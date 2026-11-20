@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.61 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.62 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.61 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.62 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.61"
+          tag="v0.2.62"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.61
+          ## What's new in 0.2.62
 
-          - **Continue Watching shows the right names again.** Some shows appeared as a bare code (like "tt0773262") with no artwork, mostly for Trakt users after watching on this device. Meowio now fills in the show's name and art for those cards, and if the add-on can't be reached it borrows them from another card of the same show. Fixed on phone, Android TV, Mac, Windows and Apple TV.
-
-          Also includes everything from 0.2.60: keyboard and gamepad navigation on Mac and Windows, switching source keeps your place, smoother next-episode autoplay, subtitle outline width, cleaner cast pages, episode ratings in add-on order, better TorBox cache checks, downloads following custom posters, and calmer Trakt library refreshes.
+          - **Title pages load again.** Some shows (for example American Dad!) opened to "Failed to load. Could not load details from any addon." on phone and desktop. Title pages now cope with add-ons that send details in an unexpected shape, still open when TMDB or MDBList extras fail, and fall back to Cinemeta when every installed add-on fails.
+          - **Continue Watching shows the right names** (from 0.2.61). Cards that showed a bare code (like "tt0773262") with no artwork now get the show's name and art, on phone, Android TV, Mac, Windows and Apple TV.
 
           ## Download
 

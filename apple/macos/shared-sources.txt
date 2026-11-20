@@ -190,3 +190,5 @@ commonMain/kotlin/com/nuvio/app/features/settings/MediaServersSettingsPage.kt
 commonMain/kotlin/com/nuvio/app/features/settings/ServerSignInSheet.kt
 commonMain/kotlin/com/nuvio/app/features/home/HomeShowFallback.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktProgressRepository.kt
+commonMain/kotlin/com/nuvio/app/features/details/MetaDetailsParser.kt
+commonMain/kotlin/com/nuvio/app/features/details/MetaDetailsRepository.kt
