@@ -39,6 +39,11 @@ grep -q 'withShowLevelFallbacks' "$home" || { echo "Continue Watching fallback p
 grep -q 'withoutEpisodelessShowProgress' "$home" || { echo "Continue Watching show-progress patch did not apply" >&2; exit 1; }
 rm -f "$home.bak"
 
+# Ratings on posters (RatingPosterDB key) above the custom poster source (RatingPosterKeySection.kt).
+posters="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
+perl -0pi -e 's/\n    item \{\n        CustomPosterUrlRepository\.ensureLoaded\(\)/\n    item { RatingPosterKeySection(isTablet = isTablet) }\n    item {\n        CustomPosterUrlRepository.ensureLoaded()/' "$posters"
+grep -q 'RatingPosterKeySection' "$posters" || { echo "Ratings on posters patch did not apply" >&2; exit 1; }
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \

@@ -198,6 +198,19 @@ struct SettingsView: View {
             Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
         }
         Section {
+            TextField("RatingPosterDB key", text: Binding(
+                get: { CustomPosterSource.ratingKey(from: settings.customPosterPattern) },
+                set: { key in
+                    let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+                    settings.customPosterPattern = trimmed.isEmpty ? "" : CustomPosterSource.ratingPattern(for: trimmed)
+                }
+            ))
+        } header: {
+            Text("Ratings on posters")
+        } footer: {
+            Text("Add your RatingPosterDB key (ratingposterdb.com) and every poster shows its IMDb, TMDB and Rotten Tomatoes ratings. The key stays on this device.")
+        }
+        Section {
             TextField("Custom poster source (URL with {imdb_id})", text: $settings.customPosterPattern)
         } header: {
             Text("Custom posters")
