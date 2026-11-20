@@ -14,7 +14,6 @@ commonMain/kotlin/com/nuvio/app/features/downloads/AutoDownload.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/DownloadLocation.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/DownloadLocationUi.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/DownloadPrefsStorage.kt
-commonMain/kotlin/com/nuvio/app/features/downloads/DownloadsScreen.kt
 commonMain/kotlin/com/nuvio/app/features/insights/InsightsDialog.kt
 commonMain/kotlin/com/nuvio/app/features/insights/WatchInsights.kt
 commonMain/kotlin/com/nuvio/app/features/library/LibraryDownloadsContent.kt
