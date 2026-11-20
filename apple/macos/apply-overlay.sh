@@ -41,7 +41,7 @@ rm -f "$home.bak"
 
 # Ratings on posters (RatingPosterDB key) above the custom poster source (RatingPosterKeySection.kt).
 posters="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
-perl -0pi -e 's/\n    item \{\n        CustomPosterUrlRepository\.ensureLoaded\(\)/\n    item { RatingPosterKeySection(isTablet = isTablet) }\n    item {\n        CustomPosterUrlRepository.ensureLoaded()/' "$posters"
+perl -0pi -e 's/(\r?\n)(    item \{\r?\n        CustomPosterUrlRepository\.ensureLoaded\(\))/$1    item { RatingPosterKeySection(isTablet = isTablet) }$1$2/' "$posters"
 grep -q 'RatingPosterKeySection' "$posters" || { echo "Ratings on posters patch did not apply" >&2; exit 1; }
 
 sed -i.bak \
