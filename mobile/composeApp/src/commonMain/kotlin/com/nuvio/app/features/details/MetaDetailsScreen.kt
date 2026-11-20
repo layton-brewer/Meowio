@@ -411,9 +411,16 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
 
-        episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
-            imdbId = imdbId,
-            tmdbId = tmdbId,
+        episodeImdbRatings = alignEpisodeRatingsToAddonOrder(
+            addonEpisodes = metaForRatings.videos.mapNotNull { video ->
+                val season = video.season ?: return@mapNotNull null
+                val episode = video.episode ?: return@mapNotNull null
+                season to episode
+            },
+            external = ImdbEpisodeRatingsRepository.getEpisodeRatings(
+                imdbId = imdbId,
+                tmdbId = tmdbId,
+            ),
         )
     }
 

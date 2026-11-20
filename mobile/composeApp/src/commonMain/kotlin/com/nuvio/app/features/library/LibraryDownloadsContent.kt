@@ -26,6 +26,7 @@ import com.nuvio.app.features.downloads.DownloadLocationRow
 import com.nuvio.app.features.downloads.DownloadsRepository
 import com.nuvio.app.features.downloads.DownloadsUiState
 import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.core.poster.withCustomPosterUrl
 import com.nuvio.app.features.home.components.PosterGridRow
 
 /** One poster in the Downloads grid: a movie, or a show with all its downloaded episodes. */
@@ -46,6 +47,7 @@ internal fun buildDownloadPosterEntries(
     state: DownloadsUiState,
     type: String?,
     sort: DownloadSort,
+    posterPattern: String = "",
 ): List<DownloadPosterEntry> {
     val entries = state.completedItems
         .groupBy { item -> if (item.isEpisode) "series:${item.parentMetaId}" else "movie:${item.parentMetaId}" }
@@ -62,7 +64,10 @@ internal fun buildDownloadPosterEntries(
                     banner = first.background,
                     logo = first.logo,
                     releaseInfo = if (isShow) "${group.size} episode" + if (group.size == 1) "" else "s" else null,
-                ),
+                ).let { preview ->
+                    // Downloads follow the Library's custom poster setting.
+                    if (posterPattern.isNotBlank()) preview.withCustomPosterUrl(posterPattern) else preview
+                },
                 items = group,
                 addedAtEpochMs = group.maxOf { it.updatedAtEpochMs },
             )

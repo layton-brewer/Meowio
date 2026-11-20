@@ -488,6 +488,7 @@ final class AccountStore: ObservableObject {
         if let v = int("subtitle_background_color") { style.backgroundColor = UInt32(truncatingIfNeeded: v) }
         if let v = bool("subtitle_outline_enabled") { style.outline = v }
         if let v = int("subtitle_outline_color") { style.outlineColor = UInt32(truncatingIfNeeded: v) }
+        if let v = int("subtitle_outline_width") { style.outlineWidth = v }
         if style != settings.subtitleStyle { settings.subtitleStyle = style }
         let themes: [String: MeowioTheme] = ["VIOLET": .meowio, "OCEAN": .ocean, "EMERALD": .emerald, "AMBER": .amber,
                                              "ROSE": .rose, "CRIMSON": .crimson, "SUNSET": .sunset, "AURORA": .aurora,

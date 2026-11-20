@@ -1595,9 +1595,16 @@ class MetaDetailsViewModel @Inject constructor(
                     return@launch
                 }
 
-                val ratings = imdbEpisodeRatingsRepository.getEpisodeRatings(
-                    imdbId = imdbId,
-                    tmdbId = tmdbId
+                val ratings = com.nuvio.tv.data.repository.alignEpisodeRatingsToAddonOrder(
+                    addonEpisodes = meta.videos.mapNotNull { video ->
+                        val season = video.season ?: return@mapNotNull null
+                        val episode = video.episode ?: return@mapNotNull null
+                        season to episode
+                    },
+                    external = imdbEpisodeRatingsRepository.getEpisodeRatings(
+                        imdbId = imdbId,
+                        tmdbId = tmdbId
+                    )
                 )
 
                 _uiState.update { state ->

@@ -738,7 +738,8 @@ struct SubtitleStyleView: View {
                     .foregroundStyle(color(settings.subtitleStyle.textColor))
                     .padding(.horizontal, 12).padding(.vertical, 4)
                     .background(color(settings.subtitleStyle.backgroundColor))
-                    .shadow(color: settings.subtitleStyle.outline ? color(settings.subtitleStyle.outlineColor) : .clear, radius: 2)
+                    .shadow(color: settings.subtitleStyle.outline ? color(settings.subtitleStyle.outlineColor) : .clear,
+                            radius: CGFloat(settings.subtitleStyle.outlineWidth))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
             }
@@ -753,7 +754,12 @@ struct SubtitleStyleView: View {
                 colorPicker("Text colour", $settings.subtitleStyle.textColor)
                 colorPicker("Background", $settings.subtitleStyle.backgroundColor)
                 Toggle("Outline", isOn: $settings.subtitleStyle.outline)
-                if settings.subtitleStyle.outline { colorPicker("Outline colour", $settings.subtitleStyle.outlineColor) }
+                if settings.subtitleStyle.outline {
+                    colorPicker("Outline colour", $settings.subtitleStyle.outlineColor)
+                    Picker("Outline width", selection: $settings.subtitleStyle.outlineWidth) {
+                        ForEach(1...5, id: \.self) { Text("\($0)").tag($0) }
+                    }
+                }
                 Button("Reset to default") { settings.subtitleStyle = SubtitleStyle() }
             }
         }

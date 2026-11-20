@@ -172,7 +172,7 @@ object TmdbMetadataService {
             val (castMovieCredits, crewMovieCredits, castTvCredits, crewTvCredits) = coroutineScope {
                 val castMovieDeferred = async {
                     mapPersonMovieCreditsFromCast(
-                        cast = credits?.cast.orEmpty(),
+                        cast = credits?.cast.orEmpty().withoutTalkShowGuestSpots(),
                         preferredLanguage = language,
                         englishTitlesById = englishTitlesById,
                     )
@@ -186,7 +186,7 @@ object TmdbMetadataService {
                 }
                 val castTvDeferred = async {
                     mapPersonTvCreditsFromCast(
-                        cast = credits?.cast.orEmpty(),
+                        cast = credits?.cast.orEmpty().withoutTalkShowGuestSpots(),
                         preferredLanguage = language,
                         englishTitlesById = englishTitlesById,
                     )
@@ -2121,6 +2121,7 @@ private data class TmdbPersonCreditCast(
     @SerialName("original_title") val originalTitle: String? = null,
     @SerialName("original_name") val originalName: String? = null,
     val character: String? = null,
+    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("backdrop_path") val backdropPath: String? = null,
     val overview: String? = null,
@@ -2249,3 +2250,13 @@ internal data class TmdbDiscoverResult(
     @SerialName("vote_average") val voteAverage: Double? = null,
     @SerialName("vote_count") val voteCount: Int? = null,
 )
+
+/** TMDB "Talk" genre. Guest spots on talk shows flood an actor's filmography, so they are hidden (hosts stay). */
+private const val TMDB_TALK_GENRE_ID = 10767
+
+private fun List<TmdbPersonCreditCast>.withoutTalkShowGuestSpots(): List<TmdbPersonCreditCast> =
+    filterNot { credit ->
+        credit.mediaType == "tv" &&
+            TMDB_TALK_GENRE_ID in credit.genreIds &&
+            !credit.character.orEmpty().contains("host", ignoreCase = true)
+    }

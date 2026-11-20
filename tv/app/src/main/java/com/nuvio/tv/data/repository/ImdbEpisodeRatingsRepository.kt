@@ -135,3 +135,26 @@ class ImdbEpisodeRatingsRepository @Inject constructor(
         }
     }
 }
+
+/**
+ * External ratings (IMDb/TMDB) are keyed by their own season/episode numbers. Some add-ons number
+ * episodes differently (anime split into one long season, absolute numbering, merged seasons). When
+ * most of the add-on's episodes have no rating at their own number, line the two lists up by order.
+ */
+fun alignEpisodeRatingsToAddonOrder(
+    addonEpisodes: List<Pair<Int, Int>>,
+    external: Map<Pair<Int, Int>, Double>,
+): Map<Pair<Int, Int>, Double> {
+    if (addonEpisodes.isEmpty() || external.isEmpty()) return external
+    val addonRegular = addonEpisodes.filter { it.first > 0 && it.second > 0 }.distinct().sortedWith(compareBy({ it.first }, { it.second }))
+    val externalRegular = external.keys.filter { it.first > 0 && it.second > 0 }.sortedWith(compareBy({ it.first }, { it.second }))
+    if (addonRegular.isEmpty() || externalRegular.isEmpty()) return external
+    val matched = addonRegular.count { it in external }
+    val comparable = minOf(addonRegular.size, externalRegular.size)
+    if (matched * 10 >= comparable * 8) return external
+    val aligned = external.filterKeys { it.first == 0 }.toMutableMap()
+    addonRegular.zip(externalRegular).forEach { (addonKey, externalKey) ->
+        external[externalKey]?.let { aligned[addonKey] = it }
+    }
+    return aligned
+}

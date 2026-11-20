@@ -231,6 +231,17 @@ private fun SubtitleAppearanceControls(
                         onColorSelected = { color -> onUpdate { setSubtitleOutlineColor(color.toArgb()) } }
                     )
                 }
+                item(key = "outline_width") {
+                    SliderSettingsItem(
+                        title = stringResource(R.string.sub_outline_width),
+                        value = style.outlineWidth,
+                        valueText = style.outlineWidth.toString(),
+                        minValue = 1,
+                        maxValue = 5,
+                        step = 1,
+                        onValueChange = { width -> onUpdate { setSubtitleOutlineWidth(width) } }
+                    )
+                }
             }
             item(key = "shadow") {
                 SettingsToggleRow(

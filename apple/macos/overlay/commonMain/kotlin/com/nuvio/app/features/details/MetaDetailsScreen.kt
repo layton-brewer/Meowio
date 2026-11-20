@@ -442,9 +442,16 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
 
-        episodeImdbRatings = ImdbEpisodeRatingsRepository.getEpisodeRatings(
-            imdbId = imdbId,
-            tmdbId = tmdbId,
+        episodeImdbRatings = alignDesktopEpisodeRatingsToAddonOrder(
+            addonEpisodes = metaForRatings.videos.mapNotNull { video ->
+                val season = video.season ?: return@mapNotNull null
+                val episode = video.episode ?: return@mapNotNull null
+                season to episode
+            },
+            external = ImdbEpisodeRatingsRepository.getEpisodeRatings(
+                imdbId = imdbId,
+                tmdbId = tmdbId,
+            ),
         )
     }
 
@@ -3012,4 +3019,27 @@ private fun Color.blendTowards(target: Color, fraction: Float): Color {
         blue = blue + (target.blue - blue) * clamped,
         alpha = alpha + (target.alpha - alpha) * clamped,
     )
+}
+
+/**
+ * External ratings (IMDb/TMDB) are keyed by their own season/episode numbers. Some add-ons number
+ * episodes differently (anime split into one long season, absolute numbering, merged seasons). When
+ * most of the add-on's episodes have no rating at their own number, line the two lists up by order.
+ */
+private fun alignDesktopEpisodeRatingsToAddonOrder(
+    addonEpisodes: List<Pair<Int, Int>>,
+    external: Map<Pair<Int, Int>, Double>,
+): Map<Pair<Int, Int>, Double> {
+    if (addonEpisodes.isEmpty() || external.isEmpty()) return external
+    val addonRegular = addonEpisodes.filter { it.first > 0 && it.second > 0 }.distinct().sortedWith(compareBy({ it.first }, { it.second }))
+    val externalRegular = external.keys.filter { it.first > 0 && it.second > 0 }.sortedWith(compareBy({ it.first }, { it.second }))
+    if (addonRegular.isEmpty() || externalRegular.isEmpty()) return external
+    val matched = addonRegular.count { it in external }
+    val comparable = minOf(addonRegular.size, externalRegular.size)
+    if (matched * 10 >= comparable * 8) return external
+    val aligned = external.filterKeys { it.first == 0 }.toMutableMap()
+    addonRegular.zip(externalRegular).forEach { (addonKey, externalKey) ->
+        external[externalKey]?.let { aligned[addonKey] = it }
+    }
+    return aligned
 }

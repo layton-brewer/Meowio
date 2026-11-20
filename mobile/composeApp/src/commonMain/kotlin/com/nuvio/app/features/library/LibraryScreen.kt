@@ -178,8 +178,8 @@ fun LibraryScreen(
         com.nuvio.app.features.downloads.DownloadsRepository.ensureLoaded()
         com.nuvio.app.features.downloads.DownloadsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val downloadEntries = remember(downloadsUiState, downloadsTypeFilter, downloadsSort) {
-        buildDownloadPosterEntries(downloadsUiState, downloadsTypeFilter, downloadsSort)
+    val downloadEntries = remember(downloadsUiState, downloadsTypeFilter, downloadsSort, effectivePosterPattern) {
+        buildDownloadPosterEntries(downloadsUiState, downloadsTypeFilter, downloadsSort, effectivePosterPattern)
     }
     var selectedLibraryType by rememberSaveable { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
