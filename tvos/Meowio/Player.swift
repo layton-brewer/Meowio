@@ -290,6 +290,9 @@ final class PlaybackController: ObservableObject {
                     if lastSeconds >= c.time, lastSeconds < next - 2, Self.isIntro(c.title) { target = next }
                 }
             }
+            // Netflix style: once Next Episode shows, it takes the corner instead of Skip Credits.
+            // (IntroDB credits times usually run to the end, so Skip Credits used to hide Next Episode.)
+            if upNextVisible, label == "Skip Credits" { target = nil }
             if target != skipTarget { skipTarget = target }
             if label != skipLabel { skipLabel = label }
         } else if skipTarget != nil {
