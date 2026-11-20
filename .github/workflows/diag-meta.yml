@@ -1,0 +1,15 @@
+name: Diag meta
+on:
+  push:
+    branches: [diag-meta]
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for id in tt0397306 tt0773262 tt2861424 tt1442437; do
+            curl -s -o $id.json -w "$id http=%{http_code} bytes=%{size_download} t=%{time_total}\n" --max-time 30 "https://v3-cinemeta.strem.io/meta/series/$id.json"
+            jq -c '{name: .meta.name, id: .meta.id, type: .meta.type, videos: (.meta.videos|length), nullSeason: ([.meta.videos[]|select(.season==null)]|length), nullEp: ([.meta.videos[]|select(.episode==null and .number==null)]|length), keys: (.meta|keys)}' $id.json || head -c 400 $id.json
+            jq -c '[.meta.videos[]|{t:(.title|type),s:(.season|type),e:(.episode|type),n:(.number|type),r:(.released|type),id:(.id|type),th:(.thumbnail|type)}]|unique' $id.json
+            jq -c '.meta | {trailers:(.trailers|type), trailerStreams:(.trailerStreams|type), links:(.links|type), genres:(.genres|type), cast:(.cast|type), runtime:(.runtime|type), year:(.year|type), imdbRating:(.imdbRating|type), behaviorHints:.behaviorHints, app_extras:(.app_extras|type)}' $id.json
+          done
