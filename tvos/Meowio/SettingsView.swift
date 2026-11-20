@@ -198,6 +198,13 @@ struct SettingsView: View {
             Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
         }
         Section {
+            TextField("Custom poster source (URL with {imdb_id})", text: $settings.customPosterPattern)
+        } header: {
+            Text("Custom posters")
+        } footer: {
+            Text("A poster service such as RPDB draws IMDb, TMDB and Rotten Tomatoes ratings on every poster. Example: https://api.ratingposterdb.com/YOUR_KEY/imdb/poster-default/{imdb_id}.jpg")
+        }
+        Section {
             NavigationLink("Edit collections") { CollectionEditorView() }
         }
 

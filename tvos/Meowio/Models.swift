@@ -24,7 +24,8 @@ struct MetaItem: Identifiable, Codable, Hashable {
     var director: [String]? = nil
 
     var logoURL: URL? { logo.flatMap(URL.init(string:)) }
-    var posterURL: URL? { poster.flatMap(URL.init(string:)) }
+    /// Poster art, or the custom poster source (for example a rating poster service) when one is set.
+    var posterURL: URL? { CustomPosterSource.url(for: self) ?? poster.flatMap(URL.init(string:)) }
     var backgroundURL: URL? { (background ?? poster).flatMap(URL.init(string:)) }
 }
 
@@ -284,5 +285,27 @@ enum Languages {
         guard let t = trackLang?.lowercased(), !t.isEmpty, !code.isEmpty else { return false }
         let wanted = codes(for: code)
         return wanted.contains(t) || wanted.contains(String(t.prefix(2))) || t.hasPrefix(code + "-") || t.hasPrefix(code + "_")
+    }
+}
+
+
+/// Custom poster source, like the phone and Android TV setting: a URL pattern from a poster service
+/// (for example RPDB, which draws IMDb, TMDB and Rotten Tomatoes ratings on the poster).
+/// Placeholders: {imdb_id}, {id}, {type}. Titles without the needed id keep their own poster.
+enum CustomPosterSource {
+    static let key = "customPosterPattern"
+
+    static func url(for item: MetaItem) -> URL? {
+        let pattern = (ProfileScope.defaults.string(forKey: key) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pattern.isEmpty else { return nil }
+        let id = item.id
+        let imdb = id.hasPrefix("tt") ? String(id.split(separator: ":").first ?? "") : ""
+        if pattern.contains("{imdb_id}") && imdb.isEmpty { return nil }
+        let type = item.type == "movie" ? "movie" : "series"
+        let resolved = pattern
+            .replacingOccurrences(of: "{imdb_id}", with: imdb)
+            .replacingOccurrences(of: "{id}", with: id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id)
+            .replacingOccurrences(of: "{type}", with: type)
+        return URL(string: resolved)
     }
 }
