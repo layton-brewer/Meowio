@@ -2805,4 +2805,34 @@
     <string name="window_menu_window">Window</string>
     <string name="window_menu_close">Close Window</string>
     <string name="window_menu_minimize">Minimize</string>
+    <string name="addons_tracking_consent_title">Tracking addon</string>
+    <string name="addons_tracking_consent_body">%1$s is a tracking addon. Nuvio will send it your activity: what you play, pause and stop with the playback position, what you add to or remove from your library, and what you mark as watched or unwatched. This data leaves Nuvio and is handled by the addon's developer and the service it connects to.</string>
+    <string name="addons_tracking_consent_checkbox">I agree to share my watch activity and library with this addon</string>
+    <string name="downloads_delete_message">This frees %1$s on this device.</string>
+    <string name="downloads_delete_title">Delete %1$s?</string>
+    <string name="downloads_downloading_count">%1$d downloading</string>
+    <string name="downloads_empty_message">Long-press a stream and choose Download file to watch it offline.</string>
+    <string name="downloads_pause_all">Pause all</string>
+    <string name="downloads_resume_all">Resume all</string>
+    <string name="downloads_section_downloaded">Downloaded</string>
+    <string name="downloads_speed">%1$s/s</string>
+    <string name="downloads_watched_count">%1$d watched</string>
+    <plurals name="downloads_episodes">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="downloads_titles">
+        <item quantity="one">%1$d title</item>
+        <item quantity="other">%1$d titles</item>
+    </plurals>
+    <string name="library_filter_genre">Genre</string>
+    <string name="library_filter_watched">Watched</string>
+    <string name="library_filter_year">Year</string>
+    <string name="library_type_all">All</string>
+    <string name="library_watched_filter_all">All</string>
+    <string name="library_watched_filter_watched">Watched</string>
+    <string name="library_watched_filter_unwatched">Unwatched</string>
+    <string name="settings_playback_nvidia_rtx_hdr">RTX Video HDR</string>
+    <string name="settings_playback_nvidia_rtx_hdr_desc">Converts SDR video to HDR output using NVIDIA RTX AI for better contrast, colors and brightness. Requires Windows HDR enabled and an HDR-capable display.</string>
+    <string name="subtitle_outline_width">Outline width</string>
 </resources>

@@ -164,7 +164,7 @@ final class MPVEngine: NSObject {
         mpv_set_property_string(mpv, "sub-bold", style.bold ? "yes" : "no")
         mpv_set_property_string(mpv, "sub-color", SubtitleStyle.hex(style.textColor))
         mpv_set_property_string(mpv, "sub-back-color", SubtitleStyle.hex(style.backgroundColor))
-        mpv_set_property_string(mpv, "sub-border-size", style.outline ? "3" : "0")
+        mpv_set_property_string(mpv, "sub-border-size", style.outline ? String(1 + style.outlineWidth) : "0")
         mpv_set_property_string(mpv, "sub-border-color", SubtitleStyle.hex(style.outlineColor))
         // mpv's default bottom margin is 22 (on a 720 line scale); the Android default offset is 5.
         mpv_set_property_string(mpv, "sub-margin-y", String(max(0, min(300, 22 + (style.verticalOffset - 5) * 6))))

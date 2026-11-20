@@ -2556,4 +2556,25 @@
     <string name="settings_playback_page_up_next">A seguir</string>
     <string name="compose_settings_page_layout">Layout</string>
     <string name="settings_group_you">Você</string>
+    <string name="settings_continue_watching_click_action_title">Ao selecionar</string>
+    <string name="settings_continue_watching_click_action_description">O que abre ao selecionar um item de Continuar assistindo</string>
+    <string name="settings_continue_watching_click_action_stream">Abrir stream</string>
+    <string name="settings_continue_watching_click_action_stream_desc">Escolher uma fonte ou retomar a reprodução</string>
+    <string name="settings_continue_watching_click_action_details">Abrir detalhes</string>
+    <string name="settings_continue_watching_click_action_details_desc">Abrir a página de detalhes do título</string>
+    <string name="settings_continue_watching_click_action_details_upcoming">Detalhes apenas para Em breve</string>
+    <string name="settings_continue_watching_click_action_details_upcoming_desc">Abrir detalhes para episódios que ainda não foram ao ar; para os demais, a stream.</string>
+    <string name="settings_playback_fallback_next_source">Usar a próxima fonte correspondente em caso de falha</string>
+    <string name="settings_playback_fallback_next_source_description">Se a fonte falhar ou não iniciar a tempo, tenta as próximas fontes correspondentes em silêncio.</string>
+    <string name="settings_playback_fallback_max_sources">Fontes para tentar em caso de falha</string>
+    <string name="settings_playback_fallback_startup_timeout">Tempo para uma fonte iniciar</string>
+    <string name="settings_playback_fallback_next_source_blocked_by_engine_switch">Desative a troca automática de motor em erro de reprodução para usar esta opção.</string>
+    <string name="player_error_source_startup_timeout">A fonte não iniciou dentro de %1$d segundos.</string>
+    <string name="settings_playback_chapter_title">Mostrar título do capítulo</string>
+    <string name="settings_playback_chapter_title_description">Mostrar o nome do capítulo atual acima da barra de progresso.</string>
+    <string name="settings_trakt_missing_credentials">Credenciais do Trakt ausentes em local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
+    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID ausente</string>
+    <string name="auth_notice_signed_out">Você foi desconectado do Nuvio. Entre novamente.</string>
+    <string name="trakt_missing_credentials">Credenciais do Trakt ausentes</string>
+    <string name="settings_playback_auto_switch_engine_blocked_by_fallback">Desative a alternativa para a próxima fonte correspondente para usar esta opção.</string>
 </resources>

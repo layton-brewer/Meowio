@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.59 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.60 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.59 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.60 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.59"
+          tag="v0.2.60"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.59
+          ## What's new in 0.2.60
 
-          - **Apple TV: sign in after choosing guest.** If you skipped sign-in, Settings now lets you move to "Sign in to Nuvio" and sign in from there.
-          - **Plex and Silo on Mac and Windows.** The new media server sign-ins from the phone and TV apps (Plex sign-in with a code, Silo, and the updated Jellyfin and Emby sign-in) are now in Settings > Media servers on desktop too, with Plex and Silo artwork and playback.
+          Catching up with Nuvio's newest update (TV 1.2.0, phone 1.1.0, desktop 0.1.38) on every Meowio app.
+
+          - **Mac and Windows: keyboard and gamepad navigation.** Move around the whole app with arrow keys or a controller, with focus rings, plus a hand cursor over anything clickable, exact seeking and resume, touchscreen drag scrolling on Windows, and NVIDIA RTX Video HDR on Windows.
+          - **Switching source keeps your place.** Picking another source mid-episode on Android TV now continues from the same spot instead of jumping back.
+          - **Smoother next-episode autoplay.** If the next episode's chosen debrid link can't be produced, Android TV quietly tries the next best sources instead of opening the source list.
+          - **Subtitle outline width.** A new Outline width setting next to Outline colour, on every app.
+          - **Cleaner cast pages.** Talk-show guest appearances no longer flood an actor's filmography (hosts stay).
+          - **Episode ratings line up.** IMDb/TMDB episode ratings now match the add-on's own episode order (for example anime numbered as one long season).
+          - **TorBox cache checks** match answers that come back under an alternative hash, so more cached links are found.
+          - **Downloads follow your custom posters** on phone, iPhone and desktop.
+          - **Trakt library** no longer piles up refreshes when several screens ask at once, and backs off after a failure.
 
           ## Download
 

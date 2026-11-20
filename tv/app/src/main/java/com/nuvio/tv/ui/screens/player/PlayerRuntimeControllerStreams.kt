@@ -979,6 +979,8 @@ internal fun PlayerRuntimeController.switchToSourceStream(
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodeAutoPlayJob = null
 
+    // Keep the playback position when the user switches to another source mid-title.
+    val sourceSwitchPositionMs = currentPlaybackPositionMs()?.coerceAtLeast(0L) ?: 0L
     flushPlaybackSnapshotForSwitchOrExit()
 
     val newHeaders = PlayerMediaSourceFactory.sanitizeHeaders(
@@ -1029,9 +1031,11 @@ internal fun PlayerRuntimeController.switchToSourceStream(
             showSourcesPanel = false,
             isLoadingSourceStreams = false,
             sourceStreamsError = null,
-            isTorrentStream = false
+            isTorrentStream = false,
+            pendingSeekPosition = sourceSwitchPositionMs.takeIf { it > 0L }
         )
     }
+    if (sourceSwitchPositionMs > 0L) pendingResumeProgress = null
     clearChapterSkipState()
     recomputeMergedSkipIntervals()
     showStreamSourceIndicator(stream)
@@ -1079,7 +1083,7 @@ internal fun PlayerRuntimeController.switchToSourceStream(
         }
     }
 
-    loadSavedProgressFor(currentSeason, currentEpisode)
+    if (sourceSwitchPositionMs <= 0L) loadSavedProgressFor(currentSeason, currentEpisode)
 }
 
 internal fun PlayerRuntimeController.dismissEpisodesPanel() {
@@ -1127,6 +1131,7 @@ private fun PlayerRuntimeController.switchToTorrentSourceStream(
     stopTorrentStream()
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodeAutoPlayJob = null
+    val sourceSwitchPositionMs = currentPlaybackPositionMs()?.coerceAtLeast(0L) ?: 0L
     flushPlaybackSnapshotForSwitchOrExit()
     resetLoadingOverlayForNewStream()
     releasePlayer(flushPlaybackState = false)
@@ -1155,16 +1160,18 @@ private fun PlayerRuntimeController.switchToTorrentSourceStream(
             showSourcesPanel = false,
             isLoadingSourceStreams = false,
             sourceStreamsError = null,
-            isTorrentStream = true
+            isTorrentStream = true,
+            pendingSeekPosition = sourceSwitchPositionMs.takeIf { it > 0L }
         )
     }
+    if (sourceSwitchPositionMs > 0L) pendingResumeProgress = null
     clearChapterSkipState()
     recomputeMergedSkipIntervals()
     applyStreamMetadata(stream)
     currentFilename = stream.behaviorHints?.filename
     showStreamSourceIndicator(stream)
     resetPostPlayOverlayState(clearEpisode = false)
-    launchTorrentSourceStream(stream, infoHash, loadSavedProgress = true)
+    launchTorrentSourceStream(stream, infoHash, loadSavedProgress = sourceSwitchPositionMs <= 0L)
     persistTorrentStreamForReuse(stream)
     persistStreamRouteState(stream, isTorrent = true)
 }
@@ -2274,8 +2281,28 @@ internal fun PlayerRuntimeController.playNextEpisode(userInitiated: Boolean = fa
                 innerJob.cancel()
             }
 
-            val streamToPlay = selectedStream?.let {
+            var streamToPlay = selectedStream?.let {
                 resolveDirectDebridStreamIfNeeded(it, nextVideo.season, nextVideo.episode)
+            }
+            // The pick's debrid link could not be produced (no longer cached, stale, provider error):
+            // quietly try the next best sources for the next episode instead of opening the list.
+            val firstPick = selectedStream
+            if (streamToPlay == null && firstPick != null) {
+                val tried = mutableSetOf(firstPick)
+                val backups = com.nuvio.tv.core.player.StreamSmartRanker.rank(
+                    lastSuccessData.orEmpty().flatMap { it.streams }
+                        .filter { it !in tried && !it.isExternal() && StreamAutoPlaySelector.isPlayable(it) }
+                        .distinct(),
+                    isSeries = true
+                )
+                for (backup in backups.take(NEXT_EPISODE_DEBRID_BACKUP_ATTEMPTS)) {
+                    tried += backup
+                    streamToPlay = resolveDirectDebridStreamIfNeeded(backup, nextVideo.season, nextVideo.episode)
+                    if (streamToPlay != null) {
+                        Log.i(PlayerRuntimeController.TAG, "Next episode pick had no playable link, using ${backup.addonName} instead")
+                        break
+                    }
+                }
             }
             if (streamToPlay != null) {
                 val sourceName = (streamToPlay.name?.takeIf { it.isNotBlank() } ?: streamToPlay.addonName).trim()
@@ -2413,3 +2440,5 @@ private fun List<AddonStreams>.withoutAddonsWhenContinuingPlugin(bingeGroup: Str
         if (streams.isEmpty()) null else group.copy(streams = streams)
     }
 }
+
+private const val NEXT_EPISODE_DEBRID_BACKUP_ATTEMPTS = 4

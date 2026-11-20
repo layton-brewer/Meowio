@@ -38,6 +38,7 @@ private const val TRAKT_PAGE_LIMIT = 1_000
 private const val SNAPSHOT_CACHE_TTL_MS = 60_000L
 private const val LIST_TABS_CACHE_TTL_MS = 60_000L
 private const val FORCE_REFRESH_DEDUP_MS = 10_000L
+private const val FAILED_REFRESH_BACKOFF_MS = 30_000L
 private const val MAX_VISIBLE_ERROR_MESSAGE_LENGTH = 240
 
 data class TraktLibraryUiState(
@@ -130,8 +131,22 @@ object TraktLibraryRepository {
         }
     }
 
+    // Callers that arrive while a refresh runs share it instead of queueing another one behind the
+    // lock, so screens asking for fresh data at once can't build an unbounded refresh queue.
+    private val inFlightLock = Mutex()
+    private var inFlightRefresh: kotlinx.coroutines.Deferred<Unit>? = null
+    private var lastFailedRefreshAtMs: Long = 0L
+
     private suspend fun refresh(force: Boolean) {
         ensureLoaded()
+        val shared = inFlightLock.withLock {
+            inFlightRefresh?.takeIf { it.isActive }
+                ?: scope.async { refreshExclusive(force) }.also { inFlightRefresh = it }
+        }
+        shared.await()
+    }
+
+    private suspend fun refreshExclusive(force: Boolean) {
         refreshMutex.withLock {
             val now = TraktPlatformClock.nowEpochMs()
             val current = _uiState.value
@@ -141,6 +156,10 @@ object TraktLibraryRepository {
                 current.errorMessage == null &&
                 now - lastRefreshAtMs <= cacheWindowMs
             ) {
+                return
+            }
+            // After a failure, wait a little before hitting Trakt again.
+            if (current.errorMessage != null && now - lastFailedRefreshAtMs < FAILED_REFRESH_BACKOFF_MS) {
                 return
             }
 
@@ -166,6 +185,7 @@ object TraktLibraryRepository {
             result.exceptionOrNull()?.let { error ->
                 if (error is CancellationException) throw error
                 log.w(error) { "Failed to refresh Trakt library" }
+                lastFailedRefreshAtMs = now
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     hasLoaded = true,

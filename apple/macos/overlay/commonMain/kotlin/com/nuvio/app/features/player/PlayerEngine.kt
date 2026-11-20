@@ -17,6 +17,8 @@ interface PlayerEngineController {
     fun retry()
     fun setPlaybackSpeed(speed: Float)
     fun setMuted(muted: Boolean) {}
+    /** Adjusts output volume by [deltaFraction] on a 0..1 scale; true when the platform applied it. */
+    fun adjustVolumeBy(deltaFraction: Float): Boolean = false
     fun getAudioTracks(): List<AudioTrack>
     /** Resolutions an adaptive stream offers, highest first. Empty when there is no choice. */
     fun getVideoQualityHeights(): List<Int> = emptyList()

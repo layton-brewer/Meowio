@@ -59,11 +59,16 @@ class LocalDebridService @Inject constructor(
             if (!response.isSuccessful || body?.success == false) {
                 null
             } else {
-                body?.data.orEmpty().mapKeys { it.key.lowercase() }.mapValues { (_, value) ->
-                    LocalDebridCachedItem(
-                        name = value.name,
-                        size = value.size
-                    )
+                // TorBox can answer under an alternative hash (the item's own "hash" field, or the
+                // map key, may differ from the one asked for): match either back to the request.
+                val requested = normalizedHashes.toSet()
+                buildMap {
+                    body?.data.orEmpty().forEach { (key, value) ->
+                        val item = LocalDebridCachedItem(name = value.name, size = value.size)
+                        val candidates = listOfNotNull(key.lowercase(), value.hash?.trim()?.lowercase())
+                        val matches = candidates.filter { it in requested }
+                        if (matches.isEmpty()) put(key.lowercase(), item) else matches.forEach { put(it, item) }
+                    }
                 }
             }
         } catch (error: Exception) {

@@ -77,6 +77,13 @@ struct SubtitleStyle: Codable, Equatable {
     var backgroundColor: UInt32 = 0x00000000
     var outline = true
     var outlineColor: UInt32 = 0xFF000000
+    /// Optional so styles saved before this setting existed still decode.
+    var outlineWidthSetting: Int? = nil
+    /// 1...5, like the Android TV player's Outline width.
+    var outlineWidth: Int {
+        get { min(5, max(1, outlineWidthSetting ?? 2)) }
+        set { outlineWidthSetting = min(5, max(1, newValue)) }
+    }
 
     /// mpv's #AARRGGBB form.
     static func hex(_ argb: UInt32) -> String { String(format: "#%08X", argb) }

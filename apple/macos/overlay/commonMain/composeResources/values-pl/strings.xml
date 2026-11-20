@@ -2541,4 +2541,18 @@
     <string name="subtitle_shadow_opacity">Krycie cienia</string>
     <string name="subtitle_shadow_size">Rozmiar cienia</string>
     <string name="subtitle_reset_appearance">Resetuj wygląd</string>
+    <string name="addons_tracking_consent_title">Dodatek śledzący</string>
+    <string name="addons_tracking_consent_body">%1$s to dodatek śledzący. Nuvio będzie wysyłać do niego Twoją aktywność: co odtwarzasz, wstrzymujesz i zatrzymujesz wraz z pozycją odtwarzania, co dodajesz do biblioteki lub z niej usuwasz oraz co oznaczasz jako obejrzane lub nieobejrzane. Te dane opuszczają Nuvio i trafiają do twórcy dodatku oraz serwisu, z którym się łączy.</string>
+    <string name="addons_tracking_consent_checkbox">Zgadzam się na udostępnianie temu dodatkowi mojej aktywności oglądania i biblioteki</string>
+    <string name="settings_trakt_missing_credentials">Brak danych uwierzytelniających Trakt w local.properties (TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET).</string>
+    <string name="trakt_missing_credentials">Brak danych uwierzytelniających Trakt</string>
+    <string name="settings_simkl_missing_credentials">Brak SIMKL_CLIENT_ID</string>
+    <string name="library_filter_genre">Gatunek</string>
+    <string name="library_filter_watched">Obejrzane</string>
+    <string name="library_filter_year">Rok</string>
+    <string name="library_type_all">Wszystkie</string>
+    <string name="library_watched_filter_all">Wszystko</string>
+    <string name="library_watched_filter_watched">Obejrzane</string>
+    <string name="library_watched_filter_unwatched">Nieobejrzane</string>
+    <string name="subtitle_outline_width">Grubość obrysu</string>
 </resources>

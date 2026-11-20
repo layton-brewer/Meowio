@@ -1362,7 +1362,7 @@ class TmdbMetadataService(
                 val preferCrewFilmography = preferCrewCredits ?: shouldPreferCrewCredits(person.knownForDepartment)
 
                 val castMovieCredits = mapMovieCreditsFromCast(
-                    credits?.cast.orEmpty(),
+                    credits?.cast.orEmpty().withoutTalkShowGuestSpots(),
                     normalizedLanguage,
                     englishTitlesById
                 )
@@ -1378,7 +1378,7 @@ class TmdbMetadataService(
                 }
 
                 val castTvCredits = mapTvCreditsFromCast(
-                    credits?.cast.orEmpty(),
+                    credits?.cast.orEmpty().withoutTalkShowGuestSpots(),
                     normalizedLanguage,
                     englishTitlesById
                 )
@@ -1851,3 +1851,13 @@ internal fun resolveDisplayLabel(
     // Otherwise fallback to whatever non-null exists
     return fallback ?: originalLabel ?: name
 }
+
+/** TMDB "Talk" genre. Guest spots on talk shows flood an actor's filmography, so they are hidden (hosts stay). */
+private const val TMDB_TALK_GENRE_ID = 10767
+
+internal fun List<com.nuvio.tv.data.remote.api.TmdbPersonCreditCast>.withoutTalkShowGuestSpots() =
+    filterNot { credit ->
+        credit.mediaType == "tv" &&
+            credit.genreIds.orEmpty().contains(TMDB_TALK_GENRE_ID) &&
+            !credit.character.orEmpty().contains("host", ignoreCase = true)
+    }

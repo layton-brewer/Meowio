@@ -2564,4 +2564,22 @@
     <string name="subtitle_shadow_opacity">Opacité de l’ombre</string>
     <string name="subtitle_shadow_size">Taille de l’ombre</string>
     <string name="subtitle_reset_appearance">Réinitialiser l’apparence</string>
+    <string name="settings_continue_watching_click_action_title">À la sélection</string>
+    <string name="settings_continue_watching_click_action_description">Ce qui s’ouvre lorsque vous sélectionnez un élément de Continuer à regarder</string>
+    <string name="settings_continue_watching_click_action_stream">Ouvrir les flux</string>
+    <string name="settings_continue_watching_click_action_stream_desc">Choisir une source ou reprendre la lecture</string>
+    <string name="settings_continue_watching_click_action_details">Ouvrir les détails</string>
+    <string name="settings_continue_watching_click_action_details_desc">Ouvrir la page de détail du titre</string>
+    <string name="settings_continue_watching_click_action_details_upcoming">Détails pour les épisodes à venir uniquement</string>
+    <string name="settings_continue_watching_click_action_details_upcoming_desc">Ouvrir les détails des épisodes pas encore diffusés, et les flux pour les autres</string>
+    <string name="settings_playback_auto_switch_engine_blocked_by_fallback">Désactivez le repli vers la source correspondante suivante pour l’utiliser.</string>
+    <string name="settings_playback_fallback_next_source">Repli vers la source correspondante suivante en cas d’échec</string>
+    <string name="settings_playback_fallback_next_source_description">Si la source sélectionnée automatiquement échoue ou ne démarre pas à temps, essayer discrètement les sources correspondantes suivantes.</string>
+    <string name="settings_playback_fallback_max_sources">Sources à essayer en cas d’échec</string>
+    <string name="settings_playback_fallback_startup_timeout">Délai de démarrage d’une source</string>
+    <string name="settings_playback_fallback_next_source_blocked_by_engine_switch">Désactivez le changement automatique de moteur en cas d’erreur de lecture pour l’utiliser.</string>
+    <string name="player_error_source_startup_timeout">La source n’a pas démarré dans un délai de %1$d secondes.</string>
+    <string name="settings_trakt_missing_credentials">TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET manquants dans local.properties.</string>
+    <string name="settings_simkl_missing_credentials">SIMKL_CLIENT_ID manquant</string>
+    <string name="trakt_missing_credentials">Identifiants Trakt manquants</string>
 </resources>

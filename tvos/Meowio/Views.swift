@@ -1701,7 +1701,12 @@ struct CastView: View {
             async let details = TMDB.get("/person/\(id)")
             async let credits = TMDB.get("/person/\(id)/combined_credits")
             biography = (await details)?["biography"] as? String ?? ""
-            let cast = (await credits)?["cast"] as? [[String: Any]] ?? []
+            // Talk-show guest spots (TMDB genre 10767) flood filmographies; hide them, keep hosts.
+            let cast = ((await credits)?["cast"] as? [[String: Any]] ?? []).filter { row in
+                let talk = (row["genre_ids"] as? [Int] ?? []).contains(10767)
+                let host = (row["character"] as? String ?? "").localizedCaseInsensitiveContains("host")
+                return !((row["media_type"] as? String) == "tv" && talk && !host)
+            }
             var seen = Set<Int>()
             let ranked = cast.sorted { ($0["popularity"] as? Double ?? 0) > ($1["popularity"] as? Double ?? 0) }
                 .filter { row in

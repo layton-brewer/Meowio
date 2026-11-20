@@ -581,6 +581,7 @@
     <string name="compose_player_none">None</string>
     <string name="compose_player_outline">Outline</string>
     <string name="compose_player_outline_color">Outline Color</string>
+    <string name="subtitle_outline_width">Outline Width</string>
     <string name="compose_player_panel_episodes">Episodes</string>
     <string name="compose_player_panel_sources">Sources</string>
     <string name="compose_player_chapters">Chapters</string>

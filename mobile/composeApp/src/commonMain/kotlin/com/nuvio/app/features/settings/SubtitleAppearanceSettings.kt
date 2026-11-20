@@ -117,6 +117,12 @@ internal fun SubtitleAppearanceSettings(
                     description = subtitleColorLabel(style.outlineColor),
                     enabled = enabled, isTablet = isTablet, onClick = { colorTarget = "outline" },
                 )
+                SettingsSliderRow(
+                    title = stringResource(Res.string.subtitle_outline_width),
+                    value = style.outlineWidth, valueText = { it.toString() },
+                    valueRange = 1..5, step = 1, isTablet = isTablet, enabled = enabled,
+                    onValueChange = { onStyleChanged(style.copy(outlineWidth = it)) },
+                )
             }
             SettingsGroupDivider(isTablet)
             SettingsSwitchRow(
