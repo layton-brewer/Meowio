@@ -633,15 +633,6 @@ fun DownloadChoiceDialog(
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    DownloadChoiceRow(
-                        title = "Download movie",
-                        subtitle = "${quality.label}${if (maxSizeGb > 0) " · up to $maxSizeGb GB" else ""}",
-                        enabled = true,
-                        onClick = {
-                            AutoDownloader.downloadMovie(meta, options())
-                            onDismiss()
-                        },
-                    )
                 } else {
                     if (seasons.size > 1) {
                         ChipGroup(title = "Season") {
@@ -722,37 +713,50 @@ fun DownloadChoiceDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     val pickedSeasons = pickedEpisodes.mapNotNull { it.season }.distinct()
-                    val wholeSeason = pickedSeasons.size == 1 &&
-                        pickedEpisodes.size > 1 &&
-                        allEpisodes.count { it.season == pickedSeasons.single() } == pickedEpisodes.size
-                    DownloadChoiceRow(
-                        title = when {
-                            pickedEpisodes.isEmpty() -> "Pick episodes to download"
+                    if (pickedSeasons.size > 1) {
+                        Text(
+                            text = "${pickedEpisodes.size} episodes selected from ${pickedSeasons.size} seasons",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (!isSeries) {
+                TextButton(onClick = {
+                    AutoDownloader.downloadMovie(meta, options())
+                    onDismiss()
+                }) { Text("Download movie") }
+            } else {
+                val pickedSeasons = pickedEpisodes.mapNotNull { it.season }.distinct()
+                val wholeSeason = pickedSeasons.size == 1 &&
+                    pickedEpisodes.size > 1 &&
+                    allEpisodes.count { it.season == pickedSeasons.single() } == pickedEpisodes.size
+                TextButton(
+                    enabled = pickedEpisodes.isNotEmpty(),
+                    onClick = {
+                        val opts = options()
+                        if (pickedEpisodes.size == 1) {
+                            AutoDownloader.downloadEpisode(meta, pickedEpisodes.single(), opts)
+                        } else {
+                            AutoDownloader.downloadEpisodes(meta, pickedEpisodes, opts)
+                        }
+                        onDismiss()
+                    },
+                ) {
+                    Text(
+                        when {
+                            pickedEpisodes.isEmpty() -> "Download"
                             wholeSeason -> "Download ${if (pickedSeasons.single() == 0) "Specials" else "Season ${pickedSeasons.single()}"}"
-                            pickedEpisodes.size == 1 -> "Download this episode"
+                            pickedEpisodes.size == 1 -> "Download episode"
                             else -> "Download ${pickedEpisodes.size} episodes"
-                        },
-                        subtitle = when {
-                            pickedEpisodes.isEmpty() -> "Tick one or more episodes above"
-                            pickedEpisodes.size == 1 -> episodeChoiceLabel(pickedEpisodes.single())
-                            pickedSeasons.size > 1 -> "${pickedEpisodes.size} episodes from ${pickedSeasons.size} seasons"
-                            else -> "${pickedEpisodes.size} episodes · one file each"
-                        },
-                        enabled = pickedEpisodes.isNotEmpty(),
-                        onClick = {
-                            val opts = options()
-                            if (pickedEpisodes.size == 1) {
-                                AutoDownloader.downloadEpisode(meta, pickedEpisodes.single(), opts)
-                            } else {
-                                AutoDownloader.downloadEpisodes(meta, pickedEpisodes, opts)
-                            }
-                            onDismiss()
                         },
                     )
                 }
             }
         },
-        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
@@ -786,33 +790,6 @@ private fun episodeListLabel(video: MetaVideo): String {
 private fun episodeChoiceLabel(video: MetaVideo): String {
     val prefix = if (video.season != null && video.episode != null) "S${video.season} E${video.episode}" else "Episode"
     return if (video.title.isNotBlank()) "$prefix · ${video.title}" else prefix
-}
-
-@Composable
-private fun DownloadChoiceRow(
-    title: String,
-    subtitle: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 1f else 0.5f),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-            )
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------------------------
