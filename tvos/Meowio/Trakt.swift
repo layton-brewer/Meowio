@@ -243,6 +243,39 @@ final class TraktStore: ObservableObject {
         }
     }
 
+    /// The viewer's own 1-10 rating for a title or episode, as saved from this device.
+    func rating(meta: MetaItem, videoId: String?) -> Int? {
+        let v = UserDefaults.standard.integer(forKey: "traktRating." + (videoId ?? meta.id))
+        return v > 0 ? v : nil
+    }
+
+    /// Saves (or with nil removes) a 1-10 rating on Trakt, like the star ratings on the other apps.
+    func rate(meta: MetaItem, videoId: String?, rating: Int?) {
+        let key = "traktRating." + (videoId ?? meta.id)
+        if let rating { UserDefaults.standard.set(rating, forKey: key) } else { UserDefaults.standard.removeObject(forKey: key) }
+        objectWillChange.send()
+        guard connected, meta.id.hasPrefix("tt") || EpisodeRef(videoId) != nil else { return }
+        var body: [String: Any] = [:]
+        if meta.type == "movie" {
+            var m: [String: Any] = ["ids": ["imdb": meta.id]]
+            if let rating { m["rating"] = rating }
+            body["movies"] = [m] as [[String: Any]]
+        } else if let ref = EpisodeRef(videoId), ref.showId.hasPrefix("tt") {
+            var e: [String: Any] = ["number": ref.episode]
+            if let rating { e["rating"] = rating }
+            let seasons: [[String: Any]] = [["number": ref.season, "episodes": [e]]]
+            body["shows"] = [["ids": ["imdb": ref.showId], "seasons": seasons]] as [[String: Any]]
+        } else {
+            var sh: [String: Any] = ["ids": ["imdb": meta.id]]
+            if let rating { sh["rating"] = rating }
+            body["shows"] = [sh] as [[String: Any]]
+        }
+        Task {
+            await refreshIfNeeded()
+            _ = await post(rating == nil ? "/sync/ratings/remove" : "/sync/ratings", body)
+        }
+    }
+
     func setInWatchlist(_ add: Bool, meta: MetaItem) {
         guard connected, meta.id.hasPrefix("tt"), meta.type == "movie" || meta.type == "series" else { return }
         let entry: [String: Any] = ["ids": ["imdb": meta.id]]

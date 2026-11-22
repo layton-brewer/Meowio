@@ -219,6 +219,7 @@ struct EpisodeCard: View {
     let watched: Bool
     let progress: Double?
     let isNext: Bool
+    var rating: Double? = nil
     @Environment(\.isFocused) private var focused
 
     static let width: CGFloat = 640
@@ -239,8 +240,16 @@ struct EpisodeCard: View {
                 if let s = video.synopsis {
                     Text(s).font(.system(size: 24)).foregroundStyle(.white.opacity(0.75)).lineLimit(3)
                 }
-                if let date = Self.airDate(video.released) {
-                    Text(date).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                HStack(spacing: 18) {
+                    if let date = Self.airDate(video.released) {
+                        Text(date).font(.system(size: 22, weight: .medium)).foregroundStyle(.white.opacity(0.6))
+                    }
+                    if let rating {
+                        // Episode rating, like Android TV's episode ratings.
+                        Label(String(format: "%.1f", rating), systemImage: "star.fill")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(rating >= 8 ? .green : rating >= 6.5 ? .yellow : .orange)
+                    }
                 }
             }
             .padding(.horizontal, 32).padding(.bottom, 40)
@@ -1118,7 +1127,16 @@ struct DetailView: View {
     @State private var trailerURL: URL?
     @State private var showTrailer = false
     @State private var moreLikeThis: [MetaItem] = []
+    @State private var extras = DetailExtras()
+    @State private var rateTarget: RateTarget?
+    @EnvironmentObject var trakt: TraktStore
     @FocusState private var playFocused: Bool
+
+    struct RateTarget: Identifiable {
+        let id = UUID()
+        let videoId: String?
+        let title: String
+    }
 
     struct PickerState: Identifiable {
         let id = UUID()
@@ -1150,10 +1168,19 @@ struct DetailView: View {
                         heroSection
                             .frame(minHeight: geo.size.height - (meta.type == "movie" ? 0 : 170), alignment: .bottomLeading)
                         if meta.type != "movie" { episodesSection.padding(.top, 40) }
+                        // Android TV's detail rows: cast, collection, more like this, production, comments.
+                        CastPhotoRow(people: extras.people).padding(.top, 40)
+                        if let name = extras.collectionName {
+                            Shelf(title: name, items: extras.collection)
+                                .padding(.top, 40)
+                                .padding(.horizontal, 96 - CardMetrics.rowInset)
+                        }
                         // Under the cast, like the other apps: similar movies and shows.
                         Shelf(title: "More like this", items: moreLikeThis)
                             .padding(.top, 40)
                             .padding(.horizontal, 96 - CardMetrics.rowInset)
+                        CompanyLogosRow(companies: extras.companies).padding(.top, 40)
+                        CommentsRow(comments: extras.comments).padding(.top, 40)
                     }
                     .padding(.horizontal, 96)
                     .padding(.bottom, 80)
@@ -1192,6 +1219,15 @@ struct DetailView: View {
         .task(id: item.id) {
             guard !MediaServerStore.isServerId(item.id) else { return }
             moreLikeThis = await Self.similarTitles(to: item)
+        }
+        .task(id: "extras-" + item.id) {
+            guard !MediaServerStore.isServerId(item.id) else { return }
+            extras = await DetailExtrasLoader.load(for: item)
+        }
+        .sheet(item: $rateTarget) { target in
+            RatingSheet(title: target.title, current: trakt.rating(meta: meta, videoId: target.videoId)) { value in
+                trakt.rate(meta: meta, videoId: target.videoId, rating: value)
+            }
         }
         .fullScreenCover(item: $playRequest) { req in
             PlayerScreen(request: req, settings: settings)
@@ -1261,6 +1297,14 @@ struct DetailView: View {
                     Button { showTrailer = true } label: { Label("Trailer", systemImage: "film") }
                         .buttonStyle(CircleIconButtonStyle())
                 }
+                if trakt.connected {
+                    // Star rating saved to Trakt, like the rating button on the other apps.
+                    let mine = trakt.rating(meta: meta, videoId: nil)
+                    Button { rateTarget = RateTarget(videoId: nil, title: meta.name) } label: {
+                        Label(mine.map { "Your rating \($0)/10" } ?? "Rate", systemImage: mine == nil ? "star" : "star.fill")
+                    }
+                    .buttonStyle(CircleIconButtonStyle(selected: mine != nil))
+                }
                 if meta.type != "movie", ordered.count > 1 {
                     // Episode shuffle, like the Android TV app: plays a random episode of the show.
                     Button {
@@ -1289,7 +1333,7 @@ struct DetailView: View {
                     .padding(.bottom, 24)
             }
             metaInfoRow
-            creditsLine
+            if extras.people.isEmpty { creditsLine }
         }
     }
 
@@ -1342,8 +1386,21 @@ struct DetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(seasons, id: \.self) { s in
-                        Button { season = s } label: { Text("Season \(s)") }
-                            .buttonStyle(ChipButtonStyle(selected: s == season))
+                        if let poster = extras.seasonPosters[s], settings.seasonPosters {
+                            // Season posters in the season tabs, like Android TV.
+                            Button { season = s } label: {
+                                VStack(spacing: 10) {
+                                    Artwork(url: poster).frame(width: 150, height: 225)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white, lineWidth: s == season ? 4 : 0))
+                                    Text("Season \(s)").font(.system(size: 22, weight: s == season ? .bold : .regular))
+                                }
+                            }
+                            .buttonStyle(.focusRing)
+                        } else {
+                            Button { season = s } label: { Text("Season \(s)") }
+                                .buttonStyle(ChipButtonStyle(selected: s == season))
+                        }
                     }
                 }
                 .padding(.vertical, 12)
@@ -1356,7 +1413,8 @@ struct DetailView: View {
                     ForEach(episodes) { ep in
                         Button { Task { await play(videoId: ep.id, title: ep.displayTitle) } } label: {
                             EpisodeCard(video: ep, fallback: meta.backgroundURL, watched: watched(ep),
-                                        progress: library.progress(for: ep.id), isNext: ep.id == nextUp?.id)
+                                        progress: library.progress(for: ep.id), isNext: ep.id == nextUp?.id,
+                                        rating: extras.episodeRatings[DetailExtras.ratingKey(ep.season, ep.episode)])
                         }
                         .buttonStyle(.focusRing)
                         .disabled(resolving)
@@ -1375,6 +1433,9 @@ struct DetailView: View {
                                 }
                             }
                             Button("Choose source") { Task { await play(videoId: ep.id, title: ep.displayTitle, forcePicker: true) } }
+                            if trakt.connected {
+                                Button("Rate episode") { rateTarget = RateTarget(videoId: ep.id, title: ep.displayTitle) }
+                            }
                         }
                         .id(ep.id)
                     }

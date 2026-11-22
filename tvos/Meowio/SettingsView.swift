@@ -195,6 +195,7 @@ struct SettingsView: View {
             Toggle("Show hero section", isOn: $settings.showHero)
             Toggle("Show Continue Watching", isOn: $settings.showContinueWatching)
             Toggle("Show poster labels", isOn: $settings.posterLabels)
+            Toggle("Season posters in season tabs", isOn: $settings.seasonPosters)
             Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
         }
         Section {
