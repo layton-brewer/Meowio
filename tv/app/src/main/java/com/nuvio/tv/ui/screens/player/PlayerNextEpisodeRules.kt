@@ -61,27 +61,20 @@ object PlayerNextEpisodeRules {
             val latestOutro = outroSegments.maxByOrNull { it.endTime }
             val postCreditsScene = latestOutro?.followingPostCreditsScene(skipIntervals, durationMs)
 
+            var guessedScene = false
             if (postCreditsScene != null) {
                 val sceneEndMs = (postCreditsScene.endTime * 1_000.0).toLong()
                     .coerceAtMost(durationMs)
                 val userTriggerMs = userThresholdPositionMs(
                     durationMs, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
                 )
-                val isHeuristic = postCreditsScene.provider == "heuristic"
-                val sceneDurationMs = sceneEndMs - (postCreditsScene.startTime * 1_000.0).toLong()
-                val userThresholdFromEndMs = durationMs - userTriggerMs
-                // A guessed "scene" shorter than the user's window is just the few seconds of logos after
-                // the credits, not a real post-credits scene: handle it like credits that run to the end
-                // (below). It used to return false here, so the Next Episode card never appeared at all
-                // for those episodes.
-                val shortGuessedScene = isHeuristic && sceneDurationMs < userThresholdFromEndMs
-                if (!shortGuessedScene) {
-                    return if (isHeuristic) {
-                        positionMs >= userTriggerMs
-                    } else {
-                        positionMs >= maxOf(sceneEndMs, userTriggerMs)
-                    }
+                // Only a real post-credits scene (marked by the data provider) holds the card back. A
+                // guessed one is just the gap between the credits' end and the file's end, so the card
+                // shows when the credits begin, like upstream Nuvio does for outro times.
+                if (postCreditsScene.provider != "heuristic") {
+                    return positionMs >= maxOf(sceneEndMs, userTriggerMs)
                 }
+                guessedScene = true
             }
 
             val latestOutroEndMs = (outroSegments.maxOf { it.endTime } * 1_000.0).toLong()
@@ -99,7 +92,7 @@ object PlayerNextEpisodeRules {
                 }
             }
 
-            return if (postOutroGapMs > userThresholdMs) {
+            return if (!guessedScene && postOutroGapMs > userThresholdMs) {
                 when (thresholdMode) {
                     NextEpisodeThresholdMode.PERCENTAGE -> {
                         val clampedPercent = thresholdPercent.coerceIn(97f, 100f)

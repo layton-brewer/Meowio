@@ -274,7 +274,8 @@ final class PlaybackController: ObservableObject {
         // Next Episode card for the last stretch of an episode.
         let remaining = lastDuration - lastSeconds
         let showUpNext = settings.upNextCard && request.nextEpisode != nil && !upNextDismissed && lastDuration > 300
-            && remaining > 0 && remaining <= min(45, lastDuration * 0.05 + 15)
+            && remaining > 0 && (remaining <= min(45, lastDuration * 0.05 + 15)
+                || skipSegments.contains(where: { $0.label == "Skip Credits" && lastSeconds >= $0.start && $0.start < lastDuration - 5 }))
         if showUpNext != upNextVisible { upNextVisible = showUpNext }
         // Skip button while an intro, recap or ending plays: from IntroDB/AniSkip times, else from mpv chapters.
         if settings.skipIntro {
