@@ -147,6 +147,15 @@ class PlayerNextEpisodeRulesTest {
     }
 
     @Test
+    fun `credits that end well before the file does still show the card when they begin`() {
+        // 45 min episode, credits run 40:00-43:00, then 2 min of extras: card at the credits start.
+        val durationMs = 45 * 60_000L
+        val skip = listOf(outro(startSec = 2_400.0, endSec = 2_580.0))
+        assertFalse(shouldShow(positionMs = 2_390_000L, durationMs = durationMs, skipIntervals = skip))
+        assertTrue(shouldShow(positionMs = 2_401_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
     fun `outro times from a longer release do not hide the card`() {
         // Outro starts after this file ends: fall back to the normal threshold.
         val durationMs = 40 * 60_000L
