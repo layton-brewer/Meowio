@@ -823,6 +823,7 @@ struct PlayerScreen: View {
     @Environment(\.dismiss) private var dismiss
     private let settings: SettingsStore
     @State private var bridge: PartyPlayerBridge?
+    @State private var contentWarnings: [ParentalGuide.Warning] = []
     /// A message with buttons is showing over the picture.
     private var blocked: Bool { controller.failedAll || controller.sleptMessage }
 
@@ -846,6 +847,15 @@ struct PlayerScreen: View {
                     HStack { Spacer(); PartyBadge(party: party) }
                     Spacer()
                 }
+            }
+            if !contentWarnings.isEmpty {
+                VStack {
+                    HStack { ParentalGuideOverlay(warnings: contentWarnings); Spacer() }
+                    Spacer()
+                }
+                .padding(60)
+                .allowsHitTesting(false)
+                .transition(.opacity)
             }
             if let status = controller.status {
                 VStack {
@@ -902,6 +912,17 @@ struct PlayerScreen: View {
             bridge?.stop()
             bridge = nil
             controller.stop()
+        }
+        .task {
+            // Content warnings once the picture starts, for a few seconds (Settings > Playback).
+            let req = controller.request
+            guard settings.contentWarnings, !req.isLive, req.tracked else { return }
+            let found = await ParentalGuide.warnings(for: req.meta.id)
+            guard !found.isEmpty else { return }
+            while controller.status != nil { try? await Task.sleep(nanoseconds: 500_000_000) }
+            withAnimation { contentWarnings = found }
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            withAnimation { contentWarnings = [] }
         }
     }
 }

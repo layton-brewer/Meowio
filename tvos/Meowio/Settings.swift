@@ -199,6 +199,8 @@ final class SettingsStore: ObservableObject {
     @Published var posterLabels: Bool { didSet { save() } }
     /// Season posters in the details page's season tabs (Android TV's Layout setting, off by default).
     @Published var seasonPosters: Bool { didSet { save() } }
+    /// Content warnings (parents guide) when playback starts, on by default like the other apps.
+    @Published var contentWarnings: Bool { didSet { save() } }
     /// Custom poster source URL pattern (see CustomPosterSource). Empty uses the add-on's posters.
     @Published var customPosterPattern: String { didSet { save() } }
     @Published var hideUnreleased: Bool { didSet { save() } }
@@ -268,6 +270,7 @@ final class SettingsStore: ObservableObject {
         showContinueWatching = d.object(forKey: "showContinueWatching") as? Bool ?? true
         posterLabels = d.object(forKey: "posterLabels") as? Bool ?? true
         seasonPosters = d.object(forKey: "seasonPosters") as? Bool ?? false
+        contentWarnings = d.object(forKey: "contentWarnings") as? Bool ?? true
         customPosterPattern = d.string(forKey: CustomPosterSource.key) ?? ""
         hideUnreleased = d.object(forKey: "hideUnreleased") as? Bool ?? false
         homeLayout = HomeLayout(rawValue: d.string(forKey: "homeLayout") ?? "") ?? .modern
@@ -312,6 +315,7 @@ final class SettingsStore: ObservableObject {
         d.set(showContinueWatching, forKey: "showContinueWatching")
         d.set(posterLabels, forKey: "posterLabels")
         d.set(seasonPosters, forKey: "seasonPosters")
+        d.set(contentWarnings, forKey: "contentWarnings")
         d.set(customPosterPattern, forKey: CustomPosterSource.key)
         d.set(hideUnreleased, forKey: "hideUnreleased")
         d.set(homeLayout.rawValue, forKey: "homeLayout")
