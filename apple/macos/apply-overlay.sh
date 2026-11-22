@@ -44,6 +44,12 @@ posters="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/
 perl -0pi -e 's/(\r?\n)(    item \{\r?\n        CustomPosterUrlRepository\.ensureLoaded\(\))/$1    item { RatingPosterKeySection(isTablet = isTablet) }$1$2/' "$posters"
 grep -q 'RatingPosterKeySection' "$posters" || { echo "Ratings on posters patch did not apply" >&2; exit 1; }
 
+# Cast and crew pages fall back to Trakt when TMDB has nothing (PersonDetailLoader.kt).
+person="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/details/PersonDetailScreen.kt"
+sed -i.bak 's|TmdbMetadataService\.fetchPersonDetail(|PersonDetailLoader.fetchPersonDetail(personName = personName, |' "$person"
+grep -q 'PersonDetailLoader.fetchPersonDetail' "$person" || { echo "Person page fallback patch did not apply" >&2; exit 1; }
+rm -f "$person.bak"
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \

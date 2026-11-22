@@ -1,7 +1,6 @@
 package com.nuvio.app.features.zap
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -239,18 +238,6 @@ fun ZapScreen(
                         Spacer(Modifier.padding(horizontal = 2.dp))
                         Text(if (saved) "Saved" else "Save")
                     }
-                }
-                if (history.isNotEmpty()) {
-                    Text(
-                        text = "Previous title",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(top = 4.dp)
-                            .clickable {
-                                if (history.isNotEmpty()) current = history.removeAt(history.lastIndex)
-                            },
-                    )
                 }
               }
             }

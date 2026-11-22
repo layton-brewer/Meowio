@@ -22,6 +22,7 @@ class CastDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tmdbMetadataService: TmdbMetadataService,
     private val tmdbSettingsDataStore: TmdbSettingsDataStore,
+    private val traktPeopleService: com.nuvio.tv.data.repository.TraktPeopleService,
     private val watchProgressRepository: com.nuvio.tv.domain.repository.WatchProgressRepository,
     private val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
     private val layoutPreferenceDataStore: com.nuvio.tv.data.local.LayoutPreferenceDataStore,
@@ -70,11 +71,26 @@ class CastDetailViewModel @Inject constructor(
     private fun loadPersonDetail() {
         viewModelScope.launch {
             try {
-                val detail = tmdbMetadataService.fetchPersonDetail(
-                    personId = personId,
-                    preferCrewCredits = preferCrew,
-                    language = tmdbSettingsDataStore.settings.first().language
-                )
+                // TMDB first, like Nuvio. Builds without a TMDB key (and cast members that have no
+                // TMDB id) fall back to Trakt's public people pages, so the page always loads.
+                val tmdbDetail = if (personId > 0) {
+                    runCatching {
+                        tmdbMetadataService.fetchPersonDetail(
+                            personId = personId,
+                            preferCrewCredits = preferCrew,
+                            language = tmdbSettingsDataStore.settings.first().language
+                        )
+                    }.getOrNull()
+                } else {
+                    null
+                }
+                val detail = tmdbDetail?.takeIf { it.movieCredits.isNotEmpty() || it.tvCredits.isNotEmpty() }
+                    ?: traktPeopleService.fetchPersonDetail(
+                        tmdbPersonId = personId,
+                        personName = personName,
+                        preferCrewCredits = preferCrew
+                    )
+                    ?: tmdbDetail
                 if (detail != null) {
                     val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
                     val enabledScreens = layoutPreferenceDataStore.customPosterEnabledScreens.first()

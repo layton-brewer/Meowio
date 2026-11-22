@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 env:
-  MEOWIO_TAG: v0.2.66
+  MEOWIO_TAG: v0.2.67
 
 permissions:
   contents: write

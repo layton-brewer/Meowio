@@ -173,7 +173,6 @@ fun ZapScreen(
                         null,
                         false
                     ) { showFilters = true }
-                    if (state.canGoBack) ZapButton("Previous", null, false) { viewModel.previous() }
                 }
                 if (state.empty != null && !state.loading) {
                     Text(

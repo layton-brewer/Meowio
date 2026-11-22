@@ -109,9 +109,10 @@ fun PersonDetailScreen(
 
     LaunchedEffect(personId) {
         uiState = PersonDetailUiState.Loading
-        val detail = TmdbMetadataService.fetchPersonDetail(
+        val detail = PersonDetailLoader.fetchPersonDetail(
             personId = personId,
             preferCrewCredits = preferCrew,
+            personName = personName,
         )
         uiState = if (detail != null) {
             val pattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
