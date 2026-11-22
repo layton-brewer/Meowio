@@ -787,11 +787,6 @@ private fun episodeListLabel(video: MetaVideo): String {
     return if (video.title.isNotBlank()) "$prefix · ${video.title}" else prefix
 }
 
-private fun episodeChoiceLabel(video: MetaVideo): String {
-    val prefix = if (video.season != null && video.episode != null) "S${video.season} E${video.episode}" else "Episode"
-    return if (video.title.isNotBlank()) "$prefix · ${video.title}" else prefix
-}
-
 // ---------------------------------------------------------------------------------------------
 // Quality choice
 // ---------------------------------------------------------------------------------------------
