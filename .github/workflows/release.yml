@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.69 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.70 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.69 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.70 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,16 +260,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.69"
+          tag="v0.2.70"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.69
+          ## What's new in 0.2.70
 
-          - **Android TV caught up with the latest Nuvio**: star ratings for titles and episodes (Trakt, Simkl, MDBList), season posters in the season tabs, a Movies/Series filter on cast pages, trailers with subtitles that carry on into the details page, drag-to-reorder for catalogs, add-ons and collections, Stremio tracking add-ons and optional audio-based subtitle sync.
-          - **Smarter failover on Android TV**: when the TV cannot decode a source (VC-1 or tunneled decoder errors) the next source plays instead of an error.
-          - **Phone and iPhone**: library filters by genre, year and watched status, a redesigned Downloads screen, episode ratings that match the add-on's episode order, Jellyfin and Emby sign-ins kept per profile, and a Trakt refresh fix.
-          - **Apple TV details page now matches Android TV**: cast with photos, the collection a film belongs to, studio and network logos, Trakt comments, episode ratings, star ratings saved to Trakt and optional season posters.
-          - **Content warnings on Apple TV**: the parents guide (nudity, violence, profanity, alcohol/drugs, frightening) shows when playback starts, like the other apps.
-          - TorBox cached torrents are detected correctly on every app.
+          - **Pick exactly which episodes to download** (phone, iPhone, iPad, Mac and Windows): the Download dialog now lists every episode of the season with a tick box, plus All and None, so you can grab one episode, a few, or the whole season (even from several seasons at once).
+          - **Season downloads never pull the whole torrent pack**: each episode is fetched from debrid as its own single file, so a 200 GB season pack only costs you the episodes you picked. Archives, wrong-episode files and anything far too big for one episode are skipped and the next best source is tried.
+          - The size limit is now checked against each episode's real file size instead of the pack's size, and the episodes show up grouped by season in Downloads.
 
           ## Download
 

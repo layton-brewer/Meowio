@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.ui.NuvioToastController
@@ -188,36 +190,54 @@ object AutoDownloader {
         }
     }
 
-    /**
-     * Downloads every given episode of a season, one after another. Season packs and the same
-     * release are preferred so the episodes match. At most three downloads run at once.
-     */
+    /** Downloads every given episode of a season. See [downloadEpisodes]. */
     fun downloadSeason(
         meta: MetaDetails,
         season: Int,
         episodes: List<MetaVideo>,
         options: DownloadOptions = DownloadPrefs.options(),
+    ) = downloadEpisodes(meta, episodes.filter { it.season == null || it.season == season }, options)
+
+    /**
+     * Downloads the chosen episodes, one after another, each as its own file. A season pack is
+     * never downloaded whole: debrid hands out every episode of a pack as a separate file, so for
+     * each episode only that one file is resolved and saved, and the Downloads screen groups them
+     * back into their season. The same release is preferred within a season so the episodes match,
+     * a failed episode switches to the next best source, and at most three downloads run at once.
+     */
+    fun downloadEpisodes(
+        meta: MetaDetails,
+        episodes: List<MetaVideo>,
+        options: DownloadOptions = DownloadPrefs.options(),
     ) {
-        val ordered = episodes.sortedBy { it.episode ?: Int.MAX_VALUE }
+        val ordered = episodes
+            .distinctBy { "${it.season}|${it.episode}|${it.id}" }
+            .sortedWith(compareBy<MetaVideo>({ it.season ?: Int.MAX_VALUE }, { it.episode ?: Int.MAX_VALUE }))
         if (ordered.isEmpty()) {
-            toast("No episodes available to download for season $season")
+            toast("No episodes selected to download")
             return
         }
-        val batchKey = "${meta.id}|season|$season"
+        val seasons = ordered.mapNotNull { it.season }.distinct()
+        val what = when {
+            seasons.size == 1 && ordered.size > 1 -> "${seasonName(seasons.single())} (${ordered.size} episodes)"
+            ordered.size == 1 -> episodeLabel(ordered.single())
+            else -> "${ordered.size} episodes"
+        }
+        val batchKey = "${meta.id}|batch|" + ordered.joinToString(",") { "${it.season}x${it.episode}" }
         scope.launch {
             val alreadyRunning = stateLock.withLock { !runningBatches.add(batchKey) }
             if (alreadyRunning) {
-                toast("Season $season is already being queued")
+                toast("$what is already being queued")
                 return@launch
             }
             try {
                 DownloadsRepository.ensureLoaded()
                 ensureWatcher()
-                toast("Queuing season $season (${ordered.size} episodes)…")
+                toast("Queuing $what…")
                 var queued = 0
                 var skipped = 0
                 var missing = 0
-                var bingeGroup: String? = null
+                val bingeGroups = mutableMapOf<Int?, String>()
                 for (video in ordered) {
                     val spec = episodeSpec(meta, video, options)
                     if (hasActiveOrDone(spec.key)) {
@@ -225,18 +245,18 @@ object AutoDownloader {
                         continue
                     }
                     waitForFreeSlot()
-                    val outcome = downloadOne(spec, preferredBingeGroup = bingeGroup)
+                    val outcome = downloadOne(spec, preferredBingeGroup = bingeGroups[video.season])
                     if (outcome != null) {
                         queued++
-                        if (bingeGroup == null) {
-                            bingeGroup = outcome.stream.behaviorHints.bingeGroup
+                        outcome.stream.behaviorHints.bingeGroup?.let { group ->
+                            bingeGroups.getOrPut(video.season) { group }
                         }
                     } else {
                         missing++
                     }
                 }
                 val message = buildString {
-                    append("Season $season: $queued episode${if (queued == 1) "" else "s"} downloading")
+                    append("$queued episode${if (queued == 1) "" else "s"} downloading")
                     if (skipped > 0) append(", $skipped already saved")
                     if (missing > 0) append(", $missing without a debrid or direct link")
                 }
@@ -246,6 +266,8 @@ object AutoDownloader {
             }
         }
     }
+
+    private fun seasonName(season: Int): String = if (season == 0) "Specials" else "Season $season"
 
     private fun episodeSpec(meta: MetaDetails, video: MetaVideo, options: DownloadOptions): Spec {
         val playbackVideoId = buildPlaybackVideoId(
@@ -298,7 +320,10 @@ object AutoDownloader {
             options = spec.options,
         )
         if (candidates.isEmpty()) return null
-        return enqueueFirstWorking(spec, candidates, attempts = 0)
+        // First only files that respect the size limit once their real size is known; if none
+        // does, the smallest sources are tried rather than failing outright.
+        return enqueueFirstWorking(spec, candidates, attempts = 0, strictSize = true)
+            ?: enqueueFirstWorking(spec, candidates, attempts = 0, strictSize = false)
     }
 
     private suspend fun findStreams(spec: Spec): List<StreamItem> = lookupMutex.withLock {
@@ -359,12 +384,22 @@ object AutoDownloader {
         )
         val ready = evaluation.readyStreams
         if (ready.isEmpty()) return ready
-        return applyQuality(ready, options)
+        return applyQuality(ready, options, isEpisode = isSeries)
     }
 
-    private suspend fun enqueueFirstWorking(spec: Spec, candidates: List<StreamItem>, attempts: Int): Chosen? {
+    private suspend fun enqueueFirstWorking(
+        spec: Spec,
+        candidates: List<StreamItem>,
+        attempts: Int,
+        strictSize: Boolean = false,
+    ): Chosen? {
         for ((index, candidate) in candidates.withIndex()) {
             val playable = playableStream(candidate, spec) ?: continue
+            val rejected = rejectReason(playable, spec, strictSize)
+            if (rejected != null) {
+                log.d { "Skipping a source for ${spec.key}: $rejected" }
+                continue
+            }
             val result = withContext(Dispatchers.Main) {
                 DownloadsRepository.enqueueFromStream(
                     contentType = spec.meta.type,
@@ -408,6 +443,41 @@ object AutoDownloader {
         return resolved.takeIf { url.isDownloadableUrl() }
     }
 
+    /**
+     * Checks the resolved file before it is downloaded. For an episode this is what keeps a whole
+     * season pack (or a zip of it) from ever being saved: only a single video file for exactly
+     * that episode is accepted.
+     */
+    private fun rejectReason(resolved: StreamItem, spec: Spec, strictSize: Boolean): String? {
+        val url = resolved.playableDirectUrl ?: return "no direct link"
+        val fileName = resolved.behaviorHints.filename?.takeIf { it.isNotBlank() }
+            ?: url.substringBefore('?').substringAfterLast('/')
+        if (ARCHIVE_REGEX.containsMatchIn(fileName) || ARCHIVE_REGEX.containsMatchIn(url.substringBefore('?'))) {
+            return "archive, not a single video file"
+        }
+        val size = resolved.behaviorHints.videoSize?.takeIf { it > 0L }
+        val season = spec.season
+        val episode = spec.episode
+        if (season != null && episode != null) {
+            val tags = EPISODE_TAG_REGEX.findAll(fileName).mapNotNull { match ->
+                val s = match.groupValues[1].ifEmpty { match.groupValues[3] }.toIntOrNull()
+                val e = match.groupValues[2].ifEmpty { match.groupValues[4] }.toIntOrNull()
+                if (s != null && e != null) s to e else null
+            }.toList()
+            if (tags.isNotEmpty() && tags.none { it.first == season && it.second == episode }) {
+                return "file is a different episode ($fileName)"
+            }
+            if (size != null && size > MAX_EPISODE_FILE_BYTES) {
+                return "file is too big to be one episode"
+            }
+        }
+        val cap = spec.options.maxSizeGb.takeIf { it > 0 }?.let { it * 1_073_741_824L }
+        if (strictSize && cap != null && size != null && size > cap) {
+            return "over the size limit"
+        }
+        return null
+    }
+
     /** When a download fails, quietly start the next best source for the same title. */
     private fun ensureWatcher() {
         if (watcherStarted) return
@@ -418,7 +488,8 @@ object AutoDownloader {
                     if (item.status != DownloadStatus.Failed) continue
                     val failover = stateLock.withLock { failovers.remove(item.logicalContentKey) } ?: continue
                     scope.launch {
-                        val chosen = enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts)
+                        val chosen = enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = true)
+                            ?: enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = false)
                         if (chosen == null) {
                             log.d { "No further sources to try for ${failover.spec.key}" }
                         }
@@ -437,6 +508,14 @@ object AutoDownloader {
     private const val MAX_PARALLEL = 3
     private const val MAX_FAILOVERS = 5
     private const val SEARCH_TIMEOUT_MS = 60_000L
+
+    /** No single episode is this big; a file this size is a pack or an archive of one. */
+    private const val MAX_EPISODE_FILE_BYTES = 40L * 1_073_741_824L
+    private val ARCHIVE_REGEX = Regex("""\.(zip|rar|7z|tar|gz|iso)$""", RegexOption.IGNORE_CASE)
+    private val EPISODE_TAG_REGEX = Regex(
+        """(?<![a-z0-9])(?:s(\d{1,2})[ ._-]?e(\d{1,3})|(\d{1,2})x(\d{2,3}))(?![0-9])""",
+        RegexOption.IGNORE_CASE,
+    )
 }
 
 private fun String.isDownloadableUrl(): Boolean {
@@ -452,8 +531,8 @@ private fun String.isDownloadableUrl(): Boolean {
 val LocalDownloadAction = compositionLocalOf<(() -> Unit)?> { null }
 
 /**
- * The download dialog: quality and size limit for everything, plus This episode / Entire season
- * for series. The choices are remembered as the default for next time.
+ * The download dialog: quality and size limit for everything, plus a season picker and a
+ * tick list of that season's episodes for series (All / None picks the whole season). The choices are remembered as the default for next time.
  */
 @Composable
 fun DownloadChoiceDialog(
@@ -480,9 +559,21 @@ fun DownloadChoiceDialog(
         meta.releasedEpisodesForSeason(seasonNumber = season, todayIsoDate = todayIsoDate)
             .sortedBy { it.episode ?: Int.MAX_VALUE }
     }
-    val singleEpisode = remember(preferredEpisode, seasonEpisodes, season) {
-        preferredEpisode?.takeIf { it.season == season } ?: seasonEpisodes.firstOrNull()
+    // Picked episodes, by key, across every season, so several seasons can be queued at once.
+    var selected by remember(meta.id) {
+        mutableStateOf(setOfNotNull(preferredEpisode?.let(::episodeKey)))
     }
+    val downloads by DownloadsRepository.uiState.collectAsState()
+    val savedKeys = remember(downloads, meta.id) {
+        downloads.items
+            .filter { it.parentMetaId.trim() == meta.id.trim() && it.status != DownloadStatus.Failed }
+            .mapNotNull { item -> item.seasonNumber?.let { s -> item.episodeNumber?.let { e -> "$s|$e" } } }
+            .toSet()
+    }
+    val allEpisodes = remember(meta, seasons, season, todayIsoDate) {
+        (seasons + season).distinct().sorted().flatMap { meta.releasedEpisodesForSeason(seasonNumber = it, todayIsoDate = todayIsoDate) }
+    }
+    val pickedEpisodes = allEpisodes.filter { episodeKey(it) in selected }
 
     fun options(): DownloadOptions {
         DownloadPrefs.save(quality, maxSizeGb, askEachTime)
@@ -563,25 +654,98 @@ fun DownloadChoiceDialog(
                             }
                         }
                     }
-                    DownloadChoiceRow(
-                        title = "This episode",
-                        subtitle = singleEpisode?.let { episodeChoiceLabel(it) } ?: "No episode available",
-                        enabled = singleEpisode != null,
-                        onClick = {
-                            singleEpisode?.let { AutoDownloader.downloadEpisode(meta, it, options()) }
-                            onDismiss()
-                        },
+                    val seasonKeys = seasonEpisodes.map(::episodeKey)
+                    val pickedInSeason = seasonKeys.count { it in selected }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Episodes · $pickedInSeason of ${seasonEpisodes.size}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            onClick = { selected = selected + seasonKeys },
+                            enabled = seasonEpisodes.isNotEmpty() && pickedInSeason < seasonEpisodes.size,
+                        ) { Text("All") }
+                        TextButton(
+                            onClick = { selected = selected - seasonKeys.toSet() },
+                            enabled = pickedInSeason > 0,
+                        ) { Text("None") }
+                    }
+                    if (seasonEpisodes.isEmpty()) {
+                        Text(
+                            text = "No released episodes in this season yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        seasonEpisodes.forEach { video ->
+                            val key = episodeKey(video)
+                            val checked = key in selected
+                            val alreadySaved = "${video.season}|${video.episode}" in savedKeys
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selected = if (checked) selected - key else selected + key },
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            ) {
+                                Checkbox(
+                                    checked = checked,
+                                    onCheckedChange = { on -> selected = if (on) selected + key else selected - key },
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = episodeListLabel(video),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (alreadySaved) {
+                                        Text(
+                                            text = "Already in Downloads",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Text(
+                        text = "Each episode is saved as its own file from debrid, never the whole season pack, " +
+                            "and grouped by season in Downloads.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    val pickedSeasons = pickedEpisodes.mapNotNull { it.season }.distinct()
+                    val wholeSeason = pickedSeasons.size == 1 &&
+                        pickedEpisodes.size > 1 &&
+                        allEpisodes.count { it.season == pickedSeasons.single() } == pickedEpisodes.size
                     DownloadChoiceRow(
-                        title = "Entire season",
-                        subtitle = if (seasonEpisodes.isEmpty()) {
-                            "No released episodes"
-                        } else {
-                            "${if (season == 0) "Specials" else "Season $season"} · ${seasonEpisodes.size} episode${if (seasonEpisodes.size == 1) "" else "s"}"
+                        title = when {
+                            pickedEpisodes.isEmpty() -> "Pick episodes to download"
+                            wholeSeason -> "Download ${if (pickedSeasons.single() == 0) "Specials" else "Season ${pickedSeasons.single()}"}"
+                            pickedEpisodes.size == 1 -> "Download this episode"
+                            else -> "Download ${pickedEpisodes.size} episodes"
                         },
-                        enabled = seasonEpisodes.isNotEmpty(),
+                        subtitle = when {
+                            pickedEpisodes.isEmpty() -> "Tick one or more episodes above"
+                            pickedEpisodes.size == 1 -> episodeChoiceLabel(pickedEpisodes.single())
+                            pickedSeasons.size > 1 -> "${pickedEpisodes.size} episodes from ${pickedSeasons.size} seasons"
+                            else -> "${pickedEpisodes.size} episodes · one file each"
+                        },
+                        enabled = pickedEpisodes.isNotEmpty(),
                         onClick = {
-                            AutoDownloader.downloadSeason(meta, season, seasonEpisodes, options())
+                            val opts = options()
+                            if (pickedEpisodes.size == 1) {
+                                AutoDownloader.downloadEpisode(meta, pickedEpisodes.single(), opts)
+                            } else {
+                                AutoDownloader.downloadEpisodes(meta, pickedEpisodes, opts)
+                            }
                             onDismiss()
                         },
                     )
@@ -610,6 +774,13 @@ private fun ChipGroup(title: String, content: @Composable () -> Unit) {
             content()
         }
     }
+}
+
+private fun episodeKey(video: MetaVideo): String = "${video.season}|${video.episode}|${video.id}"
+
+private fun episodeListLabel(video: MetaVideo): String {
+    val prefix = video.episode?.let { "E$it" } ?: "Episode"
+    return if (video.title.isNotBlank()) "$prefix · ${video.title}" else prefix
 }
 
 private fun episodeChoiceLabel(video: MetaVideo): String {
@@ -710,10 +881,17 @@ private fun StreamItem.qualityText(): String = listOfNotNull(
 private fun StreamItem.heightOrNull(): Int? =
     com.nuvio.app.features.streams.StreamSmartRanker.parseHeightText(qualityText())
 
-/** File size in bytes when the source reports it (add-on hint or a size printed in its text). */
-internal fun StreamItem.reportedSizeBytes(): Long? {
+/**
+ * File size in bytes when the source reports it (add-on hint or a size printed in its text). For an
+ * episode inside a season pack the printed size is usually the whole pack's, so it is not used:
+ * the real file size is checked once the episode's own file has been resolved.
+ */
+internal fun StreamItem.reportedSizeBytes(isEpisode: Boolean = false): Long? {
     behaviorHints.videoSize?.takeIf { it > 0L }?.let { return it }
-    val match = SIZE_REGEX.find(qualityText()) ?: return null
+    clientResolve?.stream?.raw?.size?.takeIf { it > 0L }?.let { return it }
+    val text = qualityText()
+    if (isEpisode && com.nuvio.app.features.streams.StreamSmartRanker.isSeasonPack(this, text)) return null
+    val match = SIZE_REGEX.find(text) ?: return null
     val value = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
     val unit = match.groupValues[2].lowercase()
     val multiplier = if (unit.startsWith("g")) 1_073_741_824.0 else 1_048_576.0
@@ -740,7 +918,7 @@ private fun describeStream(stream: StreamItem): String {
  * limit are dropped while any that fit remain; if none fit, the smallest ones are tried instead of
  * failing outright.
  */
-private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions): List<StreamItem> {
+private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions, isEpisode: Boolean): List<StreamItem> {
     val maxHeight = options.quality.maxHeight ?: 2160
     val sizeCap = options.maxSizeGb.takeIf { it > 0 }?.let { it * 1_073_741_824L }
     val smart = options.quality == DownloadQuality.SMALLEST_GOOD
@@ -761,11 +939,11 @@ private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions): Li
     }
 
     if (sizeCap != null) {
-        val withinSize = pool.filter { (it.reportedSizeBytes() ?: 0L) <= sizeCap }
+        val withinSize = pool.filter { (it.reportedSizeBytes(isEpisode) ?: 0L) <= sizeCap }
         pool = if (withinSize.isNotEmpty()) {
             withinSize
         } else {
-            pool.sortedBy { it.reportedSizeBytes() ?: Long.MAX_VALUE }
+            pool.sortedBy { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE }
         }
     }
 
@@ -773,7 +951,7 @@ private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions): Li
         // Same resolution as the best pick: prefer the smaller file.
         val bestHeight = pool.first().heightOrNull()
         val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
-        pool = sameHeight.sortedBy { it.reportedSizeBytes() ?: Long.MAX_VALUE } + others
+        pool = sameHeight.sortedBy { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE } + others
     }
     return pool
 }
