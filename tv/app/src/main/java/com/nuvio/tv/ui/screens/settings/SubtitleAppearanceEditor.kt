@@ -236,8 +236,8 @@ private fun SubtitleAppearanceControls(
                         title = stringResource(R.string.sub_outline_width),
                         value = style.outlineWidth,
                         valueText = style.outlineWidth.toString(),
-                        minValue = 1,
-                        maxValue = 5,
+                        minValue = SubtitleStyleSettings.OUTLINE_WIDTH_MIN,
+                        maxValue = SubtitleStyleSettings.OUTLINE_WIDTH_MAX,
                         step = 1,
                         onValueChange = { width -> onUpdate { setSubtitleOutlineWidth(width) } }
                     )

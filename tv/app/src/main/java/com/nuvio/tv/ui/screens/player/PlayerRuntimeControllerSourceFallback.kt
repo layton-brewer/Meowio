@@ -57,6 +57,24 @@ internal fun PlayerRuntimeController.scheduleSourceStartupTimeout() {
  */
 private const val SMART_FAILOVER_EXTRA_STARTUP_WAIT_MS = 5_000L
 
+/**
+ * Starts the fallback over for a stream that replaced the playing one in place, such as the next
+ * episode. Only a stream auto source selection picked falls back, [autoSelection] then holds the
+ * sources tried before it, and the count belongs to the episode the sources were tried for.
+ */
+internal fun PlayerRuntimeController.restartSourceFallback(
+    playbackUrl: String,
+    autoSelection: SourceFallbackHandoff.TriedSources?
+) {
+    sourceFallbackJob?.cancel()
+    autoSelectedSourceUrl = playbackUrl.takeIf { url ->
+        autoSelection != null && url.isNotBlank() && !url.startsWith("torrent://")
+    }
+    sourceFallbackAttempts = autoSelection?.attempts ?: 0
+    sourceFallbackTriedKeys.clear()
+    autoSelection?.let { tried -> sourceFallbackTriedKeys += tried.keys }
+}
+
 /** Shows [errorMessage] as the playback error unless the next matching source is tried instead. */
 internal fun PlayerRuntimeController.showErrorUnlessSourceFallback(errorMessage: String) {
     if (tryFallbackToNextSourceAfterError(errorMessage)) return
@@ -80,7 +98,7 @@ internal fun PlayerRuntimeController.showErrorUnlessSourceFallback(errorMessage:
 internal fun PlayerRuntimeController.tryFallbackToNextSourceAfterError(errorMessage: String): Boolean {
     if (sourceFallbackJob?.isActive == true) return true
     if (!streamAutoPlayFallbackActive || autoSwitchInternalPlayerOnErrorEnabled) return false
-    if (hasRenderedFirstFrame) return false
+    if (hasRenderedFirstFrame && !tunneledFirstFrameAssumed) return false
     val failedUrl = currentStreamUrl
     if (failedUrl.isBlank() || failedUrl != autoSelectedSourceUrl) return false
     if (sourceFallbackAttempts >= streamAutoPlayFallbackMaxSources) {
