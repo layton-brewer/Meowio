@@ -74,7 +74,7 @@ class LocalDebridService @Inject constructor(
             } else {
                 // TorBox can answer under an alternative hash (the item's own "hash" field, or the
                 // map key, may differ from the one asked for): match either back to the request.
-                val requested = normalizedHashes.toSet()
+                val requested = hashes.normalizedHashes().toSet()
                 buildMap {
                     body?.data.orEmpty().forEach { (key, value) ->
                         val item = LocalDebridCachedItem(name = value.name, size = value.size)

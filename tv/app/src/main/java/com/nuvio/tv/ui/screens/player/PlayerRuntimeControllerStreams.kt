@@ -2444,57 +2444,6 @@ private suspend fun PlayerRuntimeController.resolveNextEpisodeStream(
     )
 }
 
-/**
- * Resolves the stream auto-play picked for the next episode.
- *
- * When its debrid result cannot be played and falling back to the next matching source is on, the
- * next stream the selection would pick from [streams] is resolved instead, up to the configured
- * number of further sources, the way the stream screen falls back. Only when none resolves does the
- * episode's source list open. The run says which sources were tried, so the fallback in the player
- * goes on from them if the stream that resolved fails to start.
- */
-private suspend fun PlayerRuntimeController.resolveNextEpisodeStream(
-    selected: Stream,
-    nextVideo: Video,
-    streams: List<Stream>
-): AutoPlayFallbackRun<Stream, Unit> {
-    val settings = playerSettingsDataStore.playerSettings.first()
-    if (!settings.streamAutoPlayFallbackActive) {
-        return AutoPlayFallbackRun(
-            resolved = resolveDirectDebridStreamIfNeeded(selected, nextVideo.season, nextVideo.episode),
-            failure = null,
-            triedKeys = setOf(selected.sourceFallbackKey()),
-            attempts = 0
-        )
-    }
-    val installedAddonNames = streamAddonsFor(nextVideo.id).map { addon -> addon.displayName }.toSet()
-    return resolveWithSourceFallback<Stream, Unit>(
-        first = selected,
-        maxSources = settings.streamAutoPlayFallbackMaxSources,
-        resolve = { candidate ->
-            resolveDirectDebridStreamIfNeeded(candidate, nextVideo.season, nextVideo.episode)
-                ?.let { resolved -> AutoPlayResolveAttempt.Resolved(resolved) }
-                ?: AutoPlayResolveAttempt.Failed(Unit)
-        },
-        nextCandidate = { failed, triedKeys ->
-            nextSourceFallbackCandidate(
-                streams = streams,
-                settings = settings,
-                installedAddonNames = installedAddonNames,
-                triedKeys = triedKeys,
-                failedAddonName = failed.addonName,
-                failedInfoHash = failed.getEffectiveInfoHash()
-            )?.also { next ->
-                Log.i(
-                    PlayerRuntimeController.TAG,
-                    "Next episode source from ${failed.addonName} could not be resolved, " +
-                        "falling back to ${next.name ?: next.addonName} from ${next.addonName}"
-                )
-            }
-        }
-    )
-}
-
 private fun PlayerRuntimeController.playNextCloudLibraryFile(
     nextVideo: Video,
     userInitiated: Boolean

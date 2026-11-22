@@ -2265,7 +2265,6 @@ internal data class TmdbDiscoverResult(
 )
 
 /** TMDB "Talk" genre. Guest spots on talk shows flood an actor's filmography, so they are hidden (hosts stay). */
-private const val TMDB_TALK_GENRE_ID = 10767
 
 private fun List<TmdbPersonCreditCast>.withoutTalkShowGuestSpots(): List<TmdbPersonCreditCast> =
     filterNot { credit ->

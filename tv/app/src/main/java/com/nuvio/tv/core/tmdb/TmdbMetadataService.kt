@@ -1865,7 +1865,6 @@ internal fun resolveDisplayLabel(
 }
 
 /** TMDB "Talk" genre. Guest spots on talk shows flood an actor's filmography, so they are hidden (hosts stay). */
-private const val TMDB_TALK_GENRE_ID = 10767
 
 internal fun List<com.nuvio.tv.data.remote.api.TmdbPersonCreditCast>.withoutTalkShowGuestSpots() =
     filterNot { credit ->
