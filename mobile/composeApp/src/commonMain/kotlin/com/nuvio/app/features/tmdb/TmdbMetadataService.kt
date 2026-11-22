@@ -2141,7 +2141,6 @@ private data class TmdbPersonCreditCast(
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double? = null,
     val popularity: Double? = null,
-    @SerialName("genre_ids") val genreIds: List<Int>? = null,
 )
 
 @Serializable
