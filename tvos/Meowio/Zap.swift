@@ -362,9 +362,6 @@ struct ZapView: View {
                 Button { showFilters = true } label: {
                     Label(filters.activeCount == 0 ? "Filters" : "Filters (\(filters.activeCount))", systemImage: "line.3.horizontal.decrease")
                 }
-                if !history.isEmpty {
-                    Button { current = history.removeLast() } label: { Label("Previous", systemImage: "backward.fill") }
-                }
             }
             .padding(.top, 8)
             if empty != nil, !loading {

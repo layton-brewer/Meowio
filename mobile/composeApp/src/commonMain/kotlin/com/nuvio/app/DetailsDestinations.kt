@@ -86,8 +86,9 @@ internal fun DetailsDestination(
         onPlayManually = onPlayManually,
         onOpenMeta = onOpenMeta,
         onCastClick = { person, avatarTransitionKey ->
-            val tmdbId = person.tmdbId
-            if (tmdbId != null && tmdbId > 0) {
+            // Cast without a TMDB id still opens: the person page looks them up by name.
+            val tmdbId = person.tmdbId ?: 0
+            if (person.name.isNotBlank()) {
                 navController.navigate(
                     PersonDetailRoute(
                         personId = tmdbId,

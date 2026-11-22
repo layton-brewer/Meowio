@@ -43,6 +43,17 @@ class TraktRelatedService @Inject constructor(
 
     private val cache = ConcurrentHashMap<String, TimedCache>()
 
+    fun isAvailable(): Boolean = traktAuthService.hasRequiredCredentials()
+
+    /** Related titles are public on Trakt, so a signed-out user still gets them with the app's key. */
+    private suspend fun <T> traktRequest(
+        call: suspend (authorizationHeader: String?) -> retrofit2.Response<T>
+    ): retrofit2.Response<T>? {
+        traktAuthService.executeAuthorizedRequest { header -> call(header) }?.let { return it }
+        if (!traktAuthService.hasRequiredCredentials()) return null
+        return traktAuthService.executePublicRequest { call(null) }
+    }
+
     suspend fun getRelated(
         meta: Meta,
         fallbackItemId: String? = null,
@@ -68,7 +79,7 @@ class TraktRelatedService @Inject constructor(
 
         val items = when (target.type) {
             TraktRelatedType.MOVIE -> {
-                val response = traktAuthService.executeAuthorizedRequest { authHeader ->
+                val response = traktRequest { authHeader ->
                     traktApi.getMovieRelated(
                         authorization = authHeader,
                         id = target.pathId,
@@ -90,7 +101,7 @@ class TraktRelatedService @Inject constructor(
             }
 
             TraktRelatedType.SHOW -> {
-                val response = traktAuthService.executeAuthorizedRequest { authHeader ->
+                val response = traktRequest { authHeader ->
                     traktApi.getShowRelated(
                         authorization = authHeader,
                         id = target.pathId,
@@ -129,7 +140,7 @@ class TraktRelatedService @Inject constructor(
         }
 
         val tmdbId = resolveTmdbCandidate(meta = meta, fallbackItemId = fallbackItemId) ?: return null
-        val searchResponse = traktAuthService.executeAuthorizedRequest { authHeader ->
+        val searchResponse = traktRequest { authHeader ->
             traktApi.searchById(
                 authorization = authHeader,
                 idType = "tmdb",

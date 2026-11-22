@@ -1293,6 +1293,7 @@ class TmdbMetadataService(
             val normalizedLanguage = normalizeTmdbLanguage(language)
             val cacheKey = "$personId:${preferCrewCredits?.toString() ?: "auto"}:$normalizedLanguage"
             personCache[cacheKey]?.let { return@withContext it }
+            if (TMDB_API_KEY.isBlank()) return@withContext null
 
             try {
                 val (person, credits) = coroutineScope {

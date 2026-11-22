@@ -58,6 +58,9 @@ class SharedSourcesTest(unittest.TestCase):
         self.posters = src / "commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
         self.posters.parent.mkdir(parents=True, exist_ok=True)
         self.posters.write_text("fun x() {\n    item {\n        CustomPosterUrlRepository.ensureLoaded()\n    }\n}\n")
+        self.person = src / "commonMain/kotlin/com/nuvio/app/features/details/PersonDetailScreen.kt"
+        self.person.parent.mkdir(parents=True, exist_ok=True)
+        self.person.write_text("        val detail = TmdbMetadataService.fetchPersonDetail(\n            personId = personId,\n        )\n")
         (self.desktop / "composeApp/build.gradle.kts").write_text(
             'packageName = "Nuvio"\nbundleID = "com.nuvio.media.desktop"\nTargetFormat.Msi,\n'
         )
@@ -85,6 +88,7 @@ class SharedSourcesTest(unittest.TestCase):
         self.assertIn("DownloadLocation.directory()", self.downloader.read_text())
         self.assertIn("withShowLevelFallbacks", self.home.read_text())
         self.assertIn("RatingPosterKeySection", self.posters.read_text())
+        self.assertIn("PersonDetailLoader.fetchPersonDetail(personName = personName, ", self.person.read_text())
         gradle = (self.desktop / "composeApp/build.gradle.kts").read_text()
         self.assertIn('packageName = "Meowio"', gradle)
         self.assertIn("TargetFormat.Exe", gradle)

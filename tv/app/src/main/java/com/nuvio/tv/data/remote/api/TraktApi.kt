@@ -25,6 +25,10 @@ import com.nuvio.tv.data.remote.dto.trakt.TraktRevokeRequestDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktScrobbleRequestDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktScrobbleResponseDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktSearchResultDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktPersonDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktPersonMovieCreditsDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktPersonSearchResultDto
+import com.nuvio.tv.data.remote.dto.trakt.TraktPersonShowCreditsDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktSeasonDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktShowDto
 import com.nuvio.tv.data.remote.dto.trakt.TraktShowProgressResponseDto
@@ -215,9 +219,42 @@ interface TraktApi {
         @Query("limit") limit: Int = 20
     ): Response<List<TraktShowDto>>
 
+    // People lookups are public: they only need the app's trakt-api-key, not a signed-in user.
+    @GET("search/tmdb/{id}")
+    suspend fun searchPersonByTmdbId(
+        @Path("id") id: String,
+        @Query("type") type: String = "person",
+        @Query("extended") extended: String = "full,images"
+    ): Response<List<TraktPersonSearchResultDto>>
+
+    @GET("search/person")
+    suspend fun searchPeople(
+        @Query("query") query: String,
+        @Query("extended") extended: String = "full,images",
+        @Query("limit") limit: Int = 5
+    ): Response<List<TraktPersonSearchResultDto>>
+
+    @GET("people/{id}")
+    suspend fun getPerson(
+        @Path("id") id: String,
+        @Query("extended") extended: String = "full,images"
+    ): Response<TraktPersonDto>
+
+    @GET("people/{id}/movies")
+    suspend fun getPersonMovies(
+        @Path("id") id: String,
+        @Query("extended") extended: String = "full,images"
+    ): Response<TraktPersonMovieCreditsDto>
+
+    @GET("people/{id}/shows")
+    suspend fun getPersonShows(
+        @Path("id") id: String,
+        @Query("extended") extended: String = "full,images"
+    ): Response<TraktPersonShowCreditsDto>
+
     @GET("search/{id_type}/{id}")
     suspend fun searchById(
-        @Header("Authorization") authorization: String,
+        @Header("Authorization") authorization: String?,
         @Path("id_type") idType: String,
         @Path("id") id: String,
         @Query("type") type: String

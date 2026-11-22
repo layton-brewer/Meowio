@@ -1117,6 +1117,7 @@ struct DetailView: View {
     @State private var didAutoplay = false
     @State private var trailerURL: URL?
     @State private var showTrailer = false
+    @State private var moreLikeThis: [MetaItem] = []
     @FocusState private var playFocused: Bool
 
     struct PickerState: Identifiable {
@@ -1149,6 +1150,10 @@ struct DetailView: View {
                         heroSection
                             .frame(minHeight: geo.size.height - (meta.type == "movie" ? 0 : 170), alignment: .bottomLeading)
                         if meta.type != "movie" { episodesSection.padding(.top, 40) }
+                        // Under the cast, like the other apps: similar movies and shows.
+                        Shelf(title: "More like this", items: moreLikeThis)
+                            .padding(.top, 40)
+                            .padding(.horizontal, 96 - CardMetrics.rowInset)
                     }
                     .padding(.horizontal, 96)
                     .padding(.bottom, 80)
@@ -1184,6 +1189,10 @@ struct DetailView: View {
             guard let loaded = full else { return }
             trailerURL = await Trailers.playableURL(for: loaded)
         }
+        .task(id: item.id) {
+            guard !MediaServerStore.isServerId(item.id) else { return }
+            moreLikeThis = await Self.similarTitles(to: item)
+        }
         .fullScreenCover(item: $playRequest) { req in
             PlayerScreen(request: req, settings: settings)
         }
@@ -1196,6 +1205,20 @@ struct DetailView: View {
                 start(videoId: state.videoId, title: state.title, candidates: chosen)
             }
         }
+    }
+
+    /// Trakt's related titles (public, built-in key), else TMDB recommendations when a TMDB key is set.
+    nonisolated static func similarTitles(to item: MetaItem) async -> [MetaItem] {
+        let related = await TraktPublic.related(to: item)
+        if !related.isEmpty { return related.filter { $0.id != item.id } }
+        let imdb = String(item.id.split(separator: ":").first ?? "")
+        guard TMDB.available, imdb.hasPrefix("tt"),
+              let found = await TMDB.get("/find/\(imdb)", ["external_source": "imdb_id"]) else { return [] }
+        let media = item.type == "movie" ? "movie" : "tv"
+        let match = (found[media == "movie" ? "movie_results" : "tv_results"] as? [[String: Any]])?.first
+        guard let id = match?["id"] as? Int,
+              let recs = (await TMDB.get("/\(media)/\(id)/recommendations"))?["results"] as? [[String: Any]] else { return [] }
+        return await CollectionsStore.withImdbIds(Array(recs.prefix(20)), defaultMedia: media)
     }
 
     @ViewBuilder private var heroSection: some View {
@@ -1277,7 +1300,7 @@ struct DetailView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
                     ForEach(Array(people.enumerated()), id: \.offset) { _, person in
-                        NavigationLink(value: CastRoute(name: person.0)) {
+                        NavigationLink(value: CastRoute(name: person.0, crew: !person.1.isEmpty)) {
                             Text(person.1.isEmpty ? person.0 : "\(person.0) · \(person.1)")
                         }
                         .buttonStyle(ChipButtonStyle(selected: false))
@@ -1657,15 +1680,19 @@ struct GridSection: View {
 
 struct CastRoute: Hashable {
     var name: String
+    /// Directors and writers: their page lists what they made rather than acted in.
+    var crew: Bool = false
 }
 
-/// Android TV's cast page: the person's photo and biography, and the films and shows they are known for (from TMDB).
+/// Android TV's cast page: the person's photo and biography, and the films and shows they are known for.
+/// TMDB when a key is set, else Trakt's public people pages (the built-in Trakt key, no sign-in needed).
 struct CastView: View {
     let route: CastRoute
     @State private var photo: URL?
     @State private var biography = ""
     @State private var knownFor: [MetaItem] = []
     @State private var loading = true
+    @State private var failed = false
 
     var body: some View {
         ScrollView {
@@ -1676,17 +1703,17 @@ struct CastView: View {
                         .clipShape(RoundedRectangle(cornerRadius: CardMetrics.radius))
                     VStack(alignment: .leading, spacing: 20) {
                         Text(route.name).font(.system(size: 56, weight: .bold))
-                        if !TMDB.available {
-                            Text("Cast pages need a TMDB key. Add one in Settings > Layout.").foregroundStyle(.secondary)
-                        } else if !biography.isEmpty {
+                        if !biography.isEmpty {
                             Text(biography).font(.system(size: 24)).foregroundStyle(.secondary).lineLimit(9)
+                        } else if failed {
+                            Text("Couldn't load what \(route.name) is in. Check your connection and try again.").foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: 1100, alignment: .leading)
                 }
                 .padding(.horizontal, CardMetrics.rowInset)
                 .focusable(knownFor.isEmpty)
-                if loading && TMDB.available {
+                if loading {
                     ProgressView().padding(.leading, CardMetrics.rowInset)
                 }
                 PosterGrid(title: "Known for", items: knownFor)
@@ -1694,29 +1721,43 @@ struct CastView: View {
             .padding(.vertical, 60)
         }
         .task {
-            guard TMDB.available else { loading = false; return }
-            guard let person = (await TMDB.get("/search/person", ["query": route.name]))?["results"] as? [[String: Any]],
-                  let first = person.first, let id = first["id"] as? Int else { loading = false; return }
-            photo = TMDB.imageURL(first["profile_path"] as? String, size: "w500").flatMap(URL.init(string:))
-            async let details = TMDB.get("/person/\(id)")
-            async let credits = TMDB.get("/person/\(id)/combined_credits")
-            biography = (await details)?["biography"] as? String ?? ""
-            // Talk-show guest spots (TMDB genre 10767) flood filmographies; hide them, keep hosts.
-            let cast = ((await credits)?["cast"] as? [[String: Any]] ?? []).filter { row in
-                let talk = (row["genre_ids"] as? [Int] ?? []).contains(10767)
-                let host = (row["character"] as? String ?? "").localizedCaseInsensitiveContains("host")
-                return !((row["media_type"] as? String) == "tv" && talk && !host)
+            if TMDB.available { await loadFromTmdb() }
+            if knownFor.isEmpty, let person = await TraktPublic.person(named: route.name, preferCrew: route.crew) {
+                if photo == nil { photo = person.photo.flatMap(URL.init(string:)) }
+                if biography.isEmpty { biography = person.biography }
+                knownFor = person.knownFor
             }
-            var seen = Set<Int>()
-            let ranked = cast.sorted { ($0["popularity"] as? Double ?? 0) > ($1["popularity"] as? Double ?? 0) }
-                .filter { row in
-                    guard let id = row["id"] as? Int, !seen.contains(id) else { return false }
-                    seen.insert(id)
-                    return true
-                }
-            knownFor = await CollectionsStore.withImdbIds(Array(ranked.prefix(40)), defaultMedia: "movie")
+            failed = knownFor.isEmpty && biography.isEmpty
             loading = false
         }
+    }
+
+    private func loadFromTmdb() async {
+        guard let person = (await TMDB.get("/search/person", ["query": route.name]))?["results"] as? [[String: Any]],
+              let first = person.first, let id = first["id"] as? Int else { return }
+        photo = TMDB.imageURL(first["profile_path"] as? String, size: "w500").flatMap(URL.init(string:))
+        async let details = TMDB.get("/person/\(id)")
+        async let credits = TMDB.get("/person/\(id)/combined_credits")
+        biography = (await details)?["biography"] as? String ?? ""
+        let creditRows = await credits
+        // Talk-show guest spots (TMDB genre 10767) flood filmographies; hide them, keep hosts.
+        var rows = (creditRows?["cast"] as? [[String: Any]] ?? []).filter { row in
+            let talk = (row["genre_ids"] as? [Int] ?? []).contains(10767)
+            let host = (row["character"] as? String ?? "").localizedCaseInsensitiveContains("host")
+            return !((row["media_type"] as? String) == "tv" && talk && !host)
+        }
+        if route.crew || rows.isEmpty {
+            let crew = creditRows?["crew"] as? [[String: Any]] ?? []
+            if !crew.isEmpty { rows = crew }
+        }
+        var seen = Set<Int>()
+        let ranked = rows.sorted { ($0["popularity"] as? Double ?? 0) > ($1["popularity"] as? Double ?? 0) }
+            .filter { row in
+                guard let id = row["id"] as? Int, !seen.contains(id) else { return false }
+                seen.insert(id)
+                return true
+            }
+        knownFor = await CollectionsStore.withImdbIds(Array(ranked.prefix(40)), defaultMedia: "movie")
     }
 }
 

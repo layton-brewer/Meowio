@@ -2726,13 +2726,13 @@ private fun MetaDetailsContent(
                                     },
                                     windowResetKey = meta.id,
                                     onCastMemberClick = { member ->
-                                        member.tmdbId?.let { id ->
-                                            markCastMemberRestore(id)
-                                            val preferCrew = member.character.equals("Creator", ignoreCase = true) ||
-                                                member.character.equals("Director", ignoreCase = true) ||
-                                                member.character.equals("Writer", ignoreCase = true)
-                                            onNavigateToCastDetail(id, member.name, preferCrew)
-                                        }
+                                        // Members without a TMDB id still open: the page looks them up by name.
+                                        val id = member.tmdbId ?: 0
+                                        if (id > 0) markCastMemberRestore(id)
+                                        val preferCrew = member.character.equals("Creator", ignoreCase = true) ||
+                                            member.character.equals("Director", ignoreCase = true) ||
+                                            member.character.equals("Writer", ignoreCase = true)
+                                        if (member.name.isNotBlank()) onNavigateToCastDetail(id, member.name, preferCrew)
                                     },
                                     modifier = Modifier.onSizeChanged { castSectionHeightPx = it.height }
                                 )

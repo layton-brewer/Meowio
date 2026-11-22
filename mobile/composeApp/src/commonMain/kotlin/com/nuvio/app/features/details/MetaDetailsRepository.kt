@@ -607,13 +607,31 @@ object MetaDetailsRepository {
         }
 
         val tmdbSettings = TmdbSettingsRepository.snapshot()
-        if (!tmdbSettings.enabled || !tmdbSettings.useMoreLikeThis) {
-            return meta.copy(moreLikeThis = emptyList(), moreLikeThisSource = null)
+        if (tmdbSettings.enabled && tmdbSettings.useMoreLikeThis && meta.moreLikeThis.isNotEmpty()) {
+            return meta.copy(moreLikeThisSource = MoreLikeThisSource.TMDB)
         }
 
-        return meta.copy(
-            moreLikeThisSource = MoreLikeThisSource.TMDB.takeIf { meta.moreLikeThis.isNotEmpty() },
-        )
+        // No TMDB titles (no TMDB key in this build, or TMDB enrichment off): Trakt's related titles
+        // are public, so every movie and show page still gets a More like this row.
+        if (tmdbSettings.useMoreLikeThis && TraktAuthRepository.hasRequiredCredentials() &&
+            supportsMoreLikeThis(meta, fallbackItemType)
+        ) {
+            val items = runCatching {
+                TraktRelatedRepository.getRelated(
+                    meta = meta,
+                    fallbackItemId = fallbackItemId,
+                    fallbackItemType = fallbackItemType,
+                )
+            }.onFailure { error ->
+                log.w { "Failed to load Trakt related titles for ${meta.id}: ${error.message}" }
+            }.getOrDefault(emptyList())
+            return meta.copy(
+                moreLikeThis = items,
+                moreLikeThisSource = MoreLikeThisSource.TRAKT.takeIf { items.isNotEmpty() },
+            )
+        }
+
+        return meta.copy(moreLikeThis = emptyList(), moreLikeThisSource = null)
     }
 
     private fun shouldFetchMdbListOnMetaScreen(
@@ -646,7 +664,8 @@ object MetaDetailsRepository {
         return shouldUseTraktMoreLikeThis(
             isAuthenticated = isTraktAuthenticated,
             source = trackingSettings.moreLikeThisSource,
-        ) || !tmdbSettings.enabled || !tmdbSettings.useMoreLikeThis || meta.moreLikeThisSource == null && meta.moreLikeThis.isNotEmpty()
+        ) || !tmdbSettings.enabled || !tmdbSettings.useMoreLikeThis || meta.moreLikeThis.isEmpty() ||
+            meta.moreLikeThisSource == null && meta.moreLikeThis.isNotEmpty()
     }
 
     private fun buildMetaScreenSettingsFingerprint(

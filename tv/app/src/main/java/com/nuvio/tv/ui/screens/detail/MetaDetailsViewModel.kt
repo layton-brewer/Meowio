@@ -23,6 +23,7 @@ import com.nuvio.tv.data.repository.TraktCommentsService
 import com.nuvio.tv.data.repository.TraktRelatedService
 import com.nuvio.tv.data.repository.parseContentIds
 import com.nuvio.tv.domain.model.ContentType
+import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.LibraryEntryInput
 import com.nuvio.tv.domain.model.LibrarySourceMode
 import com.nuvio.tv.domain.model.ListMembershipChanges
@@ -1359,67 +1360,34 @@ class MetaDetailsViewModel @Inject constructor(
     private fun loadMoreLikeThisAsync(meta: Meta) {
         moreLikeThisJob?.cancel()
         moreLikeThisJob = viewModelScope.launch {
-            val source = when {
+            val settings = tmdbSettingsDataStore.settings.first()
+            val tmdbUsable = settings.enabled && settings.useMoreLikeThis && tmdbService.apiKey().isNotBlank()
+            // Trakt's related titles are public, so they also cover builds without a TMDB key and
+            // users who are not signed in to Trakt. The row shows on every movie and show page.
+            val traktPublicUsable = settings.useMoreLikeThis && traktRelatedService.isAvailable() &&
+                supportsMoreLikeThisType(meta)
+            val primary = when {
                 shouldLoadSimklMoreLikeThis() -> MoreLikeThisSource.SIMKL
                 shouldLoadTraktMoreLikeThis(meta) -> MoreLikeThisSource.TRAKT
+                tmdbUsable -> MoreLikeThisSource.TMDB
+                traktPublicUsable -> MoreLikeThisSource.TRAKT
                 else -> {
-                    val settings = tmdbSettingsDataStore.settings.first()
-                    if (!shouldLoadMoreLikeThis(settings)) {
-                        _uiState.update { it.copy(moreLikeThis = emptyList(), moreLikeThisSource = null) }
-                        return@launch
-                    }
-                    MoreLikeThisSource.TMDB
+                    _uiState.update { it.copy(moreLikeThis = emptyList(), moreLikeThisSource = null) }
+                    return@launch
                 }
             }
 
-            val rawRecommendations = when (source) {
-                MoreLikeThisSource.TRAKT -> {
-                    runCatching {
-                        traktRelatedService.getRelated(
-                            meta = meta,
-                            fallbackItemId = itemId,
-                            fallbackItemType = itemType
-                        )
-                    }.getOrElse {
-                        Log.w(TAG, "Failed to load Trakt related titles for ${meta.id}: ${it.message}")
-                        emptyList()
-                    }
+            var source = primary
+            var rawRecommendations = loadMoreLikeThisFrom(primary, meta, settings)
+            if (rawRecommendations.isEmpty()) {
+                val fallback = when {
+                    primary != MoreLikeThisSource.TMDB && tmdbUsable -> MoreLikeThisSource.TMDB
+                    primary != MoreLikeThisSource.TRAKT && traktPublicUsable -> MoreLikeThisSource.TRAKT
+                    else -> null
                 }
-
-                MoreLikeThisSource.SIMKL -> {
-                    runCatching {
-                        simklRelatedService.getRelated(
-                            meta = meta,
-                            fallbackItemId = itemId,
-                            fallbackItemType = itemType
-                        )
-                    }.getOrElse {
-                        Log.w(TAG, "Failed to load Simkl related titles for ${meta.id}: ${it.message}")
-                        emptyList()
-                    }
-                }
-
-                MoreLikeThisSource.TMDB -> {
-                    val settings = tmdbSettingsDataStore.settings.first()
-                    val tmdbContentType = resolveTmdbContentType(meta)
-                    val tmdbLookupType = tmdbContentType.toApiString()
-                    val tmdbId = tmdbService.ensureTmdbId(meta.id, tmdbLookupType, fallbackImdbId = meta.imdbId)
-                        ?: tmdbService.ensureTmdbId(itemId, itemType, fallbackImdbId = meta.imdbId)
-                    if (tmdbId.isNullOrBlank()) {
-                        _uiState.update { it.copy(moreLikeThis = emptyList(), moreLikeThisSource = null) }
-                        return@launch
-                    }
-
-                    runCatching {
-                        tmdbMetadataService.fetchMoreLikeThis(
-                            tmdbId = tmdbId,
-                            contentType = tmdbContentType,
-                            language = settings.language
-                        )
-                    }.getOrElse {
-                        Log.w(TAG, "Failed to load More like this for ${meta.id}: ${it.message}")
-                        emptyList()
-                    }
+                if (fallback != null) {
+                    source = fallback
+                    rawRecommendations = loadMoreLikeThisFrom(fallback, meta, settings)
                 }
             }
 
@@ -1442,6 +1410,60 @@ class MetaDetailsViewModel @Inject constructor(
                     )
                 } else {
                     state
+                }
+            }
+        }
+    }
+
+    private fun supportsMoreLikeThisType(meta: Meta): Boolean = when (meta.type) {
+        ContentType.MOVIE, ContentType.SERIES, ContentType.TV -> true
+        else -> meta.apiType in listOf("movie", "series", "tv", "show")
+    }
+
+    private suspend fun loadMoreLikeThisFrom(
+        source: MoreLikeThisSource,
+        meta: Meta,
+        settings: TmdbSettings
+    ): List<MetaPreview> = when (source) {
+        MoreLikeThisSource.TRAKT -> runCatching {
+            traktRelatedService.getRelated(
+                meta = meta,
+                fallbackItemId = itemId,
+                fallbackItemType = itemType
+            )
+        }.getOrElse {
+            Log.w(TAG, "Failed to load Trakt related titles for ${meta.id}: ${it.message}")
+            emptyList()
+        }
+
+        MoreLikeThisSource.SIMKL -> runCatching {
+            simklRelatedService.getRelated(
+                meta = meta,
+                fallbackItemId = itemId,
+                fallbackItemType = itemType
+            )
+        }.getOrElse {
+            Log.w(TAG, "Failed to load Simkl related titles for ${meta.id}: ${it.message}")
+            emptyList()
+        }
+
+        MoreLikeThisSource.TMDB -> {
+            val tmdbContentType = resolveTmdbContentType(meta)
+            val tmdbLookupType = tmdbContentType.toApiString()
+            val tmdbId = tmdbService.ensureTmdbId(meta.id, tmdbLookupType, fallbackImdbId = meta.imdbId)
+                ?: tmdbService.ensureTmdbId(itemId, itemType, fallbackImdbId = meta.imdbId)
+            if (tmdbId.isNullOrBlank()) {
+                emptyList()
+            } else {
+                runCatching {
+                    tmdbMetadataService.fetchMoreLikeThis(
+                        tmdbId = tmdbId,
+                        contentType = tmdbContentType,
+                        language = settings.language
+                    )
+                }.getOrElse {
+                    Log.w(TAG, "Failed to load More like this for ${meta.id}: ${it.message}")
+                    emptyList()
                 }
             }
         }

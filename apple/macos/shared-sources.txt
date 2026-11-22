@@ -195,3 +195,5 @@ commonMain/kotlin/com/nuvio/app/features/details/MetaDetailsParser.kt
 commonMain/kotlin/com/nuvio/app/features/details/MetaDetailsRepository.kt
 commonMain/kotlin/com/nuvio/app/features/details/TmdbFallbackEpisodes.kt
 commonMain/kotlin/com/nuvio/app/features/settings/RatingPosterKeySection.kt
+commonMain/kotlin/com/nuvio/app/features/details/PersonDetailLoader.kt
+commonMain/kotlin/com/nuvio/app/features/trakt/TraktRelatedRepository.kt

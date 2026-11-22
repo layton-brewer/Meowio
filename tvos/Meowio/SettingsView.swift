@@ -901,7 +901,7 @@ struct TMDBSettingsView: View {
             Section {
                 SecureField("TMDB API key (optional)", text: $settings.tmdbKey)
             } footer: {
-                Text("Cast pages, folders built from TMDB lists, and trailers for titles without one in their metadata need a TMDB key. It stays on this device and is never in backups.")
+                Text("Optional. Folders built from TMDB lists, and trailers for titles without one in their metadata, need a TMDB key. Cast pages and More like this work without one. It stays on this device and is never in backups.")
             }
         }
         .meowioPageTitle("TMDB")

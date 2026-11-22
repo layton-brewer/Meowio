@@ -30,7 +30,12 @@ object TraktRelatedRepository {
         fallbackItemType: String? = null,
         forceRefresh: Boolean = false,
     ): List<MetaPreview> {
-        val headers = TraktAuthRepository.authorizedHeaders() ?: return emptyList()
+        // Related titles are public on Trakt: signed-out users get them with the app's key.
+        val headers = TraktAuthRepository.authorizedHeaders()
+            ?: TraktConfig.CLIENT_ID.takeIf { it.isNotBlank() }?.let { key ->
+                mapOf("trakt-api-version" to "2", "trakt-api-key" to key)
+            }
+            ?: return emptyList()
         val target = resolveRelatedTarget(
             meta = meta,
             fallbackItemId = fallbackItemId,
