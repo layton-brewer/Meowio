@@ -195,6 +195,7 @@ struct SettingsView: View {
             Toggle("Show hero section", isOn: $settings.showHero)
             Toggle("Show Continue Watching", isOn: $settings.showContinueWatching)
             Toggle("Show poster labels", isOn: $settings.posterLabels)
+            Toggle("Season posters in season tabs", isOn: $settings.seasonPosters)
             Toggle("Hide unreleased content", isOn: $settings.hideUnreleased)
         }
         Section {
@@ -262,6 +263,7 @@ struct SettingsView: View {
         Section("Player") {
             Toggle("Show Skip Intro on intro and recap chapters", isOn: $settings.skipIntro)
             Toggle("Show Next Episode near the end", isOn: $settings.upNextCard)
+            Toggle("Content warnings when playback starts", isOn: $settings.contentWarnings)
             Toggle("Play trailers behind the Home header", isOn: $settings.heroTrailers)
             Picker("Audio language", selection: $settings.audioLanguage) {
                 Text("File default").tag("")

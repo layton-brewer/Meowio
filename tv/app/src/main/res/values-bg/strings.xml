@@ -1217,6 +1217,7 @@
     <string name="mdblist_last_synced">Последно синхронизирано %1$s</string>
     <string name="mdblist_disconnect_title">Да прекъсна ли MDBList?</string>
     <string name="mdblist_disconnect_subtitle">Спрете изпращането на актуализации за гледане от този профил. Историята на вашия MDBList се запазва.</string>
+    <string name="mdblist_missing_client">MDBList връзката не е налична в тази компилация.</string>
     <string name="mdblist_invalid_response">MDBList върна непълен отговор. Моля, опитайте отново.</string>
     <string name="mdblist_code_expired">Този код е изтекъл. Опитайте отново, за да получите нов код.</string>
     <string name="mdblist_access_denied">Връзката беше отказана. Опитайте отново да свържете акаунта си.</string>
@@ -1225,7 +1226,6 @@
     <string name="mdblist_rate_limited">Лимитът на заявките за MDBList е достигнат. Синхронизирането ще се възобнови след нулиране на лимита.</string>
     <string name="mdblist_revoke_failed">Връзката на това устройство е прекъсната. Премахнете това приложение от настройките на вашия MDBList акаунт, за да отмените достъпа му.</string>
     <string name="mdblist_title">Рейтинги на MDBList</string>
-    <string name="mdblist_subtitle">Конфигуриране на външни оценки, показани в детайлния герой</string>
     <string name="mdblist_enable_title">Активиране на оценките от MDBList</string>
     <string name="mdblist_enable_subtitle">Извличане на оценки от външни доставчици в екрана с подробности за метаданните</string>
     <string name="mdblist_api_key_title">API ключ</string>
@@ -1252,7 +1252,6 @@
     <string name="mdblist_show_on_hero_title">Използване на оценки за герой</string>
     <string name="mdblist_show_on_hero_subtitle">Показване на оценките от MDBList в карусела на героите (модерни и класически/мрежови)</string>
     <string name="mdblist_rating_order_title">Ред на оценяване</string>
-    <string name="mdblist_rating_order_subtitle">Първите 3 активирани и налични оценки са показани за съвременния герой. Използвайте стрелките, за да ги пренаредите.</string>
     <string name="mdblist_dialog_title">Ключ за API на MDBList</string>
     <string name="mdblist_dialog_subtitle">Въведете вашия API ключ, за да получите външни оценки</string>
     <string name="mdblist_dialog_placeholder">Въведете API ключ на MDBList</string>
@@ -1496,6 +1495,7 @@
     <string name="trakt_code_expires">Кодът изтича след %1$s</string>
     <string name="trakt_token_refreshes">Токенът за достъп до Trakt се обновява в %1$s</string>
     <string name="trakt_login_instruction">Натиснете „Вход“, за да стартирате удостоверяването на устройството Trakt. Тук ще се появи QR код.</string>
+    <string name="trakt_missing_credentials">Липсва TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET в local.properties.</string>
     <string name="trakt_watch_progress_title">Наблюдение на напредъка</string>
     <string name="trakt_watch_progress_subtitle">Изберете кои сили на източника на прогрес да се възобновят и да продължите да гледате</string>
     <string name="trakt_watch_progress_dialog_title">Наблюдение на напредъка</string>
@@ -2134,15 +2134,8 @@
     <string name="library_status_dropped">Премахнато</string>
     <string name="library_syncing_library">Синхронизиране на библиотеката\u2026</string>
     <string name="library_type_all">Всички</string>
-    <string name="library_type_items">елементи</string>
-    <string name="library_empty_local_title">Все още няма %1$s</string>
-    <string name="library_empty_trakt_title">Няма %1$s в този списък</string>
-    <string name="library_empty_local_subtitle">Започнете да запазвате любимите си, за да ги видите тук</string>
-    <string name="library_empty_trakt_subtitle">Използвайте + в подробностите, за да добавите елементи към списъка за наблюдение или списъците</string>
     <string name="library_empty_trakt_not_auth_title">Трактът не е свързан</string>
     <string name="library_empty_trakt_not_auth_subtitle">Свържете акаунта си в Trakt в Настройки, за да видите библиотеката си в Trakt</string>
-    <string name="library_empty_simkl_title">Няма %1$s в този статус</string>
-    <string name="library_empty_simkl_subtitle">Използвайте + в детайлите, за да добавите елементи към Simkl статус</string>
     <string name="library_empty_simkl_not_auth_title">Simkl не е свързан</string>
     <string name="library_empty_simkl_not_auth_subtitle">Свържете вашия Simkl акаунт в Настройки, за да видите вашата Simkl библиотека</string>
     <string name="library_list_create_dialog_title">Създаване на списък</string>
@@ -2560,7 +2553,7 @@
     <string name="cd_trailer_controls">Управление на трейлъра</string>
     <string name="cd_seek_bar">Лента за търсене</string>
     <string name="cd_unlink">Прекратяване на връзката</string>
-    <string name="cd_nuvio_logo">NuvioTV</string>
+    <string name="cd_nuvio_logo">MeowioTV</string>
     <string name="cd_trakt_logo">Лого на Trakt</string>
     <string name="cd_trakt_qr">QR код за активиране на Trakt</string>
     <string name="cd_imdb">IMDb</string>
@@ -2897,7 +2890,7 @@
     <string name="autoplay_regex_preset_no_remux_hdr">Без REMUX/HDR</string>
 
 <!-- Playback settings sections --> 
-    <string name="playback_player_internal_desc">Използване на вградения плейър на NuvioTV</string>
+    <string name="playback_player_internal_desc">Използване на вградения плейър на MeowioTV</string>
 
 <!-- Player runtime: torrent overlay + tracks --> 
     <string name="player_torrent_peer_info">%1$d начални точки · %2$d пиъри</string>
@@ -3008,6 +3001,7 @@
     <string name="simkl_sync_info_library_statuses">Предложенията, поставени в списъците „Задържани“ или „Изтрити“ на Simkl, са скрити от „Продължи гледането“. Те остават скрити, докато са в някой от списъците.</string>
     <string name="simkl_sync_info_docs">Прочетете ръководството за синхронизиране на Simkl</string>
     <string name="error_open_browser_failed">Неуспешно отваряне на браузъра</string>
+    <string name="simkl_missing_credentials">Липсва SIMKL_CLIENT_ID</string>
     <string name="simkl_status_enter_code">Въведете кода в Simkl, за да завършите свързването</string>
     <string name="simkl_status_waiting">Изчаква се одобрение от Simkl…</string>
     <string name="simkl_status_connected">Свързан със Simkl</string>
@@ -3350,17 +3344,17 @@
     <string name="stream_test_no_stream">Няма записано възпроизвеждане. Пуснете видеоклипа, за да изпълните диагностични тестове на неговия хост.</string>
     <string name="stream_test_btn_start">Стартиране на теста</string>
     <string name="stream_test_btn_measuring_baseline">Измерване на базовата линия...</string>
-    <string name="stream_test_btn_measuring_parallel1">Паралелно измерване (1MB)...</string>
-    <string name="stream_test_btn_measuring_parallel4">Паралелно измерване (4MB)...</string>
-    <string name="stream_test_btn_measuring_parallel8">Паралелно измерване (8MB)...</string>
-    <string name="stream_test_btn_measuring_parallel16">Паралелно измерване (16MB)...</string>
+    <string name="stream_test_btn_measuring_parallel1">Паралелно измерване (1 връзка)...</string>
+    <string name="stream_test_btn_measuring_parallel4">Паралелно измерване (4 връзки)...</string>
+    <string name="stream_test_btn_measuring_parallel8">Паралелно измерване (8 връзки)...</string>
+    <string name="stream_test_btn_measuring_parallel16">Паралелно измерване (16 връзки)...</string>
     <string name="stream_test_btn_run_again">Изпълни отново</string>
     <string name="stream_test_btn_running">Изпълнява се...</string>
     <string name="stream_test_label_baseline">Стандартна единична връзка (базова)</string>
-    <string name="stream_test_label_parallel1">Паралелно свързване (парчета от 1 MB)</string>
-    <string name="stream_test_label_parallel4">Паралелно свързване (парчета от 4 MB)</string>
-    <string name="stream_test_label_parallel8">Паралелно свързване (8 MB парчета)</string>
-    <string name="stream_test_label_parallel16">Паралелно свързване (парчета от 16 MB)</string>
+    <string name="stream_test_label_parallel1">Паралелно свързване (1 връзка)</string>
+    <string name="stream_test_label_parallel4">Паралелно свързване (4 връзки)</string>
+    <string name="stream_test_label_parallel8">Паралелно свързване (8 връзки)</string>
+    <string name="stream_test_label_parallel16">Паралелно свързване (16 връзки)</string>
     <string name="stream_test_error_prefix">Грешка: %1$s</string>
     <string name="stream_test_video_bitrate">Среден видео битрейт: %1$s</string>
     <string name="stream_test_error_connection">Връзката не бе успешна. Последната възпроизведена връзка за стрийминг може да е изтекла или е недостъпна. Моля, пуснете видеото отново и опитайте отново.</string>
@@ -3399,4 +3393,6 @@
     <string name="autosync_label_synced">Автоматично синхронизирано</string>
     <string name="stream_resume_from_time">Възобновяване от %1$s</string>
     <string name="stream_resume_from_percent">Възобновяване от %1$d%%</string>
+    <string name="mdblist_subtitle">Конфигуриране на външни оценки, показани в детайлния герой</string>
+    <string name="mdblist_rating_order_subtitle">Първите 3 активирани и налични оценки са показани за съвременния герой. Използвайте стрелките, за да ги пренаредите.</string>
 </resources>
