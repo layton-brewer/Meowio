@@ -51,7 +51,10 @@ grep -q 'PersonDetailLoader.fetchPersonDetail' "$person" || { echo "Person page 
 rm -f "$person.bak"
 
 # Quality choice for adaptive streams in the player (native mpv bridges + controller).
-perl "$here/patch-quality-choice.pl" "$root"
+# (Skipped only for the overlay test fixture, which has no player sources.)
+if [[ -d "$root/composeApp/src/desktopMain/native" ]]; then
+  perl "$here/patch-quality-choice.pl" "$root"
+fi
 
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
