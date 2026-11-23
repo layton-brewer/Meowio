@@ -155,6 +155,73 @@ class PlayerNextEpisodeRulesTest {
         assertTrue(shouldShow(positionMs = 2_401_000L, durationMs = durationMs, skipIntervals = skip))
     }
 
+    private fun shouldAdvance(
+        positionMs: Long,
+        durationMs: Long,
+        skipIntervals: List<SkipInterval> = emptyList(),
+        percent: Float = 99f,
+    ) = PlayerNextEpisodeRules.shouldAutoAdvanceToNextEpisode(
+        positionMs = positionMs,
+        durationMs = durationMs,
+        skipIntervals = skipIntervals,
+        thresholdMode = NextEpisodeThresholdMode.PERCENTAGE,
+        thresholdPercent = percent,
+        thresholdMinutesBeforeEnd = 2f
+    )
+
+    @Test
+    fun `auto-play waits for the credits to finish instead of switching when the card shows`() {
+        // 45 min episode, credits 40:00-43:00, 2 min tail: card at 40:00, switch at 43:00.
+        val durationMs = 45 * 60_000L
+        val skip = listOf(outro(startSec = 2_400.0, endSec = 2_580.0))
+        assertTrue(shouldShow(positionMs = 2_401_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertFalse(shouldAdvance(positionMs = 2_401_000L, durationMs = durationMs, skipIntervals = skip))
+        assertFalse(shouldAdvance(positionMs = 2_570_000L, durationMs = durationMs, skipIntervals = skip))
+        assertTrue(shouldAdvance(positionMs = 2_580_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `credits that run to the end switch at the user threshold`() {
+        // Credits 43:30-45:00 on a 45 min file, 99% threshold = 44:33.
+        val durationMs = 45 * 60_000L
+        val skip = listOf(outro(startSec = 2_610.0, endSec = 2_700.0))
+        assertTrue(shouldShow(positionMs = 2_611_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertFalse(shouldAdvance(positionMs = 2_650_000L, durationMs = durationMs, skipIntervals = skip))
+        assertTrue(shouldAdvance(positionMs = 2_674_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `outro times far from the end do not show the card mid-episode`() {
+        // Outro from another cut starts 15 min before this file ends: ignore it, use the threshold.
+        val durationMs = 45 * 60_000L
+        val skip = listOf(outro(startSec = 1_800.0, endSec = 1_890.0))
+        assertFalse(shouldShow(positionMs = 1_801_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertFalse(shouldShow(positionMs = 2_600_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertTrue(shouldShow(positionMs = 2_674_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertTrue(shouldAdvance(positionMs = 2_674_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `an earlier ending segment does not pull the card forward`() {
+        // Anime: an "ed" segment mid-episode and the real ending at 21:30-23:00 of 24 min.
+        val durationMs = 24 * 60_000L
+        val skip = listOf(
+            SkipInterval(startTime = 600.0, endTime = 690.0, type = "ed", provider = "aniskip"),
+            SkipInterval(startTime = 1_290.0, endTime = 1_380.0, type = "ed", provider = "aniskip"),
+        )
+        assertFalse(shouldShow(positionMs = 700_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertTrue(shouldShow(positionMs = 1_291_000L, durationMs = durationMs, skipIntervals = skip, percent = 99f))
+        assertFalse(shouldAdvance(positionMs = 1_291_000L, durationMs = durationMs, skipIntervals = skip))
+        assertTrue(shouldAdvance(positionMs = 1_380_000L, durationMs = durationMs, skipIntervals = skip))
+    }
+
+    @Test
+    fun `no outro data switches when the card shows`() {
+        val durationMs = 45 * 60_000L
+        assertFalse(shouldAdvance(positionMs = 2_600_000L, durationMs = durationMs))
+        assertTrue(shouldAdvance(positionMs = 2_674_000L, durationMs = durationMs))
+    }
+
     @Test
     fun `outro times from a longer release do not hide the card`() {
         // Outro starts after this file ends: fall back to the normal threshold.

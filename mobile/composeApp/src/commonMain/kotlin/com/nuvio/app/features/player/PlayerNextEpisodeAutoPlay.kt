@@ -59,6 +59,21 @@ internal fun PlayerScreenRuntime.isAtNextEpisodeThreshold(): Boolean {
     )
 }
 
+/**
+ * True once auto-play may switch to the next episode. The card shows when the credits begin; the switch
+ * waits until they finish (or the user's threshold), so the episode is never cut off mid-credits.
+ * Only meaningful while [isAtNextEpisodeThreshold] is true.
+ */
+internal fun PlayerScreenRuntime.isAtNextEpisodeAutoAdvancePoint(): Boolean =
+    playbackSnapshot.isEnded || PlayerNextEpisodeRules.shouldAutoAdvanceToNextEpisode(
+        positionMs = playbackSnapshot.positionMs,
+        durationMs = playbackSnapshot.durationMs,
+        skipIntervals = skipIntervals,
+        thresholdMode = playerSettingsUiState.nextEpisodeThresholdMode,
+        thresholdPercent = playerSettingsUiState.nextEpisodeThresholdPercent,
+        thresholdMinutesBeforeEnd = playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
+    )
+
 internal fun PlayerScreenRuntime.cancelNextEpisodeAutoPlay() {
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodeAutoPlayJob = null

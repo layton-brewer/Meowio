@@ -34,85 +34,93 @@ object PlayerNextEpisodeRules {
         thresholdMinutesBeforeEnd: Float,
     ): Boolean {
         if (isShortPlaceholderDuration(durationMs)) return false
+        if (durationMs <= 0L) return false
+        val thresholdPositionMs = userThresholdPositionMs(
+            durationMs, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
+        )
+        val credits = creditsTiming(durationMs, skipIntervals, thresholdPositionMs)
+            ?: return positionMs >= thresholdPositionMs
+        return when {
+            // A real post-credits scene (marked by the data provider): wait until it has played.
+            credits.postCreditsSceneEndMs != null ->
+                positionMs >= maxOf(credits.postCreditsSceneEndMs, thresholdPositionMs)
+            // Credits near the end of the file: show the card when they begin, or at the user's
+            // threshold if that comes first.
+            credits.trusted -> positionMs >= minOf(credits.startMs, thresholdPositionMs)
+            // Outro times that start well before the end belong to another release (or mark something
+            // that is not the end credits): ignore them so the card can't show mid-episode.
+            else -> positionMs >= thresholdPositionMs
+        }
+    }
+
+    /**
+     * True when auto-play may switch to the next episode. The card shows when the credits begin, but the
+     * switch waits for the credits to finish (or the user's threshold, if that comes first), so it never
+     * cuts the episode off while the credits are still rolling over the last scene.
+     */
+    fun shouldAutoAdvanceToNextEpisode(
+        positionMs: Long,
+        durationMs: Long,
+        skipIntervals: List<SkipInterval>,
+        thresholdMode: NextEpisodeThresholdMode,
+        thresholdPercent: Float,
+        thresholdMinutesBeforeEnd: Float,
+    ): Boolean {
+        if (!shouldShowNextEpisodeCard(
+                positionMs, durationMs, skipIntervals, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
+            )
+        ) return false
+        val thresholdPositionMs = userThresholdPositionMs(
+            durationMs, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
+        )
+        val credits = creditsTiming(durationMs, skipIntervals, thresholdPositionMs) ?: return true
+        if (credits.postCreditsSceneEndMs != null || !credits.trusted) return true
+        return positionMs >= minOf(credits.endMs, thresholdPositionMs)
+    }
+
+    private class CreditsTiming(
+        val startMs: Long,
+        val endMs: Long,
+        val postCreditsSceneEndMs: Long?,
+        val trusted: Boolean,
+    )
+
+    private fun creditsTiming(
+        durationMs: Long,
+        skipIntervals: List<SkipInterval>,
+        thresholdPositionMs: Long,
+    ): CreditsTiming? {
         // Outro times are crowd-sourced (IntroDB) for one release of the episode. An outro that starts
         // at or after this file's end belongs to a longer cut, so it must not hold the card back.
         val outroSegments = skipIntervals.filter {
-            it.type in OUTRO_SEGMENT_TYPES && (durationMs <= 0L || it.startTime * 1_000.0 < durationMs)
+            it.type in OUTRO_SEGMENT_TYPES && it.startTime.isFinite() && it.endTime.isFinite() &&
+                it.endTime > it.startTime && it.startTime * 1_000.0 < durationMs
         }
-
-        if (outroSegments.isNotEmpty()) {
-            if (durationMs <= 0L) return false
-
-            // Use the same post-credits detection as the skip button so the
-            // next-episode card never appears over a post-credits scene.
-            val latestOutro = outroSegments.maxByOrNull { it.endTime }
-            val postCreditsScene = latestOutro?.findFollowingPostCreditsScene(skipIntervals, durationMs)
-
-            var guessedScene = false
-            if (postCreditsScene != null) {
-                val sceneEndMs = (postCreditsScene.endTime * 1_000.0).toLong()
-                    .coerceAtMost(durationMs)
-                val userTriggerMs = userThresholdPositionMs(
-                    durationMs, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
-                )
-                // Only a real post-credits scene (marked by the data provider) holds the card back. A
-                // guessed one is just the gap between the credits' end and the file's end, so the card
-                // shows when the credits begin, like upstream Nuvio does for outro times.
-                if (postCreditsScene.provider != "heuristic") {
-                    return positionMs >= maxOf(sceneEndMs, userTriggerMs)
-                }
-                guessedScene = true
-            }
-
-            val latestOutroEndMs = (outroSegments.maxOf { it.endTime } * 1_000.0).toLong()
-            val postOutroGapMs = durationMs - latestOutroEndMs
-
-            // Calculate the user's configured threshold as milliseconds from end.
-            val userThresholdMs = when (thresholdMode) {
-                NextEpisodeThresholdMode.PERCENTAGE -> {
-                    val clampedPercent = thresholdPercent.coerceIn(97f, 100f)
-                    ((1.0 - clampedPercent / 100.0) * durationMs).toLong()
-                }
-                NextEpisodeThresholdMode.MINUTES_BEFORE_END -> {
-                    val clampedMinutes = thresholdMinutesBeforeEnd.coerceIn(0f, 3.5f)
-                    (clampedMinutes * 60_000f).toLong()
-                }
-            }
-
-            return if (!guessedScene && postOutroGapMs > userThresholdMs) {
-                when (thresholdMode) {
-                    NextEpisodeThresholdMode.PERCENTAGE -> {
-                        val clampedPercent = thresholdPercent.coerceIn(97f, 100f)
-                        (positionMs.toDouble() / durationMs.toDouble()) >= (clampedPercent / 100.0)
-                    }
-                    NextEpisodeThresholdMode.MINUTES_BEFORE_END -> {
-                        val clampedMinutes = thresholdMinutesBeforeEnd.coerceIn(0f, 3.5f)
-                        val remainingMs = durationMs - positionMs
-                        remainingMs <= (clampedMinutes * 60_000f).toLong()
-                    }
-                }
-            } else {
-                // Outro ends close to the file end: fire at the earliest outro start, and at the user's
-                // threshold at the latest, so outro times from another release can't skip the card.
-                val outroStartMs = (outroSegments.minOf { it.startTime } * 1_000.0).toLong()
-                positionMs >= minOf(outroStartMs, durationMs - userThresholdMs)
-            }
-        }
-
-        // Fallback to the settings threshold when no outro data exists.
-        if (durationMs <= 0L) return false
-        return when (thresholdMode) {
-            NextEpisodeThresholdMode.PERCENTAGE -> {
-                val clampedPercent = thresholdPercent.coerceIn(97f, 100f)
-                (positionMs.toDouble() / durationMs.toDouble()) >= (clampedPercent / 100.0)
-            }
-            NextEpisodeThresholdMode.MINUTES_BEFORE_END -> {
-                val clampedMinutes = thresholdMinutesBeforeEnd.coerceIn(0f, 3.5f)
-                val remainingMs = durationMs - positionMs
-                remainingMs <= (clampedMinutes * 60_000f).toLong()
-            }
-        }
+        // The end credits are the outro that finishes last; an earlier "ed" segment is not the end.
+        val latestOutro = outroSegments.maxByOrNull { it.endTime } ?: return null
+        val startMs = (latestOutro.startTime * 1_000.0).toLong().coerceAtLeast(0L)
+        val endMs = (latestOutro.endTime * 1_000.0).toLong().coerceAtMost(durationMs)
+        // Same post-credits detection as the skip-credits button, so the card never covers a real scene.
+        val scene = latestOutro.findFollowingPostCreditsScene(skipIntervals, durationMs)
+        val sceneEndMs = scene?.takeIf { it.provider != "heuristic" }
+            ?.let { (it.endTime * 1_000.0).toLong().coerceAtMost(durationMs) }
+        // End credits sit at the end of the file. A start further from the end than this window is from
+        // a different cut of the episode, so it is not trusted to show the card early.
+        val creditsWindowMs = maxOf(
+            durationMs - thresholdPositionMs,
+            minOf(MAX_CREDITS_WINDOW_MS, (durationMs * MAX_CREDITS_WINDOW_FRACTION).toLong()),
+        )
+        return CreditsTiming(
+            startMs = startMs,
+            endMs = endMs,
+            postCreditsSceneEndMs = sceneEndMs,
+            trusted = durationMs - startMs <= creditsWindowMs,
+        )
     }
+
+    /** End credits (plus any tail after them) start at most this far from the end of the file. */
+    private const val MAX_CREDITS_WINDOW_MS = 6 * 60_000L
+    private const val MAX_CREDITS_WINDOW_FRACTION = 0.15
 
     fun hasEpisodeAired(raw: String?): Boolean {
         val value = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return true
