@@ -7,6 +7,7 @@ import com.nuvio.tv.core.profile.ProfileManager
 import com.nuvio.tv.domain.model.EpisodeShuffleSettings
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,6 +36,26 @@ class EpisodeShuffleStore @Inject constructor(
         layoutPreferences.randomEpisodeEnabledForProfile(profileId)
     ) { preferences, available ->
         EpisodeShuffleProfile(profileId, available, readShuffleSettings(preferences))
+    }
+
+    private val scope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
+
+    /**
+     * Shuffle lasts one viewing session: it ends when the user leaves the player or the show
+     * (there is no Stop shuffle button). Turns it off for every show of [profileId].
+     */
+    fun endSessions(profileId: Int = profileManager.activeProfileId.value) {
+        scope.launch {
+            runCatching {
+                factory.get(profileId, "episode_shuffle").edit { prefs ->
+                    prefs.asMap().keys.map { it.name }.filter { it.startsWith("enabled:") }.forEach { name ->
+                        prefs[booleanPreferencesKey(name)] = false
+                    }
+                }
+            }
+        }
     }
 
     suspend fun save(contentId: String, settings: EpisodeShuffleSettings, profileId: Int) {

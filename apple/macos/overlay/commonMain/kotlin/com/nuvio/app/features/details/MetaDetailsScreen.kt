@@ -1172,10 +1172,9 @@ fun MetaDetailsScreen(
 
                 val onShuffleClick: (() -> Unit)? = if (showShuffleButton) {
                     {
-                        if (shuffleSettings.enabled) {
-                            saveShuffle(shuffleSettings.copy(enabled = false))
-                        } else {
-                            // Random Episode: any real episode, no seen/unseen question.
+                        if (saveShuffle(com.nuvio.app.features.shuffle.EpisodeShuffleSettings(enabled = true, includeWatched = true))) {
+                            // Shuffle: a random episode now, and Next Episode keeps picking random episodes of this show
+                            // until the user leaves the player or the show. No seen/unseen question.
                             meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }.randomOrNull()?.let { ep ->
                                 onPlay?.invoke(
                                     meta.type, ep.id, meta.id, meta.type, meta.name, meta.logo, meta.poster, meta.background,
@@ -1418,10 +1417,9 @@ fun MetaDetailsScreen(
                                             onPlayClick = onPrimaryPlayClick,
                                             onPlayLongClick = if (showManualPlayOption) onPrimaryPlayLongClick else null,
                                             onShuffleClick = if (showShuffleButton) ({
-                                                if (shuffleSettings.enabled) {
-                            saveShuffle(shuffleSettings.copy(enabled = false))
-                        } else {
-                            // Random Episode: any real episode, no seen/unseen question.
+                                                if (saveShuffle(com.nuvio.app.features.shuffle.EpisodeShuffleSettings(enabled = true, includeWatched = true))) {
+                            // Shuffle: a random episode now, and Next Episode keeps picking random episodes of this show
+                            // until the user leaves the player or the show. No seen/unseen question.
                             meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }.randomOrNull()?.let { ep ->
                                 onPlay?.invoke(
                                     meta.type, ep.id, meta.id, meta.type, meta.name, meta.logo, meta.poster, meta.background,
@@ -1453,10 +1451,9 @@ fun MetaDetailsScreen(
                                         isWatched = isWatched,
                                         onPrimaryPlayClick = onPrimaryPlayClick,
                                         onShuffleClick = if (showShuffleButton) ({
-                                            if (shuffleSettings.enabled) {
-                            saveShuffle(shuffleSettings.copy(enabled = false))
-                        } else {
-                            // Random Episode: any real episode, no seen/unseen question.
+                                            if (saveShuffle(com.nuvio.app.features.shuffle.EpisodeShuffleSettings(enabled = true, includeWatched = true))) {
+                            // Shuffle: a random episode now, and Next Episode keeps picking random episodes of this show
+                            // until the user leaves the player or the show. No seen/unseen question.
                             meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }.randomOrNull()?.let { ep ->
                                 onPlay?.invoke(
                                     meta.type, ep.id, meta.id, meta.type, meta.name, meta.logo, meta.poster, meta.background,
@@ -1634,10 +1631,9 @@ fun MetaDetailsScreen(
                                         isSaved = isSaved,
                                         isWatched = isWatched,
                                         onShuffleClick = if (showShuffleButton) ({
-                                            if (shuffleSettings.enabled) {
-                            saveShuffle(shuffleSettings.copy(enabled = false))
-                        } else {
-                            // Random Episode: any real episode, no seen/unseen question.
+                                            if (saveShuffle(com.nuvio.app.features.shuffle.EpisodeShuffleSettings(enabled = true, includeWatched = true))) {
+                            // Shuffle: a random episode now, and Next Episode keeps picking random episodes of this show
+                            // until the user leaves the player or the show. No seen/unseen question.
                             meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }.randomOrNull()?.let { ep ->
                                 onPlay?.invoke(
                                     meta.type, ep.id, meta.id, meta.type, meta.name, meta.logo, meta.poster, meta.background,

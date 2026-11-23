@@ -83,7 +83,6 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.platform.LocalConfiguration
@@ -328,10 +327,9 @@ fun HeroContentSection(
 
                         if (showRandomEpisodeButton) {
                             ActionIconButton(
-                                icon = if (episodeShuffle.enabled) Icons.Default.Stop else Icons.Default.Shuffle,
-                                contentDescription = stringResource(
-                                    if (episodeShuffle.enabled) R.string.shuffle_stop else R.string.random_episode_title
-                                ),
+                                // No Stop shuffle: shuffle ends by itself when the user leaves the player or the show.
+                                icon = Icons.Default.Shuffle,
+                                contentDescription = stringResource(R.string.random_episode_title),
                                 onClick = { if (!shuffleActionPending) onRandomEpisodeClick() },
                                 focusRequester = randomEpisodeFocusRequester,
                                 onFocused = onHeroActionFocused

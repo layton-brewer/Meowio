@@ -1143,6 +1143,7 @@ struct DetailView: View {
         let videoId: String
         let title: String
         let candidates: [StreamItem]
+        var shuffle = false
     }
 
     private var meta: MetaItem { full ?? item }
@@ -1238,7 +1239,7 @@ struct DetailView: View {
         .fullScreenCover(item: $picker) { state in
             SourcePicker(state: state) { chosen in
                 picker = nil
-                start(videoId: state.videoId, title: state.title, candidates: chosen)
+                start(videoId: state.videoId, title: state.title, candidates: chosen, shuffle: state.shuffle)
             }
         }
     }
@@ -1306,12 +1307,14 @@ struct DetailView: View {
                     .buttonStyle(CircleIconButtonStyle(selected: mine != nil))
                 }
                 if meta.type != "movie", ordered.count > 1 {
-                    // Episode shuffle, like the Android TV app: plays a random episode of the show.
+                    // Episode shuffle, like the other apps: a random episode, and every Next Episode after it is
+                    // another random one until the player closes. No Stop shuffle, no seen/unseen question.
                     Button {
-                        if let ep = ordered.randomElement() {
-                            Task { await play(videoId: ep.id, title: ep.displayTitle) }
+                        EpisodeShuffle.start(showId: meta.id)
+                        if let ep = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: nil) {
+                            Task { await play(videoId: ep.id, title: ep.displayTitle, shuffle: true) }
                         }
-                    } label: { Label("Random episode", systemImage: "shuffle") }
+                    } label: { Label("Shuffle", systemImage: "shuffle") }
                         .buttonStyle(CircleIconButtonStyle())
                         .disabled(resolving)
                 }
@@ -1489,7 +1492,7 @@ struct DetailView: View {
         }
     }
 
-    private func play(videoId: String, title: String, forcePicker: Bool = false) async {
+    private func play(videoId: String, title: String, forcePicker: Bool = false, shuffle: Bool = false) async {
         message = nil
         guard !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers else {
             message = "Add a stream add-on or a media server in Settings first."
@@ -1503,9 +1506,9 @@ struct DetailView: View {
             return
         }
         if forcePicker || settings.streamMode == .manual {
-            picker = PickerState(videoId: videoId, title: title, candidates: list)
+            picker = PickerState(videoId: videoId, title: title, candidates: list, shuffle: shuffle)
         } else {
-            start(videoId: videoId, title: title, candidates: list)
+            start(videoId: videoId, title: title, candidates: list, shuffle: shuffle)
         }
     }
 
@@ -1518,37 +1521,46 @@ struct DetailView: View {
         }
     }
 
-    private func start(videoId: String, title: String, candidates: [StreamItem]) {
+    private func start(videoId: String, title: String, candidates: [StreamItem], shuffle: Bool = false) {
         library.record(meta: meta, videoId: meta.type == "movie" ? nil : videoId)
-        var req = makeRequest(videoId: videoId, title: title, candidates: candidates)
+        var req = makeRequest(videoId: videoId, title: title, candidates: candidates, shuffle: shuffle)
         req.startAt = library.resumePoint(for: meta.type == "movie" ? meta.id : videoId)
         playRequest = req
     }
 
-    private func makeRequest(videoId: String, title: String, candidates: [StreamItem]) -> PlayRequest {
+    private func makeRequest(videoId: String, title: String, candidates: [StreamItem], shuffle: Bool) -> PlayRequest {
         if meta.type == "series", let cur = ordered.first(where: { $0.id == videoId }) {
             return DetailView.chain(meta: meta, ordered: ordered, current: cur, candidates: candidates,
-                                    streams: streams, settings: settings, library: library)
+                                    streams: streams, settings: settings, library: library, shuffle: shuffle)
         }
         return PlayRequest(meta: meta, videoId: meta.type == "movie" ? nil : videoId, title: title, candidates: candidates)
     }
 
-    /// Builds the request for [current] and, recursively, for the episode after it.
+    /// Builds the request for [current] and, recursively, for the episode after it. With [shuffle] (started from the
+    /// Shuffle button) the episode after it is another random one, for as long as this player session lasts.
     @MainActor
     static func chain(meta: MetaItem, ordered: [Video], current: Video, candidates: [StreamItem],
-                      streams: StreamStore, settings: SettingsStore, library: LibraryStore) -> PlayRequest {
+                      streams: StreamStore, settings: SettingsStore, library: LibraryStore,
+                      shuffle: Bool = false) -> PlayRequest {
         var slim = meta
         slim.videos = nil
         var req = PlayRequest(meta: slim, videoId: current.id, title: current.displayTitle, candidates: candidates)
-        if let idx = ordered.firstIndex(where: { $0.id == current.id }), idx + 1 < ordered.count {
-            let next = ordered[idx + 1]
+        let following: Video?
+        if shuffle {
+            following = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: current.id)
+        } else if let idx = ordered.firstIndex(where: { $0.id == current.id }), idx + 1 < ordered.count {
+            following = ordered[idx + 1]
+        } else {
+            following = nil
+        }
+        if let next = following {
             if settings.preloadNext { streams.preload(type: "series", id: next.id, settings: settings) }
             req.nextEpisode = {
                 let list = await streams.candidates(type: "series", id: next.id, parentId: meta.id, settings: settings, name: meta.name)
                 guard !list.isEmpty else { return nil }
                 library.record(meta: meta, videoId: next.id)
                 var nextReq = DetailView.chain(meta: meta, ordered: ordered, current: next, candidates: list,
-                                               streams: streams, settings: settings, library: library)
+                                               streams: streams, settings: settings, library: library, shuffle: shuffle)
                 nextReq.startAt = library.resumePoint(for: next.id)
                 return nextReq
             }

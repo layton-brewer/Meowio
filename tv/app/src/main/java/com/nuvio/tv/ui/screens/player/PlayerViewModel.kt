@@ -312,6 +312,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        // Leaving the player ends shuffle: the next visit to the show plays in normal order.
+        episodeShufflePlayback.endSession()
         postPlayRecommendationController.stop()
         controller.onCleared()
         // Allow the trailer player to be re-created when returning to home screen.

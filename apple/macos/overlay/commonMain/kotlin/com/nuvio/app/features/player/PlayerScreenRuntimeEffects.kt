@@ -579,6 +579,8 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     DisposableEffect(Unit) {
         PlayerStreamsRepository.pauseSearchForPlayback()
         onDispose {
+            // Leaving the player ends shuffle: the next visit to the show plays in normal order.
+            EpisodeShuffleRepository.endSessions()
             args.launchId?.let { launchId ->
                 PlayerLaunchStore.update(launchId) { currentLaunch(it) }
                 // The player is gone: release the launch payload once the restore window has

@@ -2590,17 +2590,22 @@ private fun MetaDetailsContent(
                         onTrailerClick = onTrailerButtonClick,
                         showRandomEpisodeButton = showRandomEpisodeButton,
                         onRandomEpisodeClick = {
-                            if (!episodeShuffle.enabled) {
-                                // Random Episode: any real episode, no seen/unseen question.
-                                meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }
-                                    .randomOrNull()?.let { episodeClick(it) }
-                            } else if (!stoppingShuffle) {
-                                stoppingShuffle = true
-                                coroutineScope.launch {
-                                    try {
-                                        onEpisodeShuffleChange(episodeShuffle.copy(enabled = false))
-                                    } finally {
-                                        stoppingShuffle = false
+                            if (!stoppingShuffle) {
+                                // Shuffle: a random episode now, and Next Episode keeps picking random episodes of
+                                // this show until the user leaves the player or the show. No seen/unseen question.
+                                val episode = meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }
+                                    .randomOrNull()
+                                if (episode != null) {
+                                    stoppingShuffle = true
+                                    coroutineScope.launch {
+                                        try {
+                                            if (onEpisodeShuffleChange(
+                                                    com.nuvio.tv.domain.model.EpisodeShuffleSettings(enabled = true, includeWatched = true)
+                                                )
+                                            ) episodeClick(episode)
+                                        } finally {
+                                            stoppingShuffle = false
+                                        }
                                     }
                                 }
                             }
