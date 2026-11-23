@@ -40,7 +40,10 @@ grep -q 'withoutEpisodelessShowProgress' "$home" || { echo "Continue Watching sh
 rm -f "$home.bak"
 
 # "Are you still watching?" prompt in the desktop controls page (StillWatching.kt).
-perl "$here/patch-still-watching.pl" "$root"
+# (Skipped only for the overlay test fixture, which has no player sources.)
+if [[ -d "$root/composeApp/src/desktopMain/resources/player-ui" ]]; then
+  perl "$here/patch-still-watching.pl" "$root"
+fi
 
 # Ratings on posters (RatingPosterDB key) above the custom poster source (RatingPosterKeySection.kt).
 posters="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
