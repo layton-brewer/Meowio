@@ -2590,9 +2590,9 @@ private fun MetaDetailsContent(
                         onTrailerClick = onTrailerButtonClick,
                         showRandomEpisodeButton = showRandomEpisodeButton,
                         onRandomEpisodeClick = {
-                            if (!episodeShuffle.enabled && !stoppingShuffle) {
+                            if (!stoppingShuffle) {
                                 // Shuffle: a random episode now, and Next Episode keeps picking random episodes of
-                                // this show until Stop shuffle. No seen/unseen question.
+                                // this show until the user leaves the player or the show. No seen/unseen question.
                                 val episode = meta.videos.filter { (it.season ?: 0) > 0 && (it.episode ?: 0) > 0 }
                                     .randomOrNull()
                                 if (episode != null) {
@@ -2606,15 +2606,6 @@ private fun MetaDetailsContent(
                                         } finally {
                                             stoppingShuffle = false
                                         }
-                                    }
-                                }
-                            } else if (episodeShuffle.enabled && !stoppingShuffle) {
-                                stoppingShuffle = true
-                                coroutineScope.launch {
-                                    try {
-                                        onEpisodeShuffleChange(episodeShuffle.copy(enabled = false))
-                                    } finally {
-                                        stoppingShuffle = false
                                     }
                                 }
                             }

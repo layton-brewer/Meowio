@@ -1129,9 +1129,6 @@ struct DetailView: View {
     @State private var moreLikeThis: [MetaItem] = []
     @State private var extras = DetailExtras()
     @State private var rateTarget: RateTarget?
-    /// Episode shuffle for this show: nil when off. [shufflePick] is the random episode the Play button starts.
-    @State private var shuffleMode: EpisodeShuffle.Setting?
-    @State private var shufflePick: Video?
     @EnvironmentObject var trakt: TraktStore
     @FocusState private var playFocused: Bool
 
@@ -1146,6 +1143,7 @@ struct DetailView: View {
         let videoId: String
         let title: String
         let candidates: [StreamItem]
+        var shuffle = false
     }
 
     private var meta: MetaItem { full ?? item }
@@ -1204,15 +1202,13 @@ struct DetailView: View {
             } else if let first = seasons.first {
                 season = seasons.contains(1) ? 1 : first
             }
-            shuffleMode = meta.type == "movie" ? nil : EpisodeShuffle.setting(for: meta.id)
-            rerollShuffle()
             playFocused = true
             preloadForOpen()
             if autoplay, !didAutoplay {
                 didAutoplay = true
                 if meta.type == "movie" {
                     await play(videoId: meta.id, title: meta.name)
-                } else if let next = primaryEpisode {
+                } else if let next = nextUp {
                     await play(videoId: next.id, title: next.displayTitle)
                 }
             }
@@ -1237,18 +1233,13 @@ struct DetailView: View {
         .fullScreenCover(item: $playRequest) { req in
             PlayerScreen(request: req, settings: settings)
         }
-        .onChange(of: playRequest == nil) { _, closed in
-            // Back from the player: a fresh random episode for the Play button.
-            if closed { rerollShuffle() }
-        }
-
         .fullScreenCover(isPresented: $showTrailer) {
             if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
         }
         .fullScreenCover(item: $picker) { state in
             SourcePicker(state: state) { chosen in
                 picker = nil
-                start(videoId: state.videoId, title: state.title, candidates: chosen)
+                start(videoId: state.videoId, title: state.title, candidates: chosen, shuffle: state.shuffle)
             }
         }
     }
@@ -1280,10 +1271,9 @@ struct DetailView: View {
                     .buttonStyle(PillButtonStyle())
                     .focused($playFocused)
                     .disabled(resolving)
-                } else if let next = primaryEpisode {
+                } else if let next = nextUp {
                     Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
-                        Label(resolving ? "Finding best source…" : nextLabel(next),
-                              systemImage: shuffleMode != nil && library.resumePoint(for: next.id) <= 0 ? "shuffle" : "play.fill")
+                        Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
                     }
                     .buttonStyle(PillButtonStyle())
                     .focused($playFocused)
@@ -1316,23 +1306,17 @@ struct DetailView: View {
                     }
                     .buttonStyle(CircleIconButtonStyle(selected: mine != nil))
                 }
-                if meta.type != "movie", ordered.count > 1 || shuffleMode != nil {
-                    // Episode shuffle, like the other apps: random episodes of this show, one after another,
-                    // until Stop shuffle.
+                if meta.type != "movie", ordered.count > 1 {
+                    // Episode shuffle, like the other apps: a random episode, and every Next Episode after it is
+                    // another random one until the player closes. No Stop shuffle, no seen/unseen question.
                     Button {
-                        if shuffleMode != nil {
-                            EpisodeShuffle.set(nil, for: meta.id)
-                            shuffleMode = nil
-                            shufflePick = nil
-                        } else {
-                            // No seen/unseen question: any episode of the show.
-                            Task { await startShuffle(includeWatched: true) }
+                        EpisodeShuffle.start(showId: meta.id)
+                        if let ep = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: nil) {
+                            Task { await play(videoId: ep.id, title: ep.displayTitle, shuffle: true) }
                         }
-                    } label: {
-                        Label(shuffleMode != nil ? "Stop shuffle" : "Shuffle", systemImage: "shuffle")
-                    }
-                    .buttonStyle(CircleIconButtonStyle(selected: shuffleMode != nil))
-                    .disabled(resolving)
+                    } label: { Label("Shuffle", systemImage: "shuffle") }
+                        .buttonStyle(CircleIconButtonStyle())
+                        .disabled(resolving)
                 }
                 if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
                     Button { Task { await chooseSource() } } label: { Label("Sources", systemImage: "list.bullet") }
@@ -1489,33 +1473,6 @@ struct DetailView: View {
         return list.first
     }
 
-    /// What the Play button starts: with shuffle on, the episode in progress if there is one, else a random one.
-    private var primaryEpisode: Video? {
-        guard shuffleMode != nil else { return nextUp }
-        if let n = nextUp, library.resumePoint(for: n.id) > 0, !watched(n) { return n }
-        return shufflePick ?? nextUp
-    }
-
-    /// Picks the random episode the Play button shows while shuffle is on.
-    private func rerollShuffle() {
-        guard let mode = shuffleMode else { shufflePick = nil; return }
-        shufflePick = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: nil,
-                                          includeWatched: mode.includeWatched, isWatched: { library.isWatched($0) })
-    }
-
-    /// Turns shuffle on for this show and plays a random episode right away.
-    private func startShuffle(includeWatched: Bool) async {
-        let mode = EpisodeShuffle.Setting(includeWatched: includeWatched)
-        EpisodeShuffle.set(mode, for: meta.id)
-        shuffleMode = mode
-        rerollShuffle()
-        guard let ep = shufflePick else {
-            message = "No episodes to shuffle."
-            return
-        }
-        await play(videoId: ep.id, title: ep.displayTitle)
-    }
-
     private func nextLabel(_ v: Video) -> String {
         let started = library.resumePoint(for: v.id) > 0
         return "\(started ? "Resume" : "Play") S\(v.season ?? 0) E\(v.episode ?? 0)"
@@ -1527,7 +1484,7 @@ struct DetailView: View {
             streams.preload(type: "movie", id: meta.id, settings: settings)
             return
         }
-        if let n = primaryEpisode { streams.preload(type: "series", id: n.id, settings: settings) }
+        if let n = nextUp { streams.preload(type: "series", id: n.id, settings: settings) }
         for s in seasons.prefix(8) {
             if let first = (meta.videos ?? []).filter({ $0.season == s }).min(by: { ($0.episode ?? 0) < ($1.episode ?? 0) }) {
                 streams.preload(type: "series", id: first.id, settings: settings)
@@ -1535,7 +1492,7 @@ struct DetailView: View {
         }
     }
 
-    private func play(videoId: String, title: String, forcePicker: Bool = false) async {
+    private func play(videoId: String, title: String, forcePicker: Bool = false, shuffle: Bool = false) async {
         message = nil
         guard !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers else {
             message = "Add a stream add-on or a media server in Settings first."
@@ -1549,9 +1506,9 @@ struct DetailView: View {
             return
         }
         if forcePicker || settings.streamMode == .manual {
-            picker = PickerState(videoId: videoId, title: title, candidates: list)
+            picker = PickerState(videoId: videoId, title: title, candidates: list, shuffle: shuffle)
         } else {
-            start(videoId: videoId, title: title, candidates: list)
+            start(videoId: videoId, title: title, candidates: list, shuffle: shuffle)
         }
     }
 
@@ -1559,40 +1516,38 @@ struct DetailView: View {
     private func chooseSource() async {
         if meta.type == "movie" {
             await play(videoId: meta.id, title: meta.name, forcePicker: true)
-        } else if let n = primaryEpisode {
+        } else if let n = nextUp {
             await play(videoId: n.id, title: n.displayTitle, forcePicker: true)
         }
     }
 
-    private func start(videoId: String, title: String, candidates: [StreamItem]) {
+    private func start(videoId: String, title: String, candidates: [StreamItem], shuffle: Bool = false) {
         library.record(meta: meta, videoId: meta.type == "movie" ? nil : videoId)
-        var req = makeRequest(videoId: videoId, title: title, candidates: candidates)
+        var req = makeRequest(videoId: videoId, title: title, candidates: candidates, shuffle: shuffle)
         req.startAt = library.resumePoint(for: meta.type == "movie" ? meta.id : videoId)
         playRequest = req
     }
 
-    private func makeRequest(videoId: String, title: String, candidates: [StreamItem]) -> PlayRequest {
+    private func makeRequest(videoId: String, title: String, candidates: [StreamItem], shuffle: Bool) -> PlayRequest {
         if meta.type == "series", let cur = ordered.first(where: { $0.id == videoId }) {
             return DetailView.chain(meta: meta, ordered: ordered, current: cur, candidates: candidates,
-                                    streams: streams, settings: settings, library: library)
+                                    streams: streams, settings: settings, library: library, shuffle: shuffle)
         }
         return PlayRequest(meta: meta, videoId: meta.type == "movie" ? nil : videoId, title: title, candidates: candidates)
     }
 
-    /// Builds the request for [current] and, recursively, for the episode after it. With shuffle on for the show,
-    /// the episode after it is another random one (see [EpisodeShuffle]); [shuffle] false keeps normal order.
+    /// Builds the request for [current] and, recursively, for the episode after it. With [shuffle] (started from the
+    /// Shuffle button) the episode after it is another random one, for as long as this player session lasts.
     @MainActor
     static func chain(meta: MetaItem, ordered: [Video], current: Video, candidates: [StreamItem],
                       streams: StreamStore, settings: SettingsStore, library: LibraryStore,
-                      shuffle: Bool = true) -> PlayRequest {
+                      shuffle: Bool = false) -> PlayRequest {
         var slim = meta
         slim.videos = nil
         var req = PlayRequest(meta: slim, videoId: current.id, title: current.displayTitle, candidates: candidates)
         let following: Video?
-        if shuffle, let mode = EpisodeShuffle.setting(for: meta.id) {
-            EpisodeShuffle.recordPlayed(current.id, showId: meta.id)
-            following = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: current.id,
-                                            includeWatched: mode.includeWatched, isWatched: { library.isWatched($0) })
+        if shuffle {
+            following = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: current.id)
         } else if let idx = ordered.firstIndex(where: { $0.id == current.id }), idx + 1 < ordered.count {
             following = ordered[idx + 1]
         } else {

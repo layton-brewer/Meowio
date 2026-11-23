@@ -57,7 +57,6 @@ import nuvio.composeapp.generated.resources.hero_mark_watched
 import nuvio.composeapp.generated.resources.hero_remove_from_library
 import nuvio.composeapp.generated.resources.playback_unavailable
 import nuvio.composeapp.generated.resources.random_episode_title
-import nuvio.composeapp.generated.resources.shuffle_stop
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.ui.NuvioGlass
 import androidx.compose.foundation.BorderStroke
@@ -277,9 +276,10 @@ fun DetailActions(
 ) {
     val shuffleAction = onShuffleClick?.let { onClick ->
         DetailSecondaryAction(
-            label = stringResource(if (shuffleEnabled) Res.string.shuffle_stop else Res.string.random_episode_title),
+            // No Stop shuffle: shuffle ends by itself when the user leaves the player or the show.
+            label = stringResource(Res.string.random_episode_title),
             icon = Icons.Default.Shuffle,
-            isActive = shuffleEnabled,
+            isActive = false,
             onClick = onClick,
         )
     }

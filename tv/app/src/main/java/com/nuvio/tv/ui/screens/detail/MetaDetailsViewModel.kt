@@ -249,6 +249,8 @@ class MetaDetailsViewModel @Inject constructor(
     private val _optimisticUnmarks = mutableSetOf<Pair<Int, Int>>()
 
     init {
+        // Shuffle lasts one viewing session; opening a show starts with it off.
+        episodeShuffleStore.endSessions()
         applyTrailerHandoff()
         posterOptions.bind(viewModelScope)
         observeSourcePreloadTargets()
@@ -3338,6 +3340,8 @@ class MetaDetailsViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        // Leaving the show ends shuffle.
+        episodeShuffleStore.endSessions()
         idleTimerJob?.cancel()
         trailerFetchJob?.cancel()
         nextToWatchJob?.cancel()

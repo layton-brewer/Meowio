@@ -30,9 +30,16 @@ internal object EpisodeShuffleRepository {
         onProfileChanged()
     }
 
+    /** Profiles whose leftover shuffle from an earlier app run has been cleared. */
+    private val freshProfiles = mutableSetOf<Int>()
+
     fun onProfileChanged() {
-        loadedProfileId = ProfileRepository.activeProfileId
-        state.value = readProfile(ProfileRepository.activeProfileId)
+        val profileId = ProfileRepository.activeProfileId
+        loadedProfileId = profileId
+        val saved = readProfile(profileId)
+        state.value = saved
+        // Shuffle never outlives a viewing session, so one left on when the app last closed is stale.
+        if (freshProfiles.add(profileId) && saved.shows.values.any { it.enabled }) endSessions()
     }
 
     fun readProfile(profileId: Int): EpisodeShuffleProfile = runCatching {
@@ -50,6 +57,18 @@ internal object EpisodeShuffleRepository {
         return persist(profile.copy(shows = profile.shows + (contentId to settings)), profileId).also { saved ->
             if (saved) ShuffleSurface.entries.forEach { shuffle.clearSelection(profileId, contentId, it) }
         }
+    }
+
+    /**
+     * Shuffle lasts one viewing session: it ends when the user leaves the player or the show
+     * (there is no Stop shuffle button). Turns it off for every show of the active profile.
+     */
+    fun endSessions() {
+        ensureLoaded()
+        val profile = state.value
+        if (profile.shows.values.none { it.enabled }) return
+        persist(profile.copy(shows = profile.shows.mapValues { it.value.copy(enabled = false) }), ProfileRepository.activeProfileId)
+        shuffle.clear()
     }
 
     private fun persist(profile: EpisodeShuffleProfile, profileId: Int): Boolean = runCatching {

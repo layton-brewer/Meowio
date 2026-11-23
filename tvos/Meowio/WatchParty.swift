@@ -1079,9 +1079,8 @@ enum PartyLauncher {
             let ordered = (meta.videos ?? []).filter { ($0.season ?? 0) > 0 }
                 .sorted { (($0.season ?? 0), ($0.episode ?? 0)) < (($1.season ?? 0), ($1.episode ?? 0)) }
             if let current = ordered.first(where: { $0.id == itemId }) {
-                // A party follows the host's episode, so it never shuffles on its own.
                 return DetailView.chain(meta: meta, ordered: ordered, current: current, candidates: candidates,
-                                        streams: streams, settings: settings, library: library, shuffle: false)
+                                        streams: streams, settings: settings, library: library)
             }
         }
         var slim = meta

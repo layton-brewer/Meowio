@@ -37,6 +37,9 @@ class EpisodeShufflePlayback @Inject constructor(
         PlaybackShuffleState(profile.settings(contentId, contentType), watched, progress)
     }
 
+    /** Shuffle lasts one viewing session: called when the player closes. */
+    fun endSession() = store.endSessions()
+
     suspend fun isEnabled(metadata: ExternalPlaybackMetadata): Boolean =
         store.observeProfile(metadata.profileId).first()
             .settings(metadata.contentId, metadata.contentType).enabled
