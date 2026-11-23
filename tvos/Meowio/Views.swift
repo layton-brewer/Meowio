@@ -1132,7 +1132,6 @@ struct DetailView: View {
     /// Episode shuffle for this show: nil when off. [shufflePick] is the random episode the Play button starts.
     @State private var shuffleMode: EpisodeShuffle.Setting?
     @State private var shufflePick: Video?
-    @State private var showShuffleChoice = false
     @EnvironmentObject var trakt: TraktStore
     @FocusState private var playFocused: Bool
 
@@ -1242,15 +1241,7 @@ struct DetailView: View {
             // Back from the player: a fresh random episode for the Play button.
             if closed { rerollShuffle() }
         }
-        .confirmationDialog("Shuffle", isPresented: $showShuffleChoice, titleVisibility: .visible) {
-            if ordered.contains(where: { !watched($0) }) {
-                Button("Unwatched episodes") { Task { await startShuffle(includeWatched: false) } }
-            }
-            Button("All episodes") { Task { await startShuffle(includeWatched: true) } }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Plays a random episode, then keeps playing random episodes of this show until you choose Stop shuffle.")
-        }
+
         .fullScreenCover(isPresented: $showTrailer) {
             if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
         }
@@ -1334,7 +1325,8 @@ struct DetailView: View {
                             shuffleMode = nil
                             shufflePick = nil
                         } else {
-                            showShuffleChoice = true
+                            // No seen/unseen question: any episode of the show.
+                            Task { await startShuffle(includeWatched: true) }
                         }
                     } label: {
                         Label(shuffleMode != nil ? "Stop shuffle" : "Shuffle", systemImage: "shuffle")
@@ -1518,7 +1510,7 @@ struct DetailView: View {
         shuffleMode = mode
         rerollShuffle()
         guard let ep = shufflePick else {
-            message = "No episodes left to shuffle. Choose All episodes to watch again."
+            message = "No episodes to shuffle."
             return
         }
         await play(videoId: ep.id, title: ep.displayTitle)

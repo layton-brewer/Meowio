@@ -3,7 +3,7 @@ import Foundation
 /// Episode shuffle for one show, like the Android, phone and desktop apps. Turned on from the show's Shuffle button,
 /// it stays on for that show (per profile) until Stop shuffle: every Next Episode is another random episode of the
 /// same show, never the one just played, and episodes already played this session come up again only once the rest
-/// have had a turn. "Unwatched episodes" leaves out episodes marked watched. Movies never shuffle.
+/// have had a turn. Any episode can come up (no seen/unseen question). Movies never shuffle.
 @MainActor
 enum EpisodeShuffle {
     struct Setting: Codable, Equatable {
