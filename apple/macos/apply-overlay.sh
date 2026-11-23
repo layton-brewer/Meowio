@@ -50,6 +50,9 @@ sed -i.bak 's|TmdbMetadataService\.fetchPersonDetail(|PersonDetailLoader.fetchPe
 grep -q 'PersonDetailLoader.fetchPersonDetail' "$person" || { echo "Person page fallback patch did not apply" >&2; exit 1; }
 rm -f "$person.bak"
 
+# "Are you still watching?" prompt in the desktop controls page (StillWatching.kt).
+perl "$here/patch-still-watching.pl" "$root"
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \

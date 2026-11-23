@@ -106,6 +106,7 @@ open class MainActivity : AppCompatActivity() {
         MetaScreenSettingsStorage.initialize(applicationContext)
         com.nuvio.app.features.livetv.LiveTvPlatformStorage.initialize(applicationContext)
         com.nuvio.app.features.shuffle.EpisodeShuffleStorage.initialize(applicationContext)
+        com.nuvio.app.features.player.StillWatchingStorage.initialize(applicationContext)
         HomeCatalogSettingsStorage.initialize(applicationContext)
         PlayerSettingsStorage.initialize(applicationContext)
         // Smart auto-play picks sources that match this screen (short side = video height).

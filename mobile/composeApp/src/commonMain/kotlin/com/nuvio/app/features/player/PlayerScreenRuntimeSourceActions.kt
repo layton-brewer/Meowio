@@ -562,6 +562,19 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
                 !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
             ))
     if (!isCurrentRequest()) return
+    if (automatic) {
+        // "Are you still watching?": after enough auto-played episodes in a row, wait for the viewer.
+        if (StillWatching.interceptAutoPlay(onContinue = {
+                playerController?.play()
+                playNextEpisode(automatic = false)
+            })
+        ) {
+            playerController?.pause()
+            return
+        }
+    } else {
+        StillWatching.resetCount()
+    }
     nextEpisodeAutoPlayAutomatic = automatic
 
     scope.launchPlayerNextEpisodeAutoPlay(

@@ -249,6 +249,14 @@ struct SettingsView: View {
                 ForEach(StreamMode.allCases) { Text($0.title).tag($0) }
             }
             Toggle("Play next episode automatically", isOn: $settings.autoNext)
+            if settings.autoNext {
+                Toggle("Ask \"Are you still watching?\"", isOn: $settings.stillWatching)
+                if settings.stillWatching {
+                    Picker("Ask after", selection: $settings.stillWatchingAfter) {
+                        ForEach([2, 3, 4, 5], id: \.self) { Text("\($0) episodes in a row").tag($0) }
+                    }
+                }
+            }
             Toggle("Prefer the same release for every episode", isOn: $settings.sameRelease)
             Toggle("Find the next episode's sources early", isOn: $settings.preloadNext)
             Toggle("Switch sources silently when one fails", isOn: $settings.failoverEnabled)

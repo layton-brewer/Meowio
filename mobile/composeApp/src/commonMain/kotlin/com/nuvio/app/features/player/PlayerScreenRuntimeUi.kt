@@ -684,6 +684,10 @@ private fun BoxScope.RenderPlaybackOverlays(
 
 @Composable
 private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
+    StillWatchingPromptHost(onExit = {
+        flushWatchProgress()
+        args.onBack()
+    })
     PlayerChaptersPanel(
         visible = showChaptersPanel && chapters.isNotEmpty(),
         chapters = chapters,

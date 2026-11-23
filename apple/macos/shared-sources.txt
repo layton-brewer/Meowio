@@ -38,6 +38,8 @@ commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenModalHosts.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenRuntimeSourceActions.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerSidePanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/SleepTimer.kt
+commonMain/kotlin/com/nuvio/app/features/player/StillWatching.kt
+commonMain/kotlin/com/nuvio/app/features/settings/PlaybackUpNextSettings.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/PlayerNextEpisodeRules.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/SkipIntroButton.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt
@@ -71,6 +73,7 @@ commonMain/composeResources/values/autosync_strings.xml
 commonMain/composeResources/values/strings_mdblist.xml
 commonMain/composeResources/values/strings_party.xml
 commonMain/composeResources/values/strings_pip.xml
+commonMain/composeResources/values/strings_still_watching.xml
 commonMain/kotlin/com/nuvio/app/features/search/SearchRepository.kt
 commonMain/kotlin/com/nuvio/app/features/shuffle/EpisodeShuffleRepository.kt
 commonMain/kotlin/com/nuvio/app/features/party/PartyPanel.kt

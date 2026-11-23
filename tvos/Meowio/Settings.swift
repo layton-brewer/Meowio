@@ -158,6 +158,9 @@ final class SettingsStore: ObservableObject {
     @Published var addons: [String] { didSet { save() } }
     @Published var streamMode: StreamMode { didSet { save() } }
     @Published var autoNext: Bool { didSet { save() } }
+    /// "Are you still watching?" after this many auto-played episodes in a row (off by default, like Android TV).
+    @Published var stillWatching: Bool { didSet { save() } }
+    @Published var stillWatchingAfter: Int { didSet { save() } }
     @Published var sameRelease: Bool { didSet { save() } }
     @Published var preloadNext: Bool { didSet { save() } }
     @Published var failoverEnabled: Bool { didSet { save() } }
@@ -232,6 +235,8 @@ final class SettingsStore: ObservableObject {
         addons = list
         streamMode = StreamMode(rawValue: d.string(forKey: "streamMode") ?? "") ?? .smart
         autoNext = d.object(forKey: "autoNext") as? Bool ?? true
+        stillWatching = d.object(forKey: "stillWatching") as? Bool ?? false
+        stillWatchingAfter = d.object(forKey: "stillWatchingAfter") as? Int ?? 3
         sameRelease = d.object(forKey: "sameRelease") as? Bool ?? true
         preloadNext = d.object(forKey: "preloadNext") as? Bool ?? true
         failoverEnabled = d.object(forKey: "failoverEnabled") as? Bool ?? true
@@ -285,6 +290,8 @@ final class SettingsStore: ObservableObject {
         addonStore.set(addons, forKey: "addons")
         d.set(streamMode.rawValue, forKey: "streamMode")
         d.set(autoNext, forKey: "autoNext")
+        d.set(stillWatching, forKey: "stillWatching")
+        d.set(stillWatchingAfter, forKey: "stillWatchingAfter")
         d.set(sameRelease, forKey: "sameRelease")
         d.set(preloadNext, forKey: "preloadNext")
         d.set(failoverEnabled, forKey: "failoverEnabled")

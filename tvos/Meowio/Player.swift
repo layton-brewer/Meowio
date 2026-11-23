@@ -92,6 +92,10 @@ final class PlaybackController: ObservableObject {
     @Published var request: PlayRequest
     @Published var activeIndex = 0
     @Published var sleptMessage = false
+    /// "Are you still watching?" is up: auto-play waits for the viewer.
+    @Published var stillWatchingPrompt = false
+    /// Episodes auto-play started in a row; a choice by the viewer starts the count again.
+    private var autoPlayedInARow = 0
     /// Subtitles from the user's subtitle add-ons for what is playing.
     @Published private(set) var addonSubtitles: [SubtitleItem] = []
     /// Shown near the end of an episode when another one follows ("Next Episode" button).
@@ -705,6 +709,27 @@ final class PlaybackController: ObservableObject {
             return
         }
         guard settings.autoNext || userAsked, let provider = request.nextEpisode else { return }
+        if userAsked {
+            autoPlayedInARow = 0
+        } else if settings.stillWatching && autoPlayedInARow >= settings.stillWatchingAfter {
+            stillWatchingPrompt = true
+            return
+        } else {
+            autoPlayedInARow += 1
+        }
+        startNext(provider)
+    }
+
+    /// "Keep watching" on the prompt.
+    func continueAfterStillWatching() {
+        stillWatchingPrompt = false
+        autoPlayedInARow = 0
+        guard let provider = request.nextEpisode else { return }
+        startNext(provider)
+    }
+
+    private func startNext(_ provider: @escaping @MainActor () async -> PlayRequest?) {
+        guard !advancing else { return }
         advancing = true
         upNextVisible = false
         status = "Finding the next episode…"
@@ -830,7 +855,7 @@ struct PlayerScreen: View {
     @State private var bridge: PartyPlayerBridge?
     @State private var contentWarnings: [ParentalGuide.Warning] = []
     /// A message with buttons is showing over the picture.
-    private var blocked: Bool { controller.failedAll || controller.sleptMessage }
+    private var blocked: Bool { controller.failedAll || controller.sleptMessage || controller.stillWatchingPrompt }
 
     init(request: PlayRequest, settings: SettingsStore) {
         self.settings = settings
@@ -879,6 +904,10 @@ struct PlayerScreen: View {
                 }
                 .padding(40)
                 .glass()
+            }
+            if controller.stillWatchingPrompt {
+                StillWatchingPromptView(onContinue: { controller.continueAfterStillWatching() },
+                                        onExit: { dismiss() })
             }
             if controller.sleptMessage {
                 VStack(spacing: 20) {
@@ -1177,5 +1206,27 @@ enum DeadLinks {
             out.append("torrent:\(hash):\(stream.fileIdx.map(String.init) ?? "-")")
         }
         return out
+    }
+}
+
+/// Android TV's "Are you still watching?": closes the player when nobody answers within a minute.
+struct StillWatchingPromptView: View {
+    let onContinue: () -> Void
+    let onExit: () -> Void
+    @State private var remaining = 60
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Are you still watching?").font(.title2.weight(.semibold))
+            Text("Closing in \(remaining) s").font(.callout).foregroundStyle(.secondary)
+            Button("Keep watching") { onContinue() }
+            Button("Exit") { onExit() }
+        }
+        .padding(40)
+        .glass()
+        .onReceive(timer) { _ in
+            if remaining > 1 { remaining -= 1 } else { onExit() }
+        }
     }
 }

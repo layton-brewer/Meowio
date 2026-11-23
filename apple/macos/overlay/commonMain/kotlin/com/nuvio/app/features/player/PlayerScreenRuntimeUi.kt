@@ -304,6 +304,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             title = chapter.title ?: stringResource(Res.string.compose_player_chapter_number, index + 1),
         )
     }
+    // "Are you still watching?" is drawn by the controls page over the native video.
+    val stillWatchingPrompt = rememberStillWatchingPrompt(onExit = { requestBack() })
     val playerControlsState = PlayerControlsState(
         chapters = controlChapters,
         chapterTitleEnabled = playerSettingsUiState.chapterTitleEnabled,
@@ -373,6 +375,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         submitIntroEndTimeLabel = stringResource(Res.string.submit_intro_end_time_label),
         submitIntroCaptureLabel = stringResource(Res.string.submit_intro_capture_button),
         submitIntroSubmitLabel = stringResource(Res.string.submit_intro_button_submit),
+        stillWatchingVisible = stillWatchingPrompt != null,
+        stillWatchingTitle = stringResource(Res.string.still_watching_title),
+        stillWatchingMessage = stringResource(Res.string.still_watching_countdown, stillWatchingPrompt?.remainingSeconds ?: 0),
+        stillWatchingContinueLabel = stringResource(Res.string.still_watching_continue),
+        stillWatchingExitLabel = stringResource(Res.string.still_watching_exit),
         p2pConsentTitle = stringResource(Res.string.p2p_consent_title),
         p2pConsentBody = stringResource(Res.string.p2p_consent_body),
         p2pConsentEnableLabel = stringResource(Res.string.p2p_consent_enable),
@@ -1177,6 +1184,8 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
                 playerController?.selectSubtitleTrack(index)
             }
         }
+        "stillWatchingContinue" -> StillWatching.continueWatching()
+        "stillWatchingExit" -> stillWatchingExit { requestBack() }
         "selectAudioTrack" -> {
             // The controls webview sends the track id (trackIdValue); map it back
             // to the logical index that selectAudioTrack() expects (falling back to

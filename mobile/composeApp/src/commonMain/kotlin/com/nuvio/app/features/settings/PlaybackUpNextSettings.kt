@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +89,10 @@ internal fun PlaybackUpNextSettings(
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setPreloadNextEpisodeSources,
                 )
+                if (settings.streamAutoPlayNextEpisodeEnabled) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    StillWatchingSettingsRows(isTablet = isTablet)
+                }
                 SettingsGroupDivider(isTablet = isTablet)
                 var showThresholdModeDialog by remember { mutableStateOf(false) }
                 SettingsNavigationRow(
@@ -258,3 +263,34 @@ private val com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.labelRes
         com.nuvio.app.features.player.skip.NextEpisodeThresholdMode.MINUTES_BEFORE_END ->
             Res.string.settings_playback_threshold_mode_minutes_before_end
     }
+
+/** "Are you still watching?" after several auto-played episodes in a row (StillWatching.kt). */
+@Composable
+private fun StillWatchingSettingsRows(isTablet: Boolean) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { com.nuvio.app.features.player.StillWatching.ensureLoaded() }
+    val stillWatching by com.nuvio.app.features.player.StillWatching.settings
+        .collectAsState()
+    SettingsSwitchRow(
+        title = stringResource(Res.string.settings_still_watching_title),
+        description = stringResource(Res.string.settings_still_watching_description),
+        checked = stillWatching.enabled,
+        isTablet = isTablet,
+        onCheckedChange = com.nuvio.app.features.player.StillWatching::setEnabled,
+    )
+    if (stillWatching.enabled) {
+        SettingsGroupDivider(isTablet = isTablet)
+        SettingsChipRow(
+            title = stringResource(Res.string.settings_still_watching_threshold),
+            description = stringResource(Res.string.settings_still_watching_threshold_description),
+            isTablet = isTablet,
+        ) {
+            com.nuvio.app.features.player.StillWatching.thresholdOptions.forEach { count ->
+                com.nuvio.app.core.ui.Chip(
+                    label = stringResource(Res.string.settings_still_watching_threshold_value, count),
+                    selected = stillWatching.episodeThreshold == count,
+                    onClick = { com.nuvio.app.features.player.StillWatching.setEpisodeThreshold(count) },
+                )
+            }
+        }
+    }
+}
