@@ -39,6 +39,9 @@ grep -q 'withShowLevelFallbacks' "$home" || { echo "Continue Watching fallback p
 grep -q 'withoutEpisodelessShowProgress' "$home" || { echo "Continue Watching show-progress patch did not apply" >&2; exit 1; }
 rm -f "$home.bak"
 
+# "Are you still watching?" prompt in the desktop controls page (StillWatching.kt).
+perl "$here/patch-still-watching.pl" "$root"
+
 # Ratings on posters (RatingPosterDB key) above the custom poster source (RatingPosterKeySection.kt).
 posters="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/PosterCustomizationSettingsPage.kt"
 perl -0pi -e 's/(\r?\n)(    item \{\r?\n        CustomPosterUrlRepository\.ensureLoaded\(\))/$1    item { RatingPosterKeySection(isTablet = isTablet) }$1$2/' "$posters"
@@ -49,9 +52,6 @@ person="$root/composeApp/src/commonMain/kotlin/com/nuvio/app/features/details/Pe
 sed -i.bak 's|TmdbMetadataService\.fetchPersonDetail(|PersonDetailLoader.fetchPersonDetail(personName = personName, |' "$person"
 grep -q 'PersonDetailLoader.fetchPersonDetail' "$person" || { echo "Person page fallback patch did not apply" >&2; exit 1; }
 rm -f "$person.bak"
-
-# "Are you still watching?" prompt in the desktop controls page (StillWatching.kt).
-perl "$here/patch-still-watching.pl" "$root"
 
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \

@@ -38,8 +38,6 @@ commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenModalHosts.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenRuntimeSourceActions.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerSidePanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/SleepTimer.kt
-commonMain/kotlin/com/nuvio/app/features/player/StillWatching.kt
-commonMain/kotlin/com/nuvio/app/features/settings/PlaybackUpNextSettings.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/PlayerNextEpisodeRules.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/SkipIntroButton.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt
@@ -73,7 +71,6 @@ commonMain/composeResources/values/autosync_strings.xml
 commonMain/composeResources/values/strings_mdblist.xml
 commonMain/composeResources/values/strings_party.xml
 commonMain/composeResources/values/strings_pip.xml
-commonMain/composeResources/values/strings_still_watching.xml
 commonMain/kotlin/com/nuvio/app/features/search/SearchRepository.kt
 commonMain/kotlin/com/nuvio/app/features/shuffle/EpisodeShuffleRepository.kt
 commonMain/kotlin/com/nuvio/app/features/party/PartyPanel.kt
@@ -200,3 +197,7 @@ commonMain/kotlin/com/nuvio/app/features/details/TmdbFallbackEpisodes.kt
 commonMain/kotlin/com/nuvio/app/features/settings/RatingPosterKeySection.kt
 commonMain/kotlin/com/nuvio/app/features/details/PersonDetailLoader.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktRelatedRepository.kt
+# "Are you still watching?" (shared with the phone apps).
+commonMain/kotlin/com/nuvio/app/features/player/StillWatching.kt
+commonMain/kotlin/com/nuvio/app/features/settings/PlaybackUpNextSettings.kt
+commonMain/composeResources/values/strings_still_watching.xml
