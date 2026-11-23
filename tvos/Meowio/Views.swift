@@ -1129,6 +1129,10 @@ struct DetailView: View {
     @State private var moreLikeThis: [MetaItem] = []
     @State private var extras = DetailExtras()
     @State private var rateTarget: RateTarget?
+    /// Episode shuffle for this show: nil when off. [shufflePick] is the random episode the Play button starts.
+    @State private var shuffleMode: EpisodeShuffle.Setting?
+    @State private var shufflePick: Video?
+    @State private var showShuffleChoice = false
     @EnvironmentObject var trakt: TraktStore
     @FocusState private var playFocused: Bool
 
@@ -1201,13 +1205,15 @@ struct DetailView: View {
             } else if let first = seasons.first {
                 season = seasons.contains(1) ? 1 : first
             }
+            shuffleMode = meta.type == "movie" ? nil : EpisodeShuffle.setting(for: meta.id)
+            rerollShuffle()
             playFocused = true
             preloadForOpen()
             if autoplay, !didAutoplay {
                 didAutoplay = true
                 if meta.type == "movie" {
                     await play(videoId: meta.id, title: meta.name)
-                } else if let next = nextUp {
+                } else if let next = primaryEpisode {
                     await play(videoId: next.id, title: next.displayTitle)
                 }
             }
@@ -1231,6 +1237,19 @@ struct DetailView: View {
         }
         .fullScreenCover(item: $playRequest) { req in
             PlayerScreen(request: req, settings: settings)
+        }
+        .onChange(of: playRequest == nil) { _, closed in
+            // Back from the player: a fresh random episode for the Play button.
+            if closed { rerollShuffle() }
+        }
+        .confirmationDialog("Shuffle", isPresented: $showShuffleChoice, titleVisibility: .visible) {
+            if ordered.contains(where: { !watched($0) }) {
+                Button("Unwatched episodes") { Task { await startShuffle(includeWatched: false) } }
+            }
+            Button("All episodes") { Task { await startShuffle(includeWatched: true) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Plays a random episode, then keeps playing random episodes of this show until you choose Stop shuffle.")
         }
         .fullScreenCover(isPresented: $showTrailer) {
             if let trailerURL { TrailerPlayerView(url: trailerURL).ignoresSafeArea() }
@@ -1270,9 +1289,10 @@ struct DetailView: View {
                     .buttonStyle(PillButtonStyle())
                     .focused($playFocused)
                     .disabled(resolving)
-                } else if let next = nextUp {
+                } else if let next = primaryEpisode {
                     Button { Task { await play(videoId: next.id, title: next.displayTitle) } } label: {
-                        Label(resolving ? "Finding best source…" : nextLabel(next), systemImage: "play.fill")
+                        Label(resolving ? "Finding best source…" : nextLabel(next),
+                              systemImage: shuffleMode != nil && library.resumePoint(for: next.id) <= 0 ? "shuffle" : "play.fill")
                     }
                     .buttonStyle(PillButtonStyle())
                     .focused($playFocused)
@@ -1305,15 +1325,22 @@ struct DetailView: View {
                     }
                     .buttonStyle(CircleIconButtonStyle(selected: mine != nil))
                 }
-                if meta.type != "movie", ordered.count > 1 {
-                    // Episode shuffle, like the Android TV app: plays a random episode of the show.
+                if meta.type != "movie", ordered.count > 1 || shuffleMode != nil {
+                    // Episode shuffle, like the other apps: random episodes of this show, one after another,
+                    // until Stop shuffle.
                     Button {
-                        if let ep = ordered.randomElement() {
-                            Task { await play(videoId: ep.id, title: ep.displayTitle) }
+                        if shuffleMode != nil {
+                            EpisodeShuffle.set(nil, for: meta.id)
+                            shuffleMode = nil
+                            shufflePick = nil
+                        } else {
+                            showShuffleChoice = true
                         }
-                    } label: { Label("Random episode", systemImage: "shuffle") }
-                        .buttonStyle(CircleIconButtonStyle())
-                        .disabled(resolving)
+                    } label: {
+                        Label(shuffleMode != nil ? "Stop shuffle" : "Shuffle", systemImage: "shuffle")
+                    }
+                    .buttonStyle(CircleIconButtonStyle(selected: shuffleMode != nil))
+                    .disabled(resolving)
                 }
                 if settings.streamMode == .smart, !settings.addons.isEmpty || servers.hasEnabled || plugins.hasActiveScrapers {
                     Button { Task { await chooseSource() } } label: { Label("Sources", systemImage: "list.bullet") }
@@ -1470,6 +1497,33 @@ struct DetailView: View {
         return list.first
     }
 
+    /// What the Play button starts: with shuffle on, the episode in progress if there is one, else a random one.
+    private var primaryEpisode: Video? {
+        guard shuffleMode != nil else { return nextUp }
+        if let n = nextUp, library.resumePoint(for: n.id) > 0, !watched(n) { return n }
+        return shufflePick ?? nextUp
+    }
+
+    /// Picks the random episode the Play button shows while shuffle is on.
+    private func rerollShuffle() {
+        guard let mode = shuffleMode else { shufflePick = nil; return }
+        shufflePick = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: nil,
+                                          includeWatched: mode.includeWatched, isWatched: { library.isWatched($0) })
+    }
+
+    /// Turns shuffle on for this show and plays a random episode right away.
+    private func startShuffle(includeWatched: Bool) async {
+        let mode = EpisodeShuffle.Setting(includeWatched: includeWatched)
+        EpisodeShuffle.set(mode, for: meta.id)
+        shuffleMode = mode
+        rerollShuffle()
+        guard let ep = shufflePick else {
+            message = "No episodes left to shuffle. Choose All episodes to watch again."
+            return
+        }
+        await play(videoId: ep.id, title: ep.displayTitle)
+    }
+
     private func nextLabel(_ v: Video) -> String {
         let started = library.resumePoint(for: v.id) > 0
         return "\(started ? "Resume" : "Play") S\(v.season ?? 0) E\(v.episode ?? 0)"
@@ -1481,7 +1535,7 @@ struct DetailView: View {
             streams.preload(type: "movie", id: meta.id, settings: settings)
             return
         }
-        if let n = nextUp { streams.preload(type: "series", id: n.id, settings: settings) }
+        if let n = primaryEpisode { streams.preload(type: "series", id: n.id, settings: settings) }
         for s in seasons.prefix(8) {
             if let first = (meta.videos ?? []).filter({ $0.season == s }).min(by: { ($0.episode ?? 0) < ($1.episode ?? 0) }) {
                 streams.preload(type: "series", id: first.id, settings: settings)
@@ -1513,7 +1567,7 @@ struct DetailView: View {
     private func chooseSource() async {
         if meta.type == "movie" {
             await play(videoId: meta.id, title: meta.name, forcePicker: true)
-        } else if let n = nextUp {
+        } else if let n = primaryEpisode {
             await play(videoId: n.id, title: n.displayTitle, forcePicker: true)
         }
     }
@@ -1533,22 +1587,33 @@ struct DetailView: View {
         return PlayRequest(meta: meta, videoId: meta.type == "movie" ? nil : videoId, title: title, candidates: candidates)
     }
 
-    /// Builds the request for [current] and, recursively, for the episode after it.
+    /// Builds the request for [current] and, recursively, for the episode after it. With shuffle on for the show,
+    /// the episode after it is another random one (see [EpisodeShuffle]); [shuffle] false keeps normal order.
     @MainActor
     static func chain(meta: MetaItem, ordered: [Video], current: Video, candidates: [StreamItem],
-                      streams: StreamStore, settings: SettingsStore, library: LibraryStore) -> PlayRequest {
+                      streams: StreamStore, settings: SettingsStore, library: LibraryStore,
+                      shuffle: Bool = true) -> PlayRequest {
         var slim = meta
         slim.videos = nil
         var req = PlayRequest(meta: slim, videoId: current.id, title: current.displayTitle, candidates: candidates)
-        if let idx = ordered.firstIndex(where: { $0.id == current.id }), idx + 1 < ordered.count {
-            let next = ordered[idx + 1]
+        let following: Video?
+        if shuffle, let mode = EpisodeShuffle.setting(for: meta.id) {
+            EpisodeShuffle.recordPlayed(current.id, showId: meta.id)
+            following = EpisodeShuffle.pick(showId: meta.id, ordered: ordered, current: current.id,
+                                            includeWatched: mode.includeWatched, isWatched: { library.isWatched($0) })
+        } else if let idx = ordered.firstIndex(where: { $0.id == current.id }), idx + 1 < ordered.count {
+            following = ordered[idx + 1]
+        } else {
+            following = nil
+        }
+        if let next = following {
             if settings.preloadNext { streams.preload(type: "series", id: next.id, settings: settings) }
             req.nextEpisode = {
                 let list = await streams.candidates(type: "series", id: next.id, parentId: meta.id, settings: settings, name: meta.name)
                 guard !list.isEmpty else { return nil }
                 library.record(meta: meta, videoId: next.id)
                 var nextReq = DetailView.chain(meta: meta, ordered: ordered, current: next, candidates: list,
-                                               streams: streams, settings: settings, library: library)
+                                               streams: streams, settings: settings, library: library, shuffle: shuffle)
                 nextReq.startAt = library.resumePoint(for: next.id)
                 return nextReq
             }
