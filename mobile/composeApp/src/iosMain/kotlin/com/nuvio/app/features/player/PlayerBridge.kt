@@ -93,6 +93,8 @@ interface NuvioPlayerBridge {
     fun getPlaybackSpeed(): Float
     fun getErrorMessage(): String
     fun getProperty(name: String): String
+    /** Sets an mpv property (used for the quality picker, which selects a video rendition). */
+    fun setProperty(name: String, value: String)
     fun destroy()
 }
 

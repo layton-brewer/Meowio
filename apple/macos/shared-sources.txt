@@ -38,6 +38,7 @@ commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenModalHosts.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenRuntimeSourceActions.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerSidePanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/SleepTimer.kt
+commonMain/kotlin/com/nuvio/app/features/player/MpvVideoQuality.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/PlayerNextEpisodeRules.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/SkipIntroButton.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt

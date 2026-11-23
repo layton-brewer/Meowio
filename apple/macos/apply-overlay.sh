@@ -50,6 +50,9 @@ sed -i.bak 's|TmdbMetadataService\.fetchPersonDetail(|PersonDetailLoader.fetchPe
 grep -q 'PersonDetailLoader.fetchPersonDetail' "$person" || { echo "Person page fallback patch did not apply" >&2; exit 1; }
 rm -f "$person.bak"
 
+# Quality choice for adaptive streams in the player (native mpv bridges + controller).
+perl "$here/patch-quality-choice.pl" "$root"
+
 sed -i.bak \
   -e 's/packageName = "Nuvio"/packageName = "Meowio"/' \
   -e 's/bundleID = "com.nuvio.media.desktop"/bundleID = "com.meowio.desktop"/' \
