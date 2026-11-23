@@ -384,9 +384,20 @@ internal fun PlayerRuntimeController.evaluatePostPlayOverlayVisibility(positionM
         }
         return
     }
-    if (state.postPlayMode != null || state.postPlayDismissedForCurrentEpisode) return
-
     val effectiveDuration = effectiveDurationEarly
+    if (state.postPlayDismissedForCurrentEpisode) return
+    if (state.postPlayMode != null) {
+        // The card shows when the credits begin; auto-play switches only once they have finished.
+        val waitingCard = state.postPlayMode as? PostPlayMode.AutoPlay
+        if (waitingCard != null && !waitingCard.searching && waitingCard.countdownSec == null &&
+            waitingCard.sourceName == null && streamAutoPlayNextEpisodeEnabledSetting &&
+            nextEpisodeAutoPlayJob?.isActive != true &&
+            shouldAutoAdvanceToNextEpisode(positionMs, effectiveDuration)
+        ) {
+            playNextEpisode()
+        }
+        return
+    }
 
     // Preload: start fetching sources for next episode before the button appears.
     if (preloadNextEpisodeSourcesSetting && !nextEpisodePreloadTriggered && state.nextEpisode != null) {
@@ -446,11 +457,23 @@ internal fun PlayerRuntimeController.evaluatePostPlayOverlayVisibility(positionM
         _uiState.update {
             it.copy(postPlayMode = PostPlayMode.AutoPlay(nextEpisode = state.nextEpisode))
         }
-        if (streamAutoPlayNextEpisodeEnabledSetting) {
+        if (streamAutoPlayNextEpisodeEnabledSetting &&
+            shouldAutoAdvanceToNextEpisode(positionMs, effectiveDuration)
+        ) {
             playNextEpisode()
         }
     }
 }
+
+private fun PlayerRuntimeController.shouldAutoAdvanceToNextEpisode(positionMs: Long, durationMs: Long): Boolean =
+    PlayerNextEpisodeRules.shouldAutoAdvanceToNextEpisode(
+        positionMs = positionMs,
+        durationMs = durationMs,
+        skipIntervals = skipIntervals,
+        thresholdMode = nextEpisodeThresholdModeSetting,
+        thresholdPercent = nextEpisodeThresholdPercentSetting,
+        thresholdMinutesBeforeEnd = nextEpisodeThresholdMinutesBeforeEndSetting
+    )
 
 internal fun PlayerRuntimeController.showStreamSourceIndicator(stream: Stream) {
     val chosenSource = (stream.name?.takeIf { it.isNotBlank() } ?: stream.addonName).trim()

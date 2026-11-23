@@ -965,16 +965,23 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         }
         if (shouldShow && !showNextEpisodeCard) {
             showNextEpisodeCard = true
-            if (playerSettingsUiState.streamAutoPlayNextEpisodeEnabled && nextEpisodeInfo?.hasAired == true && !isPartyControlLocked) {
-                if (SleepTimer.consumeEndOfEpisode()) {
-                    // Sleep timer: stop here instead of rolling into the next episode.
-                    pauseForSleepTimer()
-                } else {
-                    playNextEpisode(automatic = true)
-                }
-            }
+            nextEpisodeAutoAdvanceHandled = false
         } else if (!shouldShow) {
             showNextEpisodeCard = false
+            nextEpisodeAutoAdvanceHandled = false
+        }
+        // The card shows when the credits begin; auto-play switches only once they have finished.
+        if (shouldShow && !nextEpisodeAutoAdvanceHandled && isAtNextEpisodeAutoAdvancePoint() &&
+            playerSettingsUiState.streamAutoPlayNextEpisodeEnabled && nextEpisodeInfo?.hasAired == true &&
+            !isPartyControlLocked && !nextEpisodeAutoPlaySearching && nextEpisodeAutoPlayCountdown == null
+        ) {
+            nextEpisodeAutoAdvanceHandled = true
+            if (SleepTimer.consumeEndOfEpisode()) {
+                // Sleep timer: stop here instead of rolling into the next episode.
+                pauseForSleepTimer()
+            } else {
+                playNextEpisode(automatic = true)
+            }
         }
     }
 }

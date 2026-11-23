@@ -311,7 +311,12 @@ internal fun PlayerRuntimeController.resetPostPlayStateAfterPlaybackEnded() {
     val autoPlayEligible = streamAutoPlayNextEpisodeEnabledSetting &&
         state.nextEpisode?.hasAired == true &&
         nextEpisodeVideo != null
-    if (autoPlayEligible && (state.postPlayDismissedForCurrentEpisode || state.postPlayMode == null)) {
+    // A Next Episode card still waiting for the credits to finish also rolls on at the end.
+    val waitingCard = (state.postPlayMode as? PostPlayMode.AutoPlay)
+        ?.let { !it.searching && it.countdownSec == null && it.sourceName == null } == true
+    if (autoPlayEligible &&
+        (state.postPlayDismissedForCurrentEpisode || state.postPlayMode == null || waitingCard)
+    ) {
         playNextEpisode()
         return
     }
