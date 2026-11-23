@@ -186,6 +186,12 @@ data class PlayerControlsState(
     val p2pConsentCancelLabel: String = "Cancel",
     val speedPanelTitle: String = "Playback Speed",
     val audioTracksPanelTitle: String = "Audio Tracks",
+    /** Quality choice in the audio panel: rendition heights, highest first, comma separated; empty hides it. */
+    val videoQualityHeights: String = "",
+    /** The chosen cap in pixels, or -1 for automatic. */
+    val videoQualityCap: Int = -1,
+    val videoQualityLabel: String = "Video quality",
+    val videoQualityAutoLabel: String = "Auto",
     val noAudioTracksLabel: String = "No audio tracks available",
     val subtitlesPanelTitle: String = "Subtitles",
     val subtitleLanguagesLabel: String = "Languages",

@@ -292,6 +292,9 @@ internal class PlayerScreenRuntime(
     var sourceFallbackJob: Job? = null
 
     var showAudioModal by mutableStateOf(false)
+    /** Renditions offered by the controls page's quality choice (filled when its audio panel opens). */
+    var desktopVideoQualityHeights by mutableStateOf<List<Int>>(emptyList())
+    var desktopVideoQualityCap by mutableStateOf(-1)
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
     var showStreamInfo by mutableStateOf(false)

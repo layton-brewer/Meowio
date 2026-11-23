@@ -7,6 +7,7 @@ use warnings;
 
 my $root = shift or die "usage: patch-quality-choice.pl <desktop checkout>\n";
 my $src = "$root/composeApp/src/desktopMain";
+# Note: resources live at $src/resources.
 
 sub patch_file {
     my ($path, $marker, $edit) = @_;
@@ -61,6 +62,67 @@ patch_file("$src/kotlin/com/nuvio/app/features/player/desktop/NativePlayerContro
         '    }',
         ''));
     $t;
+});
+
+# Kotlin: the controls page gets the quality choice with the rest of its state.
+patch_file("$src/kotlin/com/nuvio/app/features/player/desktop/NativePlayerController.kt", 'appendJsonField("videoQualityHeights"', sub {
+    my ($t, $e) = @_;
+    insert_before($t, '        appendJsonField("noAudioTracksLabel", noAudioTracksLabel)', lines($e,
+        '        appendJsonField("videoQualityHeights", videoQualityHeights)',
+        "        append(',')",
+        '        appendJsonField("videoQualityCap", videoQualityCap)',
+        "        append(',')",
+        '        appendJsonField("videoQualityLabel", videoQualityLabel)',
+        "        append(',')",
+        '        appendJsonField("videoQualityAutoLabel", videoQualityAutoLabel)',
+        "        append(',')"));
+});
+
+# Controls page: ask for the renditions when the audio panel opens and list them above the audio tracks.
+patch_file("$src/resources/player-ui/controls.js", 'renderVideoQualityChoice', sub {
+    my ($t, $e) = @_;
+    $t = insert_before($t, '  if (modal === "subtitles") {' . $e . '    resetSubtitleSelectionState();', lines($e,
+        '  if (modal === "audio") send("refreshVideoQualities");'));
+    $t = insert_before($t, '  const tracks = normalizeTracks(state.audioTracks);' . $e . '  if (tracks.length === 0) {' . $e . '    appendEmptyTrackState(audioTrackList',
+        lines($e, '  renderVideoQualityChoice(audioTrackList);'));
+    $t . lines($e, '',
+        'function renderVideoQualityChoice(container) {',
+        '  const heights = String(state.videoQualityHeights || "")',
+        '    .split(",")',
+        '    .map(value => Number(value))',
+        '    .filter(value => Number.isFinite(value) && value > 0);',
+        '  if (heights.length < 2) return;',
+        '  const current = Number(state.videoQualityCap);',
+        '  const selected = Number.isFinite(current) && current > 0 ? current : -1;',
+        '  const heading = document.createElement("div");',
+        '  heading.className = "audio-track-language";',
+        '  heading.style.padding = "4px 12px 6px";',
+        '  heading.textContent = state.videoQualityLabel || "Video quality";',
+        '  container.appendChild(heading);',
+        '  [-1, ...heights].forEach(height => {',
+        '    const row = document.createElement("button");',
+        '    row.type = "button";',
+        '    row.className = `track-row audio-track-row${height === selected ? " selected" : ""}`;',
+        '    row.addEventListener("click", event => {',
+        '      event.stopPropagation();',
+        '      state.videoQualityCap = height;',
+        '      send("videoQualityCap", height);',
+        '      window.setTimeout(closePlayerModal, 120);',
+        '    });',
+        '    const copy = document.createElement("span");',
+        '    copy.className = "audio-track-copy";',
+        '    const name = document.createElement("span");',
+        '    name.className = "audio-track-name";',
+        '    name.textContent = height > 0 ? `${height}p` : (state.videoQualityAutoLabel || "Auto");',
+        '    copy.appendChild(name);',
+        '    row.appendChild(copy);',
+        '    row.appendChild(buildCheckIcon());',
+        '    container.appendChild(row);',
+        '  });',
+        '  const divider = document.createElement("div");',
+        '  divider.style.height = "10px";',
+        '  container.appendChild(divider);',
+        '}');
 });
 
 # Windows bridge.

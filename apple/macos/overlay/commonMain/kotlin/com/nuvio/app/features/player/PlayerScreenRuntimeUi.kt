@@ -379,6 +379,10 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         p2pConsentCancelLabel = stringResource(Res.string.p2p_consent_cancel),
         speedPanelTitle = stringResource(Res.string.compose_player_playback_speed),
         audioTracksPanelTitle = stringResource(Res.string.compose_player_audio_tracks),
+        videoQualityHeights = desktopVideoQualityHeights.joinToString(","),
+        videoQualityCap = desktopVideoQualityCap,
+        videoQualityLabel = stringResource(Res.string.player_quality),
+        videoQualityAutoLabel = stringResource(Res.string.player_quality_auto),
         noAudioTracksLabel = stringResource(Res.string.compose_player_no_audio_tracks_available),
         subtitlesPanelTitle = stringResource(Res.string.compose_player_subtitles),
         subtitleLanguagesLabel = stringResource(Res.string.compose_player_languages),
@@ -1191,6 +1195,20 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             selectedAudioIndex = index
             persistAudioPreference(audioTracks.firstOrNull { it.index == index })
             playerController?.selectAudioTrack(index)
+        }
+        "refreshVideoQualities" -> {
+            // The controls page opened its audio panel: offer the stream's renditions, if it has several.
+            val heights = playerController?.getVideoQualityHeights().orEmpty()
+            if (heights != desktopVideoQualityHeights) {
+                desktopVideoQualityHeights = heights
+                desktopVideoQualityCap = -1
+            }
+        }
+        "videoQualityCap" -> {
+            val cap = value.toInt().takeIf { it > 0 }
+            playerControlsLog.d { "videoQualityCap cap=$cap ${playerControlLogContext()}" }
+            playerController?.setVideoQualityCap(cap)
+            desktopVideoQualityCap = cap ?: -1
         }
         "fetchAddonSubtitles" -> fetchAddonSubtitlesForActiveItem()
         "selectAddonSubtitle" -> {
