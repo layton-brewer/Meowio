@@ -581,7 +581,7 @@ class FolderDetailViewModel @Inject constructor(
                         isLoading = anyLoading,
                         homeLayout = s.homeLayout,
                         homeImdbRatingsVisibility = s.homeImdbRatingsVisibility,
-                        posterLabelsEnabled = if (s.homeLayout == HomeLayout.MODERN) false else s.posterLabelsEnabled,
+                        posterLabelsEnabled = s.posterLabelsEnabled,
                         modernLandscapePostersEnabled = s.modernLandscapePostersEnabled,
                         modernHeroFullScreenBackdropEnabled = s.modernHeroFullScreenBackdropEnabled,
                         alwaysShowLandscapeClearlogo = s.alwaysShowLandscapeClearlogo,
