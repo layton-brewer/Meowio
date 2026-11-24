@@ -148,6 +148,9 @@ Going on a trip? Tap **Download** on a movie or episode and watch it later with 
 | ⚡ | **Preloading** | It starts finding streams while you browse, so Play is fast. |
 | 📡 | **Live TV** | Free channels built in, US first, around **3,500 channels**. Search, favorites, now/next guide, plus a built-in VPN option. Or use your own M3U or Xtream playlist. |
 | 🎲 | **Surprise Me** | Can't decide? Meowio picks a title from your add-ons' catalogs. |
+| 🔀 | **Shuffle** | Plays random episodes of a show, one after another, until you leave the player. |
+| ⏭️ | **Next Episode** | The next episode card shows when the credits start, and auto-play rolls on once they finish. |
+| 🛋️ | **Are you still watching?** | Optional. After a few auto-played episodes in a row, Meowio asks before playing more. |
 | ⏭️ | **Skip Intro** | Jump past intros and recaps with one button. |
 | ☁️ | **Real-Debrid cloud library** | Browse and play files already in your Real-Debrid account. Cached links come first. |
 | 🗂️ | **Media servers** | Play from **Plex**, **Silo**, **Jellyfin** and **Emby** on every app. |
@@ -162,11 +165,13 @@ Going on a trip? Tap **Download** on a movie or episode and watch it later with 
 | 💾 | **Backup and restore** | Save your settings and move them to a new device. |
 | 📌 | **Pinned sources** | Tell Smart play which add-ons you trust most. |
 | 😴 | **Sleep timer** | Stops playback after a set time or at the end of the episode. |
-| 🎚️ | **Quality picker** | Don't like the auto choice? Pick the quality yourself. |
+| 🎚️ | **Quality picker** | Don't like the auto choice? Pick the quality yourself, or hold an adaptive stream to one resolution. |
+| 🎭 | **Cast pages** | Open an actor to see what else they're in, plus **More like this** on every title. |
+| ⚠️ | **Content warnings** | Optional parental guide notes when a title starts. |
 | 📈 | **Watch stats** | See what you watch the most. |
 | 🤖 | **AI assistant** | Ask for suggestions. Uses your own API key. |
 | ⬇️ | **Downloads** | One-tap offline downloads on phone, iPhone/iPad, Mac and Windows (not on TV apps). |
-| 🧩 | **CloudStream plugins** | Extra sources on Android phone and Android TV. |
+| 🧩 | **CloudStream plugins** | Extra sources on the Android phone app. |
 
 Prefer to choose yourself? Set **Stream selection** to **Manual** in the playback settings. 👍
 
@@ -181,8 +186,13 @@ Prefer to choose yourself? Set **Stream selection** to **Manual** in the playbac
 | Plex, Silo, Jellyfin, Emby | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Real-Debrid cloud library | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Skip Intro + Unwatch all | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Trakt, Simkl, MDBList | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Watch party | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Surprise Me + Shuffle | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Are you still watching? | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quality picker | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Downloads | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| CloudStream plugins | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| CloudStream plugins | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -230,7 +240,7 @@ The Apple and desktop builds take longer to finish, so they can show up on the r
 
 A quick, honest list of what doesn't work everywhere:
 
-- 🧩 **CloudStream is Android-only.** It runs Android plugin code, so it only works on the Android phone and Android TV apps.
+- 🧩 **CloudStream is Android phone only.** It runs Android plugin code, so it's in the Android phone app. Every app, TVs included, runs Nuvio plugins and Stremio-style add-ons.
 - 📺 **No downloads on TV apps.** Android TV and Apple TV don't have downloads. Phones, iPhone/iPad, Mac and Windows do.
 - 🍎 **Apple apps can't update themselves fully.** Mac updates itself. iPhone/iPad hands the update to AltStore or SideStore. Apple TV shows a QR code for the new version. Apple doesn't allow more than that.
 - 🍎 **Apple builds are unsigned.** You install them with your own Apple ID, and free IDs expire after 7 days.

@@ -38,6 +38,7 @@ commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenModalHosts.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenRuntimeSourceActions.kt
 commonMain/kotlin/com/nuvio/app/features/player/PlayerSidePanel.kt
 commonMain/kotlin/com/nuvio/app/features/player/SleepTimer.kt
+commonMain/kotlin/com/nuvio/app/features/player/MpvVideoQuality.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/PlayerNextEpisodeRules.kt
 commonMain/kotlin/com/nuvio/app/features/player/skip/SkipIntroButton.kt
 commonMain/kotlin/com/nuvio/app/features/settings/PlaybackStreamDialogs.kt
@@ -197,3 +198,7 @@ commonMain/kotlin/com/nuvio/app/features/details/TmdbFallbackEpisodes.kt
 commonMain/kotlin/com/nuvio/app/features/settings/RatingPosterKeySection.kt
 commonMain/kotlin/com/nuvio/app/features/details/PersonDetailLoader.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktRelatedRepository.kt
+# "Are you still watching?" (shared with the phone apps).
+commonMain/kotlin/com/nuvio/app/features/player/StillWatching.kt
+commonMain/kotlin/com/nuvio/app/features/settings/PlaybackUpNextSettings.kt
+commonMain/composeResources/values/strings_still_watching.xml

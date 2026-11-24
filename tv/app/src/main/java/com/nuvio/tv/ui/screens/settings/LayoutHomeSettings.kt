@@ -146,13 +146,13 @@ internal fun LayoutHomeContentSection(
     uiState: LayoutSettingsUiState,
     onEvent: (LayoutSettingsEvent) -> Unit
 ) {
+    SettingsToggleRow(
+        title = stringResource(R.string.layout_poster_labels),
+        subtitle = stringResource(R.string.layout_poster_labels_sub),
+        checked = uiState.posterLabelsEnabled,
+        onToggle = { onEvent(LayoutSettingsEvent.SetPosterLabelsEnabled(!uiState.posterLabelsEnabled)) }
+    )
     if (uiState.selectedLayout != HomeLayout.MODERN) {
-        SettingsToggleRow(
-            title = stringResource(R.string.layout_poster_labels),
-            subtitle = stringResource(R.string.layout_poster_labels_sub),
-            checked = uiState.posterLabelsEnabled,
-            onToggle = { onEvent(LayoutSettingsEvent.SetPosterLabelsEnabled(!uiState.posterLabelsEnabled)) }
-        )
         SettingsToggleRow(
             title = stringResource(R.string.layout_addon_name),
             subtitle = stringResource(R.string.layout_addon_name_sub),

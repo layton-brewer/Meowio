@@ -220,6 +220,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getPlaybackSpeed() -> Float { playerVC?.currentSpeed ?? 1.0 }
     func getErrorMessage() -> String { playerVC?.currentErrorMessage ?? "" }
     func getProperty(name: String) -> String { playerVC?.getString(name) ?? "" }
+    func setProperty(name: String, value: String) { playerVC?.setPropertyFromBridge(name, value) }
 
     func destroy() {
         playerVC?.systemControlHandler = nil
@@ -1437,6 +1438,11 @@ final class MPVPlayerViewController: UIViewController {
         guard mpv != nil else { return }
         var data: Int = flag ? 1 : 0
         mpv_set_property(mpv, name, MPV_FORMAT_FLAG, &data)
+    }
+
+    /// Lets the bridge set a property, such as `vid` for the quality picker.
+    fileprivate func setPropertyFromBridge(_ name: String, _ value: String) {
+        setStringProperty(name, value)
     }
 
     private func setStringProperty(_ name: String, _ value: String) {

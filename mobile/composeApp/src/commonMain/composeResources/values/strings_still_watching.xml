@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="still_watching_title">Are you still watching?</string>
+    <string name="still_watching_continue">Keep watching</string>
+    <string name="still_watching_exit">Exit</string>
+    <string name="still_watching_countdown">Closing in %1$d s</string>
+    <string name="settings_still_watching_title">Are you still watching?</string>
+    <string name="settings_still_watching_description">Ask before auto-play starts another episode after several in a row.</string>
+    <string name="settings_still_watching_threshold">Ask after</string>
+    <string name="settings_still_watching_threshold_description">Episodes auto-played in a row before asking.</string>
+    <string name="settings_still_watching_threshold_value">%1$d episodes</string>
+</resources>

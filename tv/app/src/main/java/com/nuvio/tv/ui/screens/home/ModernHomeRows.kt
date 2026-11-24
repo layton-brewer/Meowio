@@ -1491,7 +1491,7 @@ private fun ModernCarouselCard(
                         contentScale = ContentScale.Fit,
                         alignment = Alignment.CenterStart
                     )
-                } else if ((useLandscapeOverlayTreatment || isBackdropExpanded) && !isCollectionFolder && !(useLandscapeAsExpanded && !trailerFirstFrameRendered) && (effectiveIgnoreLandscapePoster || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)) {
+                } else if ((useLandscapeOverlayTreatment || isBackdropExpanded) && !(showLabels && !isBackdropExpanded) && !isCollectionFolder && !(useLandscapeAsExpanded && !trailerFirstFrameRendered) && (effectiveIgnoreLandscapePoster || item.metaPreview?.landscapePoster.isNullOrBlank() || customPosterLoadFailed)) {
                     Text(
                         text = item.title,
                         style = titleStyle.copy(
@@ -1518,11 +1518,14 @@ private fun ModernCarouselCard(
             }
         }
 
-        if (showLabels && !isBackdropExpanded && item.title.isNotBlank()) {
+        // Title and year under the card, like the phone app. While the focused card is
+        // expanded the label stays laid out but invisible, so rows below never jump.
+        if (showLabels && item.title.isNotBlank()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = NuvioTheme.spacing.xs)
+                    .graphicsLayer { alpha = if (isBackdropExpanded) 0f else 1f }
             ) {
                 Text(
                     text = item.title,

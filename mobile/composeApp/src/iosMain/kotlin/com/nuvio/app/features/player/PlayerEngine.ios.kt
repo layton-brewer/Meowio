@@ -215,6 +215,16 @@ actual fun PlatformPlayerSurface(
             override suspend fun getMediaInfo(): PlayerMediaInfo =
                 mpvMediaInfo { name -> bridge.getProperty(name).ifBlank { null } }
 
+            override fun getVideoQualityHeights(): List<Int> =
+                mpvVideoQualityHeights { name -> bridge.getProperty(name).ifBlank { null } }
+
+            override fun setVideoQualityCap(maxHeight: Int?) {
+                bridge.setProperty(
+                    "vid",
+                    mpvVideoTrackForCap(maxHeight) { name -> bridge.getProperty(name).ifBlank { null } },
+                )
+            }
+
             override suspend fun getChapters(): List<PlayerChapter> =
                 mpvChapters { name -> bridge.getProperty(name).ifBlank { null } }
 

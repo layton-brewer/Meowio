@@ -304,6 +304,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
             title = chapter.title ?: stringResource(Res.string.compose_player_chapter_number, index + 1),
         )
     }
+    // "Are you still watching?" is drawn by the controls page over the native video.
+    val stillWatchingPrompt = rememberStillWatchingPrompt(onExit = { requestBack() })
     val playerControlsState = PlayerControlsState(
         chapters = controlChapters,
         chapterTitleEnabled = playerSettingsUiState.chapterTitleEnabled,
@@ -373,12 +375,21 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
         submitIntroEndTimeLabel = stringResource(Res.string.submit_intro_end_time_label),
         submitIntroCaptureLabel = stringResource(Res.string.submit_intro_capture_button),
         submitIntroSubmitLabel = stringResource(Res.string.submit_intro_button_submit),
+        stillWatchingVisible = stillWatchingPrompt != null,
+        stillWatchingTitle = stringResource(Res.string.still_watching_title),
+        stillWatchingMessage = stringResource(Res.string.still_watching_countdown, stillWatchingPrompt?.remainingSeconds ?: 0),
+        stillWatchingContinueLabel = stringResource(Res.string.still_watching_continue),
+        stillWatchingExitLabel = stringResource(Res.string.still_watching_exit),
         p2pConsentTitle = stringResource(Res.string.p2p_consent_title),
         p2pConsentBody = stringResource(Res.string.p2p_consent_body),
         p2pConsentEnableLabel = stringResource(Res.string.p2p_consent_enable),
         p2pConsentCancelLabel = stringResource(Res.string.p2p_consent_cancel),
         speedPanelTitle = stringResource(Res.string.compose_player_playback_speed),
         audioTracksPanelTitle = stringResource(Res.string.compose_player_audio_tracks),
+        videoQualityHeights = desktopVideoQualityHeights.joinToString(","),
+        videoQualityCap = desktopVideoQualityCap,
+        videoQualityLabel = stringResource(Res.string.player_quality),
+        videoQualityAutoLabel = stringResource(Res.string.player_quality_auto),
         noAudioTracksLabel = stringResource(Res.string.compose_player_no_audio_tracks_available),
         subtitlesPanelTitle = stringResource(Res.string.compose_player_subtitles),
         subtitleLanguagesLabel = stringResource(Res.string.compose_player_languages),
@@ -1177,6 +1188,8 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
                 playerController?.selectSubtitleTrack(index)
             }
         }
+        "stillWatchingContinue" -> StillWatching.continueWatching()
+        "stillWatchingExit" -> stillWatchingExit { requestBack() }
         "selectAudioTrack" -> {
             // The controls webview sends the track id (trackIdValue); map it back
             // to the logical index that selectAudioTrack() expects (falling back to
@@ -1191,6 +1204,20 @@ internal fun PlayerScreenRuntime.handlePlayerControlsEvent(type: String, value: 
             selectedAudioIndex = index
             persistAudioPreference(audioTracks.firstOrNull { it.index == index })
             playerController?.selectAudioTrack(index)
+        }
+        "refreshVideoQualities" -> {
+            // The controls page opened its audio panel: offer the stream's renditions, if it has several.
+            val heights = playerController?.getVideoQualityHeights().orEmpty()
+            if (heights != desktopVideoQualityHeights) {
+                desktopVideoQualityHeights = heights
+                desktopVideoQualityCap = -1
+            }
+        }
+        "videoQualityCap" -> {
+            val cap = value.toInt().takeIf { it > 0 }
+            playerControlsLog.d { "videoQualityCap cap=$cap ${playerControlLogContext()}" }
+            playerController?.setVideoQualityCap(cap)
+            desktopVideoQualityCap = cap ?: -1
         }
         "fetchAddonSubtitles" -> fetchAddonSubtitlesForActiveItem()
         "selectAddonSubtitle" -> {
@@ -2022,6 +2049,8 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
         onNextEpisodeAutoPlayCountdownChanged = { nextEpisodeAutoPlayCountdown = it },
         onNextEpisodeAutoPlaySourceNameChanged = { nextEpisodeAutoPlaySourceName = it },
         showAudioModal = showAudioModal,
+        videoQualityHeights = if (showAudioModal) playerController?.getVideoQualityHeights().orEmpty() else emptyList(),
+        onVideoQualityCap = { height -> playerController?.setVideoQualityCap(height) },
         audioTracks = serverAudioTracks.ifEmpty { audioTracks },
         selectedAudioIndex = serverAudioTracks.firstOrNull { it.isSelected }?.index ?: selectedAudioIndex,
         onAudioTrackSelected = { index ->
