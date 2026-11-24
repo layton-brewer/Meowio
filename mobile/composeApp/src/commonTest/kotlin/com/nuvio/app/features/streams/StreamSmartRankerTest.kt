@@ -161,4 +161,25 @@ class StreamSmartRankerTest {
         )
         assertEquals(listOf(instant, pinnedTorrent), ranked)
     }
+
+    @Test
+    fun `StremThru store tag without the lightning mark counts as not cached`() {
+        assertTrue(StreamSmartRanker.isMarkedUncached(stream("[RD]\nTorz\n2160p")))
+        assertTrue(StreamSmartRanker.isMarkedUncached(stream("✨ [TB] 🔑\nTorz\n1080p")))
+        assertFalse(StreamSmartRanker.isMarkedUncached(stream("⚡️ [RD]\nTorz\n1080p")))
+        assertFalse(StreamSmartRanker.isMarkedUncached(stream("[RD+] Torrentio\n1080p")))
+        assertFalse(StreamSmartRanker.isMarkedUncached(stream("Torrentio 1080p")))
+    }
+
+    @Test
+    fun `cached StremThru link is picked before a sharper uncached one`() {
+        val uncached = stream("[RD]\nTorz\n1080p")
+        val cached = stream("⚡️ [RD]\nTorz\n720p")
+        val ranked = StreamSmartRanker.rank(
+            streams = listOf(uncached, cached),
+            isSeries = false,
+            maxVideoHeight = 1080,
+        )
+        assertEquals(listOf(cached, uncached), ranked)
+    }
 }

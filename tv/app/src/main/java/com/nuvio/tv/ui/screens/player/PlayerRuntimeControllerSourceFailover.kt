@@ -81,49 +81,48 @@ internal fun PlayerRuntimeController.tryFailoverToNextSource(errorMessage: Strin
     errorRetryJob = scope.launch {
         showRecoveryOverlay()
         streamCacheKey?.let { streamLinkCacheDataStore.remove(it) }
-        // Normally answered from the search that auto-play already ran for this title.
-        loadSourceStreams(forceRefresh = false)
-        var polls = 0
-        while (polls < SOURCE_FAILOVER_POLL_COUNT) {
-            val sources = _uiState.value
-            if (!sources.isLoadingSourceStreams && (sources.sourceAllStreams.isNotEmpty() || polls > 2)) break
-            delay(SOURCE_FAILOVER_POLL_INTERVAL_MS)
-            polls++
-        }
-
         val p2pEnabled = runCatching { torrentSettings.settings.first().p2pEnabled }.getOrDefault(false)
-        val candidates = rankSourceFailoverCandidates(
-            streams = _uiState.value.sourceAllStreams.filterNot { stream ->
-                failedInfoHash != null && stream.getStreamUrl().isNullOrBlank() &&
-                    stream.getEffectiveInfoHash().equals(failedInfoHash, ignoreCase = true)
-            },
-            triedKeys = sourceFailoverTriedKeys,
-            isSeries = season != null && episode != null
-        )
+        // First pass: the search auto-play already ran for this title. Second pass: a fresh search,
+        // in case that list was stale, empty or only held links that have expired since.
+        for (pass in 0..1) {
+            loadSourceStreams(forceRefresh = pass > 0)
+            awaitSourceStreamsForFailover()
 
-        for (candidate in candidates) {
-            sourceFailoverTriedKeys += candidate.failoverKey()
-            val playable: Stream = when {
-                candidate.serverTarget != null && candidate.getStreamUrl().isNullOrBlank() ->
-                    prepareServerStream(candidate)
-                candidate.youTubeIdToResolve() != null -> resolveYouTubeStream(candidate)
-                candidate.isTorrent() || candidate.isDirectDebrid() ->
-                    resolveDirectDebridStreamIfNeeded(candidate, season, episode)
-                else -> candidate
-            } ?: continue
-            val url = playable.getStreamUrl()
-            when {
-                !url.isNullOrBlank() -> {
-                    if (url == failedUrl || url in sourceFailoverTriedKeys && url != candidate.getStreamUrl()) continue
-                    sourceFailoverTriedKeys += url
+            val candidates = rankSourceFailoverCandidates(
+                streams = _uiState.value.sourceAllStreams.filterNot { stream ->
+                    failedInfoHash != null && stream.getStreamUrl().isNullOrBlank() &&
+                        stream.getEffectiveInfoHash().equals(failedInfoHash, ignoreCase = true)
+                },
+                triedKeys = sourceFailoverTriedKeys,
+                isSeries = season != null && episode != null
+            )
+            Log.i(PlayerRuntimeController.TAG, "Failover pass ${pass + 1}: ${candidates.size} backup sources")
+
+            for (candidate in candidates) {
+                sourceFailoverTriedKeys += candidate.failoverKey()
+                val playable: Stream = when {
+                    candidate.serverTarget != null && candidate.getStreamUrl().isNullOrBlank() ->
+                        prepareServerStream(candidate)
+                    candidate.youTubeIdToResolve() != null -> resolveYouTubeStream(candidate)
+                    candidate.isTorrent() || candidate.isDirectDebrid() ->
+                        resolveDirectDebridStreamIfNeeded(candidate, season, episode)
+                    else -> candidate
+                } ?: continue
+                val url = playable.getStreamUrl()
+                when {
+                    !url.isNullOrBlank() -> {
+                        if (url == failedUrl || url in sourceFailoverTriedKeys && url != candidate.getStreamUrl()) continue
+                        if (DeadStreamRegistry.isDeadUrl(url)) continue
+                        sourceFailoverTriedKeys += url
+                    }
+                    // No link: only a peer-to-peer torrent is left, which needs the viewer's consent.
+                    !(playable.isTorrent() && p2pEnabled) -> continue
                 }
-                // No link: only a peer-to-peer torrent is left, which needs the viewer's consent.
-                !(playable.isTorrent() && p2pEnabled) -> continue
+                Log.i(PlayerRuntimeController.TAG, "Switching to backup source from ${playable.addonName}")
+                // Resumes from the saved position and resets the per-source retry counters.
+                switchToSourceStream(playable)
+                return@launch
             }
-            Log.i(PlayerRuntimeController.TAG, "Switching to backup source from ${playable.addonName}")
-            // Resumes from the saved position and resets the per-source retry counters.
-            switchToSourceStream(playable)
-            return@launch
         }
 
         Log.w(PlayerRuntimeController.TAG, "No backup source could be played")
@@ -138,4 +137,16 @@ internal fun PlayerRuntimeController.tryFailoverToNextSource(errorMessage: Strin
         }
     }
     return true
+}
+
+/** Waits (up to 15 s) for the source search to settle, so failover sees every add-on's links. */
+private suspend fun PlayerRuntimeController.awaitSourceStreamsForFailover() {
+    var polls = 0
+    while (polls < SOURCE_FAILOVER_POLL_COUNT) {
+        // Give the search a moment to start before trusting "not loading".
+        delay(SOURCE_FAILOVER_POLL_INTERVAL_MS)
+        polls++
+        val sources = _uiState.value
+        if (!sources.isLoadingSourceStreams && (sources.sourceAllStreams.isNotEmpty() || polls > 3)) return
+    }
 }
