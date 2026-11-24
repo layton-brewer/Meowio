@@ -198,3 +198,7 @@ commonMain/kotlin/com/nuvio/app/features/details/TmdbFallbackEpisodes.kt
 commonMain/kotlin/com/nuvio/app/features/settings/RatingPosterKeySection.kt
 commonMain/kotlin/com/nuvio/app/features/details/PersonDetailLoader.kt
 commonMain/kotlin/com/nuvio/app/features/trakt/TraktRelatedRepository.kt
+# "Are you still watching?" (shared with the phone apps).
+commonMain/kotlin/com/nuvio/app/features/player/StillWatching.kt
+commonMain/kotlin/com/nuvio/app/features/settings/PlaybackUpNextSettings.kt
+commonMain/composeResources/values/strings_still_watching.xml

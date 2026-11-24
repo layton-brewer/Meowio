@@ -180,6 +180,12 @@ data class PlayerControlsState(
     val submitIntroEndTimeLabel: String = "END TIME (MM:SS)",
     val submitIntroCaptureLabel: String = "Capture",
     val submitIntroSubmitLabel: String = "Submit",
+    /** "Are you still watching?" prompt, drawn by the controls page over the video. */
+    val stillWatchingVisible: Boolean = false,
+    val stillWatchingTitle: String = "Are you still watching?",
+    val stillWatchingMessage: String = "",
+    val stillWatchingContinueLabel: String = "Keep watching",
+    val stillWatchingExitLabel: String = "Exit",
     val p2pConsentTitle: String = "P2P Streaming",
     val p2pConsentBody: String = "",
     val p2pConsentEnableLabel: String = "Enable P2P",
