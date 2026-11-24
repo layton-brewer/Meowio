@@ -37,7 +37,47 @@ internal object AppUpdaterRepository {
         isLenient = true
     }
 
-    suspend fun getLatestChannelUpdate(channel: UpdateChannel): Result<AppUpdate> = runCatching {
+    suspend fun getLatestChannelUpdate(channel: UpdateChannel): Result<AppUpdate> {
+        val fromApi = getLatestChannelUpdateFromApi(channel)
+        if (fromApi.isSuccess || channel != UpdateChannel.STABLE || fromApi.exceptionOrNull() is NoChannelReleaseException) {
+            return fromApi
+        }
+        // The GitHub API allows 60 unauthenticated requests an hour per network, shared by every device at home.
+        // When it refuses (or is unreachable), the release page redirect still names the latest tag.
+        val fromReleasePage = getLatestUpdateFromReleasePage(AppUpdaterPlatform.getSupportedAbis())
+        return if (fromReleasePage.isSuccess) fromReleasePage else fromApi
+    }
+
+    private suspend fun getLatestUpdateFromReleasePage(supportedAbis: List<String>): Result<AppUpdate> = runCatching {
+        val response = httpRequestRaw(
+            method = "GET",
+            url = "https://github.com/layton-brewer/meowio/releases/latest",
+            headers = mapOf("User-Agent" to "Meowio"),
+            body = "",
+            followRedirects = false,
+        )
+        currentCoroutineContext().ensureActive()
+        val location = response.headers.entries.firstOrNull { it.key.equals("Location", ignoreCase = true) }?.value
+            ?: error("No latest release redirect")
+        updateFromReleaseRedirect(location, supportedAbis) ?: error("No stable release tag in $location")
+    }
+
+    internal fun updateFromReleaseRedirect(location: String, supportedAbis: List<String>): AppUpdate? {
+        val tag = location.substringAfter("/releases/tag/", "").substringBefore('?').substringBefore('#')
+        if (VersionUtils.parse(tag) == null || VersionUtils.isPrerelease(tag)) return null
+        val assetName = if (IOS_IPA_ABI in supportedAbis) "Meowio-ios.ipa" else "Meowio-mobile.apk"
+        return AppUpdate(
+            tag = tag,
+            title = "Meowio $tag",
+            notes = "",
+            releaseUrl = location,
+            assetName = assetName,
+            assetUrl = "https://github.com/layton-brewer/meowio/releases/download/$tag/$assetName",
+            assetSizeBytes = null,
+        )
+    }
+
+    private suspend fun getLatestChannelUpdateFromApi(channel: UpdateChannel): Result<AppUpdate> = runCatching {
         val response = httpRequestRaw(
             method = "GET",
             url = "https://api.github.com/repos/layton-brewer/meowio/${releasePath(channel)}",

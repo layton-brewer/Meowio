@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private const val TAG = "UpdateInstall"
+private const val FOREGROUND_RECHECK_MS = 15 * 60_000L
 
 data class UpdateUiState(
     val isChecking: Boolean = false,
@@ -60,6 +61,7 @@ class UpdateViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UpdateUiState())
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
     private var updateCheckJob: Job? = null
+    private var lastAutoCheckAtMs = 0L
 
     init {
         viewModelScope.launch {
@@ -102,6 +104,7 @@ class UpdateViewModel @Inject constructor(
                 )
             }
 
+            lastAutoCheckAtMs = System.currentTimeMillis()
             val dismissedTag = updatePreferences.ignoredTag.first()
             val result = updateRepository.getLatestUpdate(channel)
             updatePreferences.setLastCheckAtMs(System.currentTimeMillis())
@@ -171,6 +174,20 @@ class UpdateViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    /**
+     * Called when Meowio comes to the foreground, and hourly while it stays there. Android TV keeps the app alive in
+     * the background for days, so a check only at launch never saw releases published after that; this re-checks so
+     * the banner offers each new version without restarting the app.
+     */
+    fun onAppForeground() {
+        if (BuildConfig.DEBUG) return
+        val state = _uiState.value
+        if (!state.updateBannerEnabled || state.isChecking || state.isDownloading || state.showBanner) return
+        val now = System.currentTimeMillis()
+        if (now - lastAutoCheckAtMs < FOREGROUND_RECHECK_MS) return
+        checkForUpdates(force = false, showNoUpdateFeedback = false)
     }
 
     private fun noUpdateFeedback(channel: UpdateChannel): String =

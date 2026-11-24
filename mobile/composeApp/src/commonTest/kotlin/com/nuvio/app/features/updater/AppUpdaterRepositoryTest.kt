@@ -105,6 +105,18 @@ class AppUpdaterRepositoryTest {
         assertEquals("Meowio-ios.ipa", update?.assetName)
     }
 
+    @Test
+    fun releasePageRedirectNamesTheLatestBuild() {
+        val location = "https://github.com/layton-brewer/meowio/releases/tag/v0.2.75"
+        val phone = AppUpdaterRepository.updateFromReleaseRedirect(location, listOf("arm64-v8a"))
+        assertEquals("v0.2.75", phone?.tag)
+        assertEquals("https://github.com/layton-brewer/meowio/releases/download/v0.2.75/Meowio-mobile.apk", phone?.assetUrl)
+        val iphone = AppUpdaterRepository.updateFromReleaseRedirect(location, listOf(IOS_IPA_ABI))
+        assertEquals("Meowio-ios.ipa", iphone?.assetName)
+        assertNull(AppUpdaterRepository.updateFromReleaseRedirect("https://github.com/layton-brewer/meowio/releases", listOf("arm64-v8a")))
+        assertNull(AppUpdaterRepository.updateFromReleaseRedirect("https://github.com/x/y/releases/tag/v1.0.0-beta.1", listOf("arm64-v8a")))
+    }
+
     private fun select(response: String, channel: UpdateChannel): AppUpdate? =
         AppUpdaterRepository.selectUpdate(response, channel, listOf("arm64-v8a"))
 }

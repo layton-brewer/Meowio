@@ -122,7 +122,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.os.ConfigurationCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.metrics.performance.JankStats
 import androidx.metrics.performance.PerformanceMetricsState
 import androidx.navigation.NavHostController
@@ -1236,6 +1238,16 @@ open class MainActivity : ComponentActivity() {
 
                     val updateViewModel: UpdateViewModel = hiltViewModel(this@MainActivity)
                     val updateState by updateViewModel.uiState.collectAsState()
+                    // Re-check for a new release whenever Meowio comes back to the foreground and hourly while it is
+                    // open, so a release published while the app sat in the background still gets its banner.
+                    LaunchedEffect(updateViewModel) {
+                        this@MainActivity.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                            while (true) {
+                                updateViewModel.onAppForeground()
+                                delay(60 * 60_000L)
+                            }
+                        }
+                    }
                     val updateBannerState = updateState.copy(
                         showBanner = updateState.showBanner && currentRoute?.startsWith("player/") != true
                     )
