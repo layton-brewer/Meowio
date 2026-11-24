@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.76 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.77 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.76 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.77 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.76"
+          tag="v0.2.77"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.76
+          ## What's new in 0.2.77
 
-          - The update banner now appears for new versions without restarting the app: every app checks again when you come back to it and every hour while it stays open, so you can update straight from the banner.
-          - If GitHub limits update checks on a busy network, Android TV, the phone and iPhone still find the new version.
+          - Sources that aren't cached yet no longer stop playback with a "placeholder clip" error. StremThru links marked plain [RD] (no ⚡) now count as not cached, so auto-play picks a ready source first and switches past any "Downloading to Store" clip in the background.
+          - Android TV searches your add-ons again before giving up, and you only see an error when every source is still downloading.
 
           ## Download
 
