@@ -617,7 +617,18 @@ struct HomeView: View {
     @State private var heroItem: MetaItem?
     @StateObject private var updates = UpdateChecker()
     @State private var updatePrompt: UpdatePrompt?
+    @State private var lastUpdateCheck = Date.distantPast
+    @Environment(\.scenePhase) private var scenePhase
     @State private var ambientOn = false
+
+    private func checkForUpdate() async {
+        lastUpdateCheck = Date()
+        await updates.check()
+        if case .available(let tag) = updates.state,
+           UserDefaults.standard.string(forKey: "updatePromptDismissed") != tag {
+            updatePrompt = UpdatePrompt(tag: tag)
+        }
+    }
 
     private var featured: MetaItem? { heroItem ?? library.continueWatching.first?.meta ?? addonRows.first?.items.first }
     /// What the header shows: the focused card, or a featured title before anything is focused.
@@ -726,11 +737,14 @@ struct HomeView: View {
             .meowioDestinations()
         }
         .task {
-            if case .idle = updates.state { await updates.check() }
-            if case .available(let tag) = updates.state,
-               UserDefaults.standard.string(forKey: "updatePromptDismissed") != tag {
-                updatePrompt = UpdatePrompt(tag: tag)
-            }
+            if case .idle = updates.state { await checkForUpdate() }
+        }
+        // Apple TV keeps Meowio suspended in the background for days, so check again when it comes back (at most every
+        // 15 minutes): a release published since launch still gets its prompt.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, updatePrompt == nil, Date().timeIntervalSince(lastUpdateCheck) > 15 * 60 else { return }
+            if case .checking = updates.state { return }
+            Task { await checkForUpdate() }
         }
         // A new version is offered once, in a dialog over Home, like Android TV's update prompt.
         .fullScreenCover(item: $updatePrompt) { prompt in

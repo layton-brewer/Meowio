@@ -36,6 +36,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.minutes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -91,8 +96,16 @@ fun AppUpdaterHost(
     val state by controller.uiState.collectAsStateWithLifecycle()
     var showReleaseNotes by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(controller) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(controller, lifecycleOwner) {
         controller.ensureAutoCheckStarted()
+        // Re-check when the app returns to the foreground and hourly while it is open.
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                controller.onAppForeground()
+                delay(60.minutes)
+            }
+        }
     }
     LaunchedEffect(state.update?.tag) {
         showReleaseNotes = false

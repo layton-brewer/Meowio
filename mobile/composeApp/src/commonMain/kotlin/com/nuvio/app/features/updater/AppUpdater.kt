@@ -18,8 +18,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+
+private val FOREGROUND_RECHECK_INTERVAL = 15.minutes
 
 data class AppUpdate(
     val tag: String,
@@ -54,6 +59,7 @@ class AppUpdaterController internal constructor(
     val uiState: StateFlow<AppUpdaterUiState> = _uiState.asStateFlow()
 
     private var autoCheckStarted = false
+    private var lastCheckMark: TimeMark? = null
     private var updateCheckJob: Job? = null
     private var downloadJob: Job? = null
 
@@ -83,6 +89,22 @@ class AppUpdaterController internal constructor(
         checkForUpdates(force = false, showNoUpdateFeedback = false)
     }
 
+    /**
+     * Called when the app comes back to the foreground, and hourly while it stays open. Phones and desktops keep the
+     * app alive for days, so checking only at launch missed releases published after that; this re-checks so the
+     * banner offers each new version without restarting the app.
+     */
+    fun onAppForeground() {
+        if (!autoCheckStarted) {
+            ensureAutoCheckStarted()
+            return
+        }
+        val state = _uiState.value
+        if (state.isChecking || state.isDownloading || state.showDialog) return
+        if (lastCheckMark?.let { it.elapsedNow() < FOREGROUND_RECHECK_INTERVAL } == true) return
+        checkForUpdates(force = false, showNoUpdateFeedback = false)
+    }
+
     fun checkForUpdates(force: Boolean, showNoUpdateFeedback: Boolean) {
         if (!AppFeaturePolicy.inAppUpdaterEnabled || !AppUpdaterPlatform.isSupported) {
             if (showNoUpdateFeedback) {
@@ -106,6 +128,7 @@ class AppUpdaterController internal constructor(
                 )
             }
 
+            lastCheckMark = TimeSource.Monotonic.markNow()
             val ignoredTag = AppUpdaterPlatform.getIgnoredTag()
             val result = fetchUpdate(channel)
             currentCoroutineContext().ensureActive()

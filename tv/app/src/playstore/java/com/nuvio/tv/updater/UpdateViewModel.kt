@@ -34,6 +34,8 @@ class UpdateViewModel @Inject constructor() : ViewModel() {
 
     fun checkForUpdates(force: Boolean, showNoUpdateFeedback: Boolean) = Unit
 
+    fun onAppForeground() = Unit
+
     fun dismissBanner() = Unit
 
     fun dismissUnknownSourcesDialog() = Unit
