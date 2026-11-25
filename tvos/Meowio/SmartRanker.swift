@@ -66,7 +66,16 @@ enum SmartRanker {
     /// "downloading" placeholder video) instead of the title, so failover never moves to one.
     static func isMarkedUncached(_ stream: StreamItem) -> Bool {
         stream.combinedText.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#)
+            || isStoreTagWithoutCacheMark(stream.name)
             || PlaceholderVideo.isPlaceholderURL(stream.url)
+    }
+
+    /// StremThru (Torz, Wrap, Store) names a cached link "⚡️ [RD]" and one it has not cached yet plain
+    /// "[RD]". The plain one adds the torrent to the debrid store and plays a short "Downloading to
+    /// Store" clip instead of the title, so it counts as not cached.
+    static func isStoreTagWithoutCacheMark(_ name: String?) -> Bool {
+        guard let name, !name.isEmpty, !name.contains("⚡") else { return false }
+        return name.range(of: #"\[(?:AD|DR|DL|ED|OC|PP|PM|RD|ST|TB)\]"#, options: .regularExpression) != nil
     }
 
     /// 0 = plays at once, 1 = probably fine, 2 = has to download first.
@@ -74,6 +83,7 @@ enum SmartRanker {
         // A torrent the user's debrid service already has plays at once.
         if stream.isTorrentOnly, let h = stream.infoHash?.lowercased(), cached.contains(h) { return 0 }
         if text.has(#"\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b"#) { return 2 }
+        if isStoreTagWithoutCacheMark(stream.name) { return 2 }
         if PlaceholderVideo.isPlaceholderURL(stream.url) { return 2 }
         if stream.playableURL != nil { return 0 }
         if stream.infoHash != nil { return 2 }

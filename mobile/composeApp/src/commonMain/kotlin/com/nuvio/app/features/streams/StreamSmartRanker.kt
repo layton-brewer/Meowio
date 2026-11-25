@@ -100,12 +100,30 @@ object StreamSmartRanker {
     fun isMarkedUncached(stream: StreamItem): Boolean =
         stream.debridCacheStatus?.state == StreamDebridCacheState.NOT_CACHED ||
             UNCACHED_REGEX.containsMatchIn(stream.searchableText()) ||
+            isStoreTagWithoutCacheMark(stream) ||
             // A debrid add-on's "downloading" or "failed" stand-in clip, not the title.
             PlaceholderVideoDetector.isPlaceholderUrl(stream.playableDirectUrl)
+
+    /**
+     * StremThru (Torz, Wrap, Store) names a cached link "⚡️ [RD]" and a link it has not cached yet
+     * plain "[RD]". Playing the plain one adds the torrent to the debrid store and shows a short
+     * "Downloading to Store" clip instead of the title, so it counts as not cached.
+     */
+    internal fun isStoreTagWithoutCacheMark(stream: StreamItem): Boolean {
+        // Our own cache check knows better than the label.
+        if (stream.debridCacheStatus?.state == StreamDebridCacheState.CACHED) return false
+        return isStoreTagWithoutCacheMark(stream.name)
+    }
+
+    internal fun isStoreTagWithoutCacheMark(name: String?): Boolean {
+        if (name.isNullOrBlank() || name.contains('⚡')) return false
+        return STORE_TAG_REGEX.containsMatchIn(name)
+    }
 
     /** 0 = plays instantly, 1 = probably fine, 2 = has to download first. */
     internal fun availabilityTier(stream: StreamItem, text: String): Int {
         if (UNCACHED_REGEX.containsMatchIn(text)) return 2
+        if (isStoreTagWithoutCacheMark(stream)) return 2
         if (PlaceholderVideoDetector.isPlaceholderUrl(stream.playableDirectUrl)) return 2
         if (stream.debridCacheStatus?.state == StreamDebridCacheState.NOT_CACHED) return 2
         if (stream.serverTarget != null) return 0
@@ -195,6 +213,9 @@ object StreamSmartRanker {
     private val WEBDL_REGEX = Regex("""\bweb[-. ]?dl\b|\bweb\b""", OPTIONS)
     private val WEBRIP_REGEX = Regex("""\bweb[-. ]?rip\b""", OPTIONS)
     private val HDTV_REGEX = Regex("""\b(hdtv|pdtv|dvdrip|hdrip)\b""", OPTIONS)
+
+    /** A debrid store tag on its own, as StremThru prints it: [RD], [TB], [AD], [PM]... */
+    private val STORE_TAG_REGEX = Regex("""\[(?:AD|DR|DL|ED|OC|PP|PM|RD|ST|TB)\]""")
 
     private val UNCACHED_REGEX = Regex(
         """\[[a-z]{2,3}\s*(download|⬇️?)\]|⏳|⬇️|\buncached\b|\bnot\s+cached\b|\bdownload\s+to\b""",

@@ -2752,5 +2752,5 @@
     <string name="subtitle_shadow_size">Shadow size</string>
     <string name="subtitle_reset_appearance">Reset appearance</string>
     <string name="player_error_source_stalled">The source stopped loading for %1$d seconds.</string>
-    <string name="player_error_source_placeholder">The source played a placeholder clip instead of the video.</string>
+    <string name="player_error_source_placeholder">No source is ready to play yet: they are all still downloading to your debrid service. Try again in a few minutes.</string>
 </resources>
