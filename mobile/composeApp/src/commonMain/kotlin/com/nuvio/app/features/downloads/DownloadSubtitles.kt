@@ -73,7 +73,7 @@ internal object DownloadSubtitles {
     }
 
     fun localSubtitles(localVideoUri: String): List<StreamSubtitle> {
-        if (!localVideoUri.startsWith("file:")) return emptyList()
+        if (!localVideoUri.startsWith("file:") && !localVideoUri.startsWith("content:")) return emptyList()
         val storage = DownloadSubtitleStorage(localVideoUri)
         return readManifest(storage).tracks.mapNotNull { track ->
             val uri = storage.localFileUri(track.fileName) ?: return@mapNotNull null

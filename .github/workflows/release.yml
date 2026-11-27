@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.77 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.78 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.77 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.78 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,12 +260,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.77"
+          tag="v0.2.78"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.77
+          ## What's new in 0.2.78
 
-          - Sources that aren't cached yet no longer stop playback with a "placeholder clip" error. StremThru links marked plain [RD] (no ⚡) now count as not cached, so auto-play picks a ready source first and switches past any "Downloading to Store" clip in the background.
-          - Android TV searches your add-ons again before giving up, and you only see an error when every source is still downloading.
+          - Save downloads to any folder you like. On Android phones and tablets, Library > Downloads > Download location > Choose any folder… opens the system folder picker, so you can pick any folder on the phone, an SD card or a USB drive. Downloads, resume, offline playback, subtitles and delete all work from that folder.
+          - On Mac and Windows, Choose any folder… opens the normal Finder or Windows folder window.
+          - The chosen folder is shown by name, and Reset to default puts downloads back in the app's own folder. If the app ever loses access to your folder, new downloads go to the default folder instead.
 
           ## Download
 

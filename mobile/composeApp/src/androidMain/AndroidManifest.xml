@@ -7,6 +7,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application>
+        <activity
+            android:name="com.nuvio.app.features.downloads.DownloadFolderPickerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <service
             android:name="com.nuvio.app.features.downloads.DownloadsTransferJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"

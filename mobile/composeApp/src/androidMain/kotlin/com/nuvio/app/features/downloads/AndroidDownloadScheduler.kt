@@ -37,6 +37,17 @@ import okhttp3.ConnectionPool
 internal class AndroidDownloadScheduler(val context: Context) {
     val store = AndroidDownloadStore(File(context.filesDir, "download-transfers"))
     val directory: File get() = DownloadLocation.directory(context)
+
+    /** Folder a transfer writes into: the one it started in if still usable, else the current choice. */
+    private fun targetFor(transfer: AndroidDownloadTransfer?): AndroidDownloadTarget =
+        transfer?.targetLocation?.let { AndroidDownloadTarget.fromLocation(context, it) }
+            ?: DownloadLocation.target(context)
+
+    /** Plain file whose `.subtitles` folder holds the subtitles saved for this download. */
+    private fun subtitleAnchor(target: AndroidDownloadTarget, fileName: String): File = when (target) {
+        is AndroidDownloadTarget.Folder -> File(target.directory, fileName)
+        is AndroidDownloadTarget.Tree -> File(DownloadLocation.subtitleDirectory(context), fileName)
+    }
     private val locks = ConcurrentHashMap<String, Mutex>()
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -123,8 +134,9 @@ internal class AndroidDownloadScheduler(val context: Context) {
         cleanupScope.launch {
             lock(fileName).withLock {
                 if (store.get(fileName) == null) {
-                    File(directory, "$fileName.part").delete()
-                    DownloadSubtitleStorage(File(directory, fileName).toURI().toString()).remove()
+                    val target = targetFor(transfer)
+                    runCatching { target.deletePartial(fileName) }
+                    DownloadSubtitleStorage(subtitleAnchor(target, fileName).toURI().toString()).remove()
                 }
             }
         }
@@ -142,7 +154,10 @@ internal class AndroidDownloadScheduler(val context: Context) {
     ): Boolean = lock(transfer.item.fileName).withLock {
         val fileName = transfer.item.fileName
         if (!isActive(transfer)) return@withLock false
-        val destination = File(directory, fileName)
+        val target = targetFor(transfer)
+        if (transfer.targetLocation != target.location) {
+            updateActive(transfer) { it.copy(targetLocation = target.location) }
+        }
         val client = if (network != null) {
             downloadHttpClient.newBuilder()
                 .socketFactory(network.socketFactory)
@@ -151,13 +166,14 @@ internal class AndroidDownloadScheduler(val context: Context) {
                 .build()
         } else downloadHttpClient
         try {
-            DownloadSubtitles.prepare(transfer.item, destination.toURI().toString())
+            DownloadSubtitles.prepare(transfer.item, subtitleAnchor(target, fileName).toURI().toString())
             currentCoroutineContext().ensureActive()
             if (!isActive(transfer)) return@withLock false
             var lastProgressAt = 0L
-            val partial = if (destination.isFile) destination else transferAndroidDownload(
+            val alreadyFinished = target.finishedUri(fileName)
+            if (alreadyFinished == null) transferAndroidDownload(
                 item = transfer.item,
-                directory = directory,
+                target = target,
                 validator = transfer.validator,
                 client = client,
                 onHeaders = { total, validator ->
@@ -175,13 +191,11 @@ internal class AndroidDownloadScheduler(val context: Context) {
             )
             currentCoroutineContext().ensureActive()
             updateActive(transfer) { current ->
-                if (partial != destination && !partial.renameTo(destination)) {
-                    throw IOException("Could not finalize the downloaded file")
-                }
-                val bytes = destination.length()
+                val finishedUri = alreadyFinished ?: target.finish(fileName)
+                val bytes = target.finishedLength(finishedUri)
                 current.copy(item = current.item.copy(
                     status = DownloadStatus.Completed,
-                    localFileUri = destination.toURI().toString(),
+                    localFileUri = finishedUri,
                     downloadedBytes = bytes,
                     totalBytes = bytes,
                     errorMessage = null,
