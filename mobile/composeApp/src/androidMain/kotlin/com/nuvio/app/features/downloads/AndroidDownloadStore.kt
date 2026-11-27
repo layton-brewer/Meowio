@@ -17,6 +17,8 @@ internal data class AndroidDownloadTransfer(
     val generation: String,
     val validator: String? = null,
     val retryCount: Int = 0,
+    /** Folder this transfer writes into, fixed on its first run so resume finds the partial file. */
+    val targetLocation: String? = null,
 )
 
 internal class AndroidDownloadStore(private val directory: File) {
@@ -35,6 +37,7 @@ internal class AndroidDownloadStore(private val directory: File) {
             jobId = previous?.jobId ?: ((state.value.values.maxOfOrNull { it.jobId } ?: 0) + 1),
             generation = UUID.randomUUID().toString(),
             validator = previous?.validator,
+            targetLocation = previous?.targetLocation,
         )
         save(transfer)
         transfer

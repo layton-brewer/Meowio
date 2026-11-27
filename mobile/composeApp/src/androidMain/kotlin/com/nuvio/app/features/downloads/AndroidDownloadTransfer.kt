@@ -1,7 +1,6 @@
 package com.nuvio.app.features.downloads
 
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -30,14 +29,25 @@ internal suspend fun transferAndroidDownload(
     client: OkHttpClient = downloadHttpClient,
     onHeaders: (totalBytes: Long?, validator: String?) -> Unit,
     onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
-): File = coroutineScope {
+): File {
+    transferAndroidDownload(item, AndroidDownloadTarget.Folder(directory), validator, client, onHeaders, onProgress)
+    return File(directory, "${item.fileName}.part")
+}
+
+/** Downloads [item] into the `.part` file of [target], resuming from what is already there. */
+internal suspend fun transferAndroidDownload(
+    item: DownloadItem,
+    target: AndroidDownloadTarget,
+    validator: String?,
+    client: OkHttpClient = downloadHttpClient,
+    onHeaders: (totalBytes: Long?, validator: String?) -> Unit,
+    onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
+): Unit = coroutineScope {
     val activeCall = AtomicReference<Call?>()
     val transfer = async(Dispatchers.IO) {
         try {
             require(File(item.fileName).name == item.fileName && item.fileName.isNotBlank())
-            check(directory.isDirectory || directory.mkdirs()) { "Cannot create downloads directory" }
-            val partial = File(directory, "${item.fileName}.part")
-            var offset = partial.takeIf(File::isFile)?.length() ?: 0L
+            var offset = target.partialLength(item.fileName)
             var restarted = false
 
             while (true) {
@@ -78,7 +88,7 @@ internal suspend fun transferAndroidDownload(
                     var downloaded = startingBytes
                     onProgress(downloaded, totalBytes)
                     body.byteStream().use { input ->
-                        FileOutputStream(partial, resumed && offset > 0L).use { output ->
+                        target.openPartial(item.fileName, resumed && offset > 0L).use { output ->
                             val buffer = ByteArray(64 * 1024)
                             while (true) {
                                 ensureActive()
@@ -88,18 +98,17 @@ internal suspend fun transferAndroidDownload(
                                 downloaded += size
                                 onProgress(downloaded, totalBytes)
                             }
-                            output.fd.sync()
+                            output.flush()
+                            runCatching { output.fd.sync() }
                         }
                     }
                     ensureActive()
                     if (totalBytes != null && downloaded != totalBytes) {
                         throw IOException("Download ended before all bytes were received")
                     }
-                    return@async partial
+                    return@async
                 }
             }
-            @Suppress("UNREACHABLE_CODE")
-            partial
         } catch (error: Exception) {
             // Closing a cancelled HTTP call throws IOException from its blocking read.
             ensureActive()

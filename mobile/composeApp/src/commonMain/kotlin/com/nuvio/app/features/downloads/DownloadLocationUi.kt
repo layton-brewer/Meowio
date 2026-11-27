@@ -57,18 +57,6 @@ internal fun DownloadLocationRow() {
                         "New downloads are saved here. Items you already downloaded stay where they are.",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    options.forEach { option ->
-                        val selected = option.path == path
-                        TextButton(
-                            onClick = {
-                                DownloadLocation.select(option.path)
-                                path = DownloadLocation.currentPath()
-                                showPicker = false
-                            },
-                        ) {
-                            Text((if (selected) "✓ " else "") + option.label)
-                        }
-                    }
                     if (DownloadLocation.canBrowse) {
                         TextButton(
                             onClick = {
@@ -81,7 +69,19 @@ internal fun DownloadLocationRow() {
                                     }
                                 }
                             },
-                        ) { Text("Choose folder…") }
+                        ) { Text("Choose any folder…") }
+                    }
+                    options.forEach { option ->
+                        val selected = option.path == path
+                        TextButton(
+                            onClick = {
+                                DownloadLocation.select(option.path)
+                                path = DownloadLocation.currentPath()
+                                showPicker = false
+                            },
+                        ) {
+                            Text((if (selected) "✓ " else "") + option.label)
+                        }
                     }
                     if (DownloadLocation.isCustom()) {
                         TextButton(

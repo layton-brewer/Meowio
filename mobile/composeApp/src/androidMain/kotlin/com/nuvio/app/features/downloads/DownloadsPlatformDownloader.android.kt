@@ -2,6 +2,7 @@ package com.nuvio.app.features.downloads
 
 import android.content.Context
 import android.content.Intent
+import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,16 @@ internal actual object DownloadsPlatformDownloader {
 
     actual fun removeFile(localFileUri: String?): Boolean {
         if (localFileUri.isNullOrBlank()) return false
+        if (isContentUri(localFileUri)) {
+            val context = appContext ?: return false
+            val subtitles = DownloadSubtitleStorage(localFileUri)
+            val deleted = deleteTreeDocument(context, localFileUri)
+            if (deleted) {
+                runCatching { subtitles.remove() }
+                DownloadLocation.forgetTreeFileName(context, localFileUri)
+            }
+            return deleted
+        }
         val file = localFileUri.toLocalFileOrNull() ?: return false
         return runCatching { file.delete() }.getOrDefault(false)
     }
@@ -84,6 +95,12 @@ internal actual object DownloadsPlatformDownloader {
     }
 
     actual fun resolveLocalFileUri(localFileUri: String?, destinationFileName: String): String? {
+        if (isContentUri(localFileUri)) {
+            val context = appContext ?: return null
+            if (treeDocumentExists(context, localFileUri!!)) return localFileUri
+            val fileName = destinationFileName.trim().takeIf { it.isNotBlank() } ?: return null
+            return (DownloadLocation.target(context) as? AndroidDownloadTarget.Tree)?.finishedUri(fileName)
+        }
         localFileUri
             ?.toLocalFileOrNull()
             ?.takeIf { it.exists() }
@@ -103,6 +120,9 @@ internal actual object DownloadsPlatformDownloader {
 
     actual fun openDownloadsDirectory(): Boolean {
         val context = appContext ?: return false
+        (DownloadLocation.target(context) as? AndroidDownloadTarget.Tree)?.let { tree ->
+            if (openPickedFolder(context, tree)) return true
+        }
         val downloadsDir = DownloadLocation.directory(context).apply { mkdirs() }
         val uri = runCatching {
             FileProvider.getUriForFile(
@@ -135,6 +155,25 @@ internal actual object DownloadsPlatformDownloader {
                 true
             }.getOrDefault(false)
         }
+    }
+}
+
+/** Opens a folder the user picked with the system file manager. */
+private fun openPickedFolder(context: Context, tree: AndroidDownloadTarget.Tree): Boolean {
+    val folder = runCatching {
+        DocumentsContract.buildDocumentUriUsingTree(tree.tree, DocumentsContract.getTreeDocumentId(tree.tree))
+    }.getOrNull() ?: return false
+    return listOf("vnd.android.document/directory", null).any { type ->
+        runCatching {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW).apply {
+                    if (type != null) setDataAndType(folder, type) else data = folder
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                },
+            )
+            true
+        }.getOrDefault(false)
     }
 }
 
