@@ -202,6 +202,42 @@ class DebridFileSelectorTest {
     }
 
     @Test
+    fun `season pack episode skips samples next to the episode`() {
+        val files = listOf(
+            RealDebridTorrentFileDto(id = 1, path = "/Show.S01/Show.S01E02.mkv", bytes = 2_000),
+            RealDebridTorrentFileDto(id = 2, path = "/Show.S01/Sample/Show.S01E02.sample.mkv", bytes = 20),
+            RealDebridTorrentFileDto(id = 3, path = "/Show.S01/Show.S01E03.mkv", bytes = 2_100),
+        )
+
+        assertEquals(1, RealDebridFileSelector().selectFile(files, resolve(), 1, 2)?.id)
+    }
+
+    @Test
+    fun `season pack named by episode number uses the season folder`() {
+        val files = listOf(
+            RealDebridTorrentFileDto(id = 1, path = "/Show Complete S01-S02/Season 1/Episode 01.mkv", bytes = 1_000),
+            RealDebridTorrentFileDto(id = 2, path = "/Show Complete S01-S02/Season 1/Episode 02.mkv", bytes = 1_000),
+            RealDebridTorrentFileDto(id = 3, path = "/Show Complete S01-S02/Season 2/Episode 01.mkv", bytes = 1_000),
+            RealDebridTorrentFileDto(id = 4, path = "/Show Complete S01-S02/Season 2/Episode 02.mkv", bytes = 1_000),
+        )
+
+        assertEquals(4, RealDebridFileSelector().selectFile(files, resolve(), 2, 2)?.id)
+        assertEquals(1, RealDebridFileSelector().selectFile(files, resolve(), 1, 1)?.id)
+        assertNull(RealDebridFileSelector().selectFile(files, resolve(), 3, 1))
+    }
+
+    @Test
+    fun `single season pack named by episode number`() {
+        val files = listOf(
+            RealDebridTorrentFileDto(id = 1, path = "/Show.S03.1080p/Show - 01.mkv", bytes = 1_000),
+            RealDebridTorrentFileDto(id = 2, path = "/Show.S03.1080p/Show - 02.mkv", bytes = 1_000),
+        )
+
+        assertEquals(2, RealDebridFileSelector().selectFile(files, resolve(), 3, 2)?.id)
+        assertNull(RealDebridFileSelector().selectFile(files, resolve(), 1, 2))
+    }
+
+    @Test
     fun `Real-Debrid selector matches episode pattern before largest file`() {
         val files = listOf(
             RealDebridTorrentFileDto(id = 1, path = "/Show.S01E01.mkv", bytes = 1_000),

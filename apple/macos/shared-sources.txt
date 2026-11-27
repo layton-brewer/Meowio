@@ -10,6 +10,7 @@ commonMain/kotlin/com/nuvio/app/core/ui/NuvioTap.kt
 commonMain/kotlin/com/nuvio/app/features/ai/AiAssistant.kt
 commonMain/kotlin/com/nuvio/app/features/ai/AiAssistantDialog.kt
 commonMain/kotlin/com/nuvio/app/features/details/components/EpisodeAvailabilityBadge.kt
+commonMain/kotlin/com/nuvio/app/features/debrid/DebridFileSelectors.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/AutoDownload.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/DownloadLocation.kt
 commonMain/kotlin/com/nuvio/app/features/downloads/DownloadLocationUi.kt

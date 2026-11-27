@@ -3,6 +3,7 @@ package com.nuvio.app.features.debrid
 import com.nuvio.app.features.streams.StreamClientResolve
 import com.nuvio.app.features.streams.StreamItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 internal interface DebridProviderApi {
@@ -253,7 +254,13 @@ internal class RealDebridProviderApi(
                 ?: return add.toFailureForAdd()
             var resolved = false
             try {
-                val infoBefore = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                // Right after adding, Real-Debrid can still be reading the torrent's file list.
+                var infoBefore = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                repeat(RD_POLL_ATTEMPTS) {
+                    if (!infoBefore.isSuccessful || !infoBefore.body?.files.isNullOrEmpty()) return@repeat
+                    delay(RD_POLL_DELAY_MS)
+                    infoBefore = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                }
                 if (!infoBefore.isSuccessful) {
                     return DirectDebridResolveResult.Stale
                 }
@@ -270,7 +277,15 @@ internal class RealDebridProviderApi(
                     return DirectDebridResolveResult.Stale
                 }
 
-                val infoAfter = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                // A cached file turns "downloaded" right after it is selected, but Real-Debrid can
+                // take a moment to switch over; give it a few seconds like the website does.
+                var infoAfter = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                repeat(RD_POLL_ATTEMPTS) {
+                    val status = infoAfter.body?.status?.lowercase()
+                    if (!infoAfter.isSuccessful || status !in RD_SETTLING_STATUSES) return@repeat
+                    delay(RD_POLL_DELAY_MS)
+                    infoAfter = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
+                }
                 if (!infoAfter.isSuccessful) {
                     return DirectDebridResolveResult.Stale
                 }
@@ -305,6 +320,10 @@ internal class RealDebridProviderApi(
         }
     }
 }
+
+private const val RD_POLL_ATTEMPTS = 5
+private const val RD_POLL_DELAY_MS = 1_000L
+private val RD_SETTLING_STATUSES = setOf("magnet_conversion", "waiting_files_selection", "queued")
 
 private fun buildMagnetUri(resolve: StreamClientResolve): String? {
     val hash = resolve.infoHash?.takeIf { it.isNotBlank() } ?: return null
