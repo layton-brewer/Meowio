@@ -56,7 +56,7 @@ internal class RealDebridCloudLibraryProviderApi : CloudLibraryProviderApi {
         return try {
             val response = RealDebridApiClient.unrestrictLink(apiKey, link)
             val url = response.body?.download?.takeIf { response.isSuccessful && it.isNotBlank() }
-                ?: return CloudLibraryPlaybackResult.Failed(response.rawBody.takeIf { it.isNotBlank() })
+                ?: return CloudLibraryPlaybackResult.Failed(realDebridErrorText(response.status, response.rawBody))
             CloudLibraryPlaybackResult.Success(
                 url = url,
                 filename = response.body.filename?.takeIf { it.isNotBlank() } ?: file.name,
@@ -80,6 +80,13 @@ internal class RealDebridCloudLibraryProviderApi : CloudLibraryProviderApi {
             ?.second
             ?: links.firstOrNull()
     }
+}
+
+/** Real-Debrid's own reason ("hoster_unavailable", "too_many_requests"...) in plain words. */
+internal fun realDebridErrorText(status: Int, rawBody: String): String {
+    val code = Regex("\"error\"\\s*:\\s*\"([^\"]+)\"").find(rawBody)?.groupValues?.get(1)
+    val reason = code?.replace('_', ' ') ?: "HTTP $status"
+    return "Real-Debrid: $reason"
 }
 
 private const val MAX_INFO_LOOKUPS = 150

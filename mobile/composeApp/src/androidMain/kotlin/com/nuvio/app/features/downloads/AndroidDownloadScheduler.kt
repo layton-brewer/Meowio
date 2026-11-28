@@ -58,8 +58,12 @@ internal class AndroidDownloadScheduler(val context: Context) {
         if (existing && Build.VERSION.SDK_INT >= 34) return transfer
         try {
             if (Build.VERSION.SDK_INT >= 34) {
-                check(jobScheduler().schedule(buildJob(transfer)) == JobScheduler.RESULT_SUCCESS) {
-                    "Android could not start the download. Open the app and try again."
+                // At most MAX_ACTIVE downloads run, like before 0.2.79. The rest wait in the queue:
+                // a running download job starts the next one when it finishes (no new job is needed,
+                // so this keeps going in the background), and the app fills free slots while open.
+                val scheduler = jobScheduler()
+                if (scheduler.allPendingJobs.size < MAX_ACTIVE) {
+                    runCatching { scheduler.schedule(buildJob(transfer)) }
                 }
             } else {
                 val work = OneTimeWorkRequestBuilder<DownloadsTransferWorker>()
@@ -104,15 +108,12 @@ internal class AndroidDownloadScheduler(val context: Context) {
         context.getSystemService(JobScheduler::class.java).forNamespace(JOB_NAMESPACE)
 
     fun restore(item: DownloadItem): DownloadItem {
-        var transfer = store.get(item.fileName)?.takeIf { it.item.id == item.id }
+        val transfer = store.get(item.fileName)?.takeIf { it.item.id == item.id }
             ?: return if (item.status == DownloadStatus.Downloading) {
                 item.copy(status = DownloadStatus.Paused, errorMessage = null)
             } else item
-        if (transfer.item.status == DownloadStatus.Downloading && Build.VERSION.SDK_INT >= 34 &&
-            jobScheduler().getPendingJob(transfer.jobId) == null) {
-            pause(item.fileName)
-            transfer = store.get(item.fileName) ?: transfer
-        }
+        // A download without a job of its own is waiting in the queue; it is started by a running
+        // download job or when the app is opened, so it stays queued here.
         return transfer.item
     }
 
@@ -171,9 +172,6 @@ internal class AndroidDownloadScheduler(val context: Context) {
             if (!isActive(transfer)) return@withLock false
             var lastProgressAt = 0L
             val alreadyFinished = target.finishedUri(fileName)
-            // Every queued download has its own job and Android decides how many run at once. A
-            // running job always transfers straight away: a job that sits idle waiting for a turn
-            // gets stopped by Android and pushed back, which left whole queues at 0%.
             running[fileName] = Progress(transfer.item.downloadedBytes, SystemClock.elapsedRealtime())
             if (alreadyFinished == null) transferAndroidDownload(
                 item = transfer.item,
@@ -184,8 +182,9 @@ internal class AndroidDownloadScheduler(val context: Context) {
                     updateActive(transfer) { it.copy(validator = validator, item = it.item.copy(totalBytes = total)) }
                 },
                 onProgress = { bytes, total ->
+                    // Paused or removed while a queued job was downloading it: stop here.
+                    if (!isActive(transfer)) throw IOException("Download stopped")
                     val now = SystemClock.elapsedRealtime()
-                    running[fileName]?.let { mark -> if (mark.bytes != bytes) running[fileName] = Progress(bytes, now) }
                     if (now - lastProgressAt >= 1_000L || bytes == total) {
                         lastProgressAt = now
                         updateActive(transfer) {
@@ -247,30 +246,61 @@ internal class AndroidDownloadScheduler(val context: Context) {
 
     private class Progress(val bytes: Long, val at: Long)
 
-    /** Transfers running right now, with the last time each one received bytes. */
+    /** Transfers being downloaded right now (or claimed by a job that is about to start them). */
     private val running = ConcurrentHashMap<String, Progress>()
 
+    private fun hasOwnJob(transfer: AndroidDownloadTransfer): Boolean =
+        Build.VERSION.SDK_INT >= 34 && jobScheduler().getPendingJob(transfer.jobId) != null
+
+    /** Queued downloads, oldest first: still to download, not running and without a job of their own. */
+    private fun queued(): List<AndroidDownloadTransfer> =
+        store.transfers.value.values
+            .filter { it.item.status == DownloadStatus.Downloading && !running.containsKey(it.item.fileName) && !hasOwnJob(it) }
+            .sortedBy { it.item.createdAtEpochMs }
+
+    fun hasQueued(): Boolean = queued().isNotEmpty()
+
+    /** Takes the next queued download for a job that just finished one. */
+    @Synchronized
+    fun claimNextQueued(): AndroidDownloadTransfer? {
+        val next = queued().firstOrNull() ?: return null
+        running[next.item.fileName] = Progress(next.item.downloadedBytes, SystemClock.elapsedRealtime())
+        return next
+    }
+
+    fun release(fileName: String) {
+        running.remove(fileName)
+    }
+
     /**
-     * Keeps the queue moving while the app is on screen (the only time Android lets the app start
-     * a download job): a queued download whose job went missing gets a new one, and a running
-     * download that has received nothing for a few minutes is restarted on a fresh connection.
+     * While the app is on screen (the only time Android lets the app start a download job):
+     * starts queued downloads until MAX_ACTIVE are running, e.g. after the app was closed.
      */
+    @Synchronized
     fun keepQueueMoving() {
         if (Build.VERSION.SDK_INT < 34) return
         val scheduler = jobScheduler()
-        val now = SystemClock.elapsedRealtime()
-        for (transfer in store.transfers.value.values) {
-            if (transfer.item.status != DownloadStatus.Downloading) continue
-            val fileName = transfer.item.fileName
-            val mark = running[fileName]
-            val missing = mark == null && scheduler.getPendingJob(transfer.jobId) == null
-            val stalled = mark != null && now - mark.at >= STALL_RESTART_MS
-            if (!missing && !stalled) continue
+        val pending = scheduler.allPendingJobs
+        if (pending.size > MAX_ACTIVE) {
+            // Older versions gave every queued download its own job at once; put the extra ones
+            // back in the queue (they resume from where they stopped), keeping running ones first.
+            val runningJobIds = store.transfers.value.values
+                .filter { running.containsKey(it.item.fileName) }
+                .map { it.jobId }
+                .toSet()
+            pending.sortedBy { if (it.id in runningJobIds) 0 else 1 }
+                .drop(MAX_ACTIVE)
+                .forEach { job -> scheduler.cancel(job.id) }
+            return
+        }
+        var free = MAX_ACTIVE - pending.size
+        if (free <= 0) return
+        for (transfer in queued()) {
+            if (free <= 0) break
             try {
-                if (stalled) running.remove(fileName)
-                scheduler.schedule(buildJob(transfer))
+                if (scheduler.schedule(buildJob(transfer)) == JobScheduler.RESULT_SUCCESS) free--
             } catch (error: Exception) {
-                // Not allowed right now (for example the app just left the screen); try next time.
+                return // not allowed right now (for example the app just left the screen)
             }
         }
     }
@@ -279,8 +309,8 @@ internal class AndroidDownloadScheduler(val context: Context) {
     private fun workName(transfer: AndroidDownloadTransfer) = "nuvio-download-${transfer.jobId}"
 
     companion object {
-        /** A running download with no new bytes for this long is restarted. */
-        private const val STALL_RESTART_MS = 3L * 60_000L
+        /** How many downloads transfer at the same time. */
+        const val MAX_ACTIVE = 3
 
         const val FILE_NAME = "download_file_name"
         const val GENERATION = "download_generation"

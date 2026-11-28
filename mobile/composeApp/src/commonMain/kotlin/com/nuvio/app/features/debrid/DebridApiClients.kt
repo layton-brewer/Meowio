@@ -307,6 +307,8 @@ internal object RealDebridAuth {
     }
 }
 
+private const val TORRENT_LIST_MAX_BYTES = 32 * 1024 * 1024
+
 internal object RealDebridApiClient {
     private const val BASE_URL = "https://api.real-debrid.com/rest/1.0"
     private const val OAUTH_URL = "https://api.real-debrid.com/oauth/v2"
@@ -356,6 +358,8 @@ internal object RealDebridApiClient {
             method = "GET",
             url = "$BASE_URL/torrents?${queryString("limit" to limit.toString())}",
             apiKey = apiKey,
+            // A big account's list is several MB; cut off at the usual 1 MB it read as an empty list.
+            maxResponseBodyBytes = TORRENT_LIST_MAX_BYTES,
         )
 
     suspend fun startDeviceAuthorization(): DebridApiResponse<RealDebridDeviceCodeDto> =
@@ -427,6 +431,7 @@ internal object RealDebridApiClient {
         apiKey: String,
         body: String = "",
         contentType: String? = null,
+        maxResponseBodyBytes: Int = DefaultRawHttpResponseMaxBytes,
     ): DebridApiResponse<T> {
         val headers = authHeaders(apiKey) + listOfNotNull(
             contentType?.let { "Content-Type" to it },
@@ -437,6 +442,7 @@ internal object RealDebridApiClient {
             url = url,
             headers = headers,
             body = body,
+            maxResponseBodyBytes = maxResponseBodyBytes,
         )
         return DebridApiResponse(
             status = response.status,

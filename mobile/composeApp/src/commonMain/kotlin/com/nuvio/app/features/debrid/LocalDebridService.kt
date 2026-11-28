@@ -1,6 +1,8 @@
 package com.nuvio.app.features.debrid
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -214,7 +216,10 @@ internal object RealDebridCacheProbe {
             if (error is CancellationException) throw error
             null
         } finally {
-            torrentId?.let { id -> runCatching { RealDebridApiClient.deleteTorrent(apiKey, id) } }
+            // Also when the check was cancelled: otherwise the probe torrent stays in the account.
+            torrentId?.let { id ->
+                withContext(NonCancellable) { runCatching { RealDebridApiClient.deleteTorrent(apiKey, id) } }
+            }
         }
     }
 }

@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.82 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.83 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.82 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.83 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.82"
+          tag="v0.2.83"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.82
+          ## What's new in 0.2.83
 
-          - Phone downloads no longer sit at 0%. Every queued episode now transfers as soon as Android runs its download job, instead of waiting idle for a turn (Android was stopping those idle jobs and pushing them back).
-          - While the app is open, a download that stops receiving data is restarted by itself, and a queued download that lost its job gets a new one.
-          - Smart auto-play and Shuffle pick sources the way they did before 0.2.78 again. Downloads looking for sources in the background were taking over the same source search that playback uses; downloads now have their own search.
+          - Cloud library shows up again. Accounts with a long Real-Debrid torrent list loaded as empty ("Nothing here yet").
+          - Cloud play says why when Real-Debrid refuses a file, instead of only "Couldn't play this cloud file".
+          - Downloads run three at a time again, like in 0.2.78. When one finishes, the running download job starts the next one, so the queue keeps going with the app closed. Downloads queued by an older version are put back in this queue when you open the app.
+          - Downloads put far less load on Real-Debrid: at most four sources are tried per episode, each source is checked once, waiting episodes are looked at every 15 minutes, and lookups that are cancelled no longer leave torrents behind in your account.
 
           ## Download
 

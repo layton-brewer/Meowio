@@ -3,7 +3,9 @@ package com.nuvio.app.features.debrid
 import com.nuvio.app.features.streams.StreamClientResolve
 import com.nuvio.app.features.streams.StreamItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
 internal interface DebridProviderApi {
@@ -311,7 +313,10 @@ internal class RealDebridProviderApi(
                 )
             } finally {
                 if (!resolved) {
-                    runCatching { RealDebridApiClient.deleteTorrent(apiKey, torrentId) }
+                    // Also when the lookup was cancelled, or the torrent stays in the account.
+                    withContext(NonCancellable) {
+                        runCatching { RealDebridApiClient.deleteTorrent(apiKey, torrentId) }
+                    }
                 }
             }
         } catch (error: Exception) {

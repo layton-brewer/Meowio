@@ -1014,6 +1014,14 @@ internal fun MainAppContent(
                     }
                 }
 
+                is CloudLibraryPlaybackResult.Failed -> {
+                    // Say why when the service gave a reason, instead of only "Couldn't play".
+                    val reason = resolved.message?.takeIf { it.isNotBlank() && it.length < 120 }
+                        ?: return false
+                    NuvioToastController.show("$cloudLibraryPlayFailedText ($reason)")
+                    true
+                }
+
                 else -> false
             }
         }
