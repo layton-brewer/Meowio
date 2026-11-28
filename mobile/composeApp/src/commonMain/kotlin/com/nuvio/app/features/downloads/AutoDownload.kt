@@ -462,8 +462,12 @@ object AutoDownloader {
         if (candidates.isEmpty()) return null
         // First only files that respect the size limit once their real size is known; if none
         // does, the smallest sources are tried rather than failing outright.
-        return enqueueFirstWorking(spec, candidates, attempts = 0, strictSize = true)
-            ?: enqueueFirstWorking(spec, candidates, attempts = 0, strictSize = false)
+        // Every source tried here adds a torrent to the debrid account, so only the best few are
+        // tried, and each one is resolved once for both passes.
+        val tried = candidates.take(MAX_CANDIDATES_PER_EPISODE)
+        val resolved = mutableMapOf<StreamItem, StreamItem?>()
+        return enqueueFirstWorking(spec, tried, attempts = 0, strictSize = true, resolved = resolved, rest = candidates.drop(tried.size))
+            ?: enqueueFirstWorking(spec, tried, attempts = 0, strictSize = false, resolved = resolved, rest = candidates.drop(tried.size))
     }
 
     private suspend fun findStreams(spec: Spec): List<StreamItem> = lookupMutex.withLock {
@@ -568,9 +572,12 @@ object AutoDownloader {
         candidates: List<StreamItem>,
         attempts: Int,
         strictSize: Boolean = false,
+        resolved: MutableMap<StreamItem, StreamItem?> = mutableMapOf(),
+        rest: List<StreamItem> = emptyList(),
     ): Chosen? {
         for ((index, candidate) in candidates.withIndex()) {
-            val playable = playableStream(candidate, spec) ?: continue
+            val playable = (if (candidate in resolved) resolved[candidate] else playableStream(candidate, spec).also { resolved[candidate] = it })
+                ?: continue
             val rejected = rejectReason(playable, spec, strictSize)
             if (rejected != null) {
                 log.d { "Skipping a source for ${spec.key}: $rejected" }
@@ -595,9 +602,10 @@ object AutoDownloader {
             }
             if (result == DownloadEnqueueResult.Started || result == DownloadEnqueueResult.Replaced) {
                 stateLock.withLock { managed[spec.key] = spec }
-                val rest = candidates.drop(index + 1)
-                if (rest.isNotEmpty() && attempts < MAX_FAILOVERS) {
-                    stateLock.withLock { failovers[spec.key] = Failover(spec, rest, attempts + 1) }
+                // Later sources (not resolved yet) stay as backups if this download fails.
+                val backups = candidates.drop(index + 1).filter { resolved[it] != null || it !in resolved } + rest
+                if (backups.isNotEmpty() && attempts < MAX_FAILOVERS) {
+                    stateLock.withLock { failovers[spec.key] = Failover(spec, backups, attempts + 1) }
                 }
                 return Chosen(playable)
             }
@@ -730,8 +738,11 @@ object AutoDownloader {
                         continue
                     }
                     scope.launch {
-                        val chosen = enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = true)
-                            ?: enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = false)
+                        val tried = failover.remaining.take(MAX_CANDIDATES_PER_EPISODE)
+                        val rest = failover.remaining.drop(tried.size)
+                        val resolved = mutableMapOf<StreamItem, StreamItem?>()
+                        val chosen = enqueueFirstWorking(failover.spec, tried, failover.attempts, strictSize = true, resolved = resolved, rest = rest)
+                            ?: enqueueFirstWorking(failover.spec, tried, failover.attempts, strictSize = false, resolved = resolved, rest = rest)
                         if (chosen == null) {
                             log.d { "No further sources to try for ${failover.spec.key}; trying again later" }
                             addWaiting(failover.spec, preferredBingeGroup = null)
@@ -756,13 +767,16 @@ object AutoDownloader {
     /** A download with no new bytes for this long is restarted (pause + resume). */
     private const val RESTART_STALL_MS = 3L * 60_000L
     private const val WATCHDOG_INTERVAL_MS = 20_000L
-    private const val RETRY_INTERVAL_MS = 5L * 60_000L
+    private const val RETRY_INTERVAL_MS = 15L * 60_000L
     private const val MAX_WAIT_MS = 24L * 60L * 60_000L
     private const val LINK_CHECK_TIMEOUT_MS = 20_000L
 
     /** Real movies and episodes are bigger than this; debrid stand-in clips are a few MB. */
     private const val MIN_VIDEO_FILE_BYTES = 30L * 1_048_576L
     private const val MAX_FAILOVERS = 5
+
+    /** Sources resolved per episode in one go; each one adds a torrent to the debrid account. */
+    private const val MAX_CANDIDATES_PER_EPISODE = 4
     private const val SEARCH_TIMEOUT_MS = 60_000L
 
     /** No single episode is this big; a file this size is a pack or an archive of one. */

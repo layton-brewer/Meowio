@@ -208,6 +208,9 @@ private fun <T> List<T>.matchingFiles(name: String, path: (T) -> String): List<T
     return emptyList()
 }
 
+/** A real video file of a torrent (not a sample, trailer or extra). */
+internal fun String.isMainVideoFile(): Boolean = hasVideoExtension() && !isExtraFile()
+
 private fun String.hasVideoExtension(): Boolean = videoExtensions.any { endsWith(it, ignoreCase = true) }
 
 private val videoExtensions = setOf(

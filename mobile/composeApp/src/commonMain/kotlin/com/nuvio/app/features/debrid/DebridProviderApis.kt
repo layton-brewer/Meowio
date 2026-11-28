@@ -3,7 +3,9 @@ package com.nuvio.app.features.debrid
 import com.nuvio.app.features.streams.StreamClientResolve
 import com.nuvio.app.features.streams.StreamItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
 internal interface DebridProviderApi {
@@ -252,6 +254,7 @@ internal class RealDebridProviderApi(
             val add = RealDebridApiClient.addMagnet(apiKey, magnet)
             val torrentId = add.body?.id?.takeIf { add.isSuccessful && it.isNotBlank() }
                 ?: return add.toFailureForAdd()
+            // Set when this torrent must stay in the account: it resolved, or it was already there.
             var resolved = false
             try {
                 // Right after adding, Real-Debrid can still be reading the torrent's file list.
@@ -264,6 +267,11 @@ internal class RealDebridProviderApi(
                 if (!infoBefore.isSuccessful) {
                     return DirectDebridResolveResult.Stale
                 }
+                // Adding a torrent that is already in the account hands back that same torrent. It
+                // is the user's (their cloud library, or a download in progress) and is never deleted
+                // or re-selected; its already selected files are used as they are.
+                val alreadyInAccount = infoBefore.body?.status?.lowercase() !in RD_NEW_TORRENT_STATUSES
+                if (alreadyInAccount) resolved = true
                 val filesBefore = infoBefore.body?.files.orEmpty()
                 val file = fileSelector.selectFile(
                     files = filesBefore,
@@ -272,9 +280,19 @@ internal class RealDebridProviderApi(
                     episode = episode,
                 ) ?: return DirectDebridResolveResult.Stale
                 val fileId = file.id ?: return DirectDebridResolveResult.Stale
-                val select = RealDebridApiClient.selectFiles(apiKey, torrentId, fileId.toString())
-                if (!select.isSuccessful && select.status != 202) {
-                    return DirectDebridResolveResult.Stale
+                if (!alreadyInAccount) {
+                    // For an episode, every video file of the pack is selected (instant when cached),
+                    // so the other episodes of the same pack resolve from this torrent later.
+                    val ids = if (season != null && episode != null) {
+                        (filesBefore.filter { it.id != null && it.displayName().isMainVideoFile() }.mapNotNull { it.id } + fileId)
+                            .distinct().sorted()
+                    } else {
+                        listOf(fileId)
+                    }
+                    val select = RealDebridApiClient.selectFiles(apiKey, torrentId, ids.joinToString(","))
+                    if (!select.isSuccessful && select.status != 202) {
+                        return DirectDebridResolveResult.Stale
+                    }
                 }
 
                 // A cached file turns "downloaded" right after it is selected, but Real-Debrid can
@@ -294,7 +312,7 @@ internal class RealDebridProviderApi(
                 if (!infoAfter.body?.status.equals("downloaded", ignoreCase = true)) {
                     return DirectDebridResolveResult.NotCached
                 }
-                val link = infoAfter.body?.firstDownloadLink()
+                val link = infoAfter.body?.downloadLinkFor(fileId)
                     ?: return DirectDebridResolveResult.Stale
                 val unrestrict = RealDebridApiClient.unrestrictLink(apiKey, link)
                 if (!unrestrict.isSuccessful) {
@@ -311,7 +329,10 @@ internal class RealDebridProviderApi(
                 )
             } finally {
                 if (!resolved) {
-                    runCatching { RealDebridApiClient.deleteTorrent(apiKey, torrentId) }
+                    // Also when the lookup was cancelled, or the torrent stays in the account.
+                    withContext(NonCancellable) {
+                        runCatching { RealDebridApiClient.deleteTorrent(apiKey, torrentId) }
+                    }
                 }
             }
         } catch (error: Exception) {
@@ -324,6 +345,9 @@ internal class RealDebridProviderApi(
 private const val RD_POLL_ATTEMPTS = 5
 private const val RD_POLL_DELAY_MS = 1_000L
 private val RD_SETTLING_STATUSES = setOf("magnet_conversion", "waiting_files_selection", "queued")
+
+/** States of a torrent that was just added; any other state means it was already in the account. */
+private val RD_NEW_TORRENT_STATUSES = setOf("magnet_conversion", "waiting_files_selection")
 
 private fun buildMagnetUri(resolve: StreamClientResolve): String? {
     val hash = resolve.infoHash?.takeIf { it.isNotBlank() } ?: return null
@@ -479,7 +503,14 @@ private fun DebridApiResponse<RealDebridAddTorrentDto>.toFailureForAdd(): Direct
         else -> DirectDebridResolveResult.Stale
     }
 
-private fun RealDebridTorrentInfoDto.firstDownloadLink(): String? {
+/** The link of file [fileId]: links follow the selected files in file order. */
+private fun RealDebridTorrentInfoDto.downloadLinkFor(fileId: Int): String? {
     if (!status.equals("downloaded", ignoreCase = true)) return null
-    return links.orEmpty().firstOrNull { it.isNotBlank() }
+    val links = links.orEmpty().filter { it.isNotBlank() }
+    val selected = files.orEmpty().filter { it.selected == 1 }.sortedBy { it.id ?: 0 }
+    if (selected.size == links.size) {
+        val index = selected.indexOfFirst { it.id == fileId }
+        return if (index >= 0) links[index] else null
+    }
+    return links.singleOrNull()
 }
