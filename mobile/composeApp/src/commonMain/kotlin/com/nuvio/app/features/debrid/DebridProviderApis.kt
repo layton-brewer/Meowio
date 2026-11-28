@@ -514,5 +514,3 @@ private fun RealDebridTorrentInfoDto.downloadLinkFor(fileId: Int): String? {
     }
     return links.singleOrNull()
 }
-
-}
