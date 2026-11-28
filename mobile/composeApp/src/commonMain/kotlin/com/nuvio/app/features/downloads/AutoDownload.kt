@@ -58,6 +58,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /**
  * One-tap downloads that reuse the app's stream auto-selection: the best usable source is picked
@@ -74,8 +76,30 @@ object AutoDownloader {
     private val lookupMutex = Mutex()
     private val stateLock = Mutex()
     private val failovers = mutableMapOf<String, Failover>()
+
+    /** Every title this downloader queued, so a final failure can go back to the waiting list. */
+    private val managed = mutableMapOf<String, Spec>()
     private val runningBatches = mutableSetOf<String>()
     private var watcherStarted = false
+
+    /** Episodes that had no working source yet; tried again every few minutes. */
+    private val waiting = mutableMapOf<String, Waiting>()
+    private var retryLoopRunning = false
+
+    /** Last time each running download received bytes, to spot downloads that stopped moving. */
+    private val progressMarks = mutableMapOf<String, ProgressMark>()
+    private var watchdogStarted = false
+
+    private class ProgressMark(val bytes: Long, val at: TimeMark, val restarts: Int = 0)
+    private class Waiting(val spec: Spec, val since: TimeMark, val preferredBingeGroup: String?)
+
+    /**
+     * True on Android: every episode of a batch is handed to the system download scheduler right
+     * away, while the app is open, because Android only lets an app start a new background download
+     * while it is on screen. The scheduler itself runs a few at a time. On other platforms the
+     * queue here starts the next download whenever a slot frees up.
+     */
+    var enqueueAllAtOnce: Boolean = false
 
     /** Asks the app to open the source list for a title so the user can pick a source to download by hand. */
     data class ManualSourceRequest(
@@ -187,7 +211,12 @@ object AutoDownloader {
             if (outcome != null) {
                 toast("Downloading $label (${outcome.summary})")
             } else {
-                toast("No debrid or direct link found for $label. Pick a source from the list.", durationMillis = 4500L)
+                toast(
+                    "No ready debrid link for $label yet. It will download by itself once one is ready, " +
+                        "or pick a source from the list.",
+                    durationMillis = 5000L,
+                )
+                addWaiting(spec, preferredBingeGroup = null)
                 requestManualSources(spec)
             }
         }
@@ -247,7 +276,7 @@ object AutoDownloader {
                         skipped++
                         continue
                     }
-                    waitForFreeSlot()
+                    if (!enqueueAllAtOnce) waitForFreeSlot()
                     val outcome = downloadOne(spec, preferredBingeGroup = bingeGroups[video.season])
                     if (outcome != null) {
                         queued++
@@ -256,12 +285,13 @@ object AutoDownloader {
                         }
                     } else {
                         missing++
+                        addWaiting(spec, preferredBingeGroup = bingeGroups[video.season])
                     }
                 }
                 val message = buildString {
                     append("$queued episode${if (queued == 1) "" else "s"} downloading")
                     if (skipped > 0) append(", $skipped already saved")
-                    if (missing > 0) append(", $missing without a debrid or direct link")
+                    if (missing > 0) append(", $missing waiting for a ready debrid link (they start by themselves)")
                 }
                 toast(message, durationMillis = 4500L)
             } finally {
@@ -304,11 +334,117 @@ object AutoDownloader {
             it.logicalContentKey == key && it.status != DownloadStatus.Failed
         }
 
+    /**
+     * Waits until fewer than [MAX_PARALLEL] downloads are actually moving. A download that has not
+     * received any bytes for a while does not hold a slot, so one stuck download never stops the
+     * rest of the queue (the watchdog restarts it separately).
+     */
     private suspend fun waitForFreeSlot() {
-        while (
-            DownloadsRepository.uiState.value.items.count { it.status == DownloadStatus.Downloading } >= MAX_PARALLEL
-        ) {
+        while (activeDownloadCount() >= MAX_PARALLEL) {
             delay(2_000)
+        }
+    }
+
+    private suspend fun activeDownloadCount(): Int {
+        val running = DownloadsRepository.uiState.value.items.filter { it.status == DownloadStatus.Downloading }
+        return stateLock.withLock {
+            running.count { item ->
+                val mark = progressMarks[item.id]
+                mark == null || mark.at.elapsedNow().inWholeMilliseconds < SLOT_STALL_MS
+            }
+        }
+    }
+
+    /**
+     * Keeps the download queue moving on its own, so it never needs a manual pause and resume:
+     *  - a running download that receives no bytes for a few minutes is paused and resumed, which
+     *    gets a fresh connection (and a fresh scheduler job on Android), and
+     *  - when a download fails with no other source left, the episode is put back in the waiting
+     *    list and tried again later.
+     * Safe to call more than once; the app calls it at start so downloads from earlier are watched too.
+     */
+    fun startWatchdog() {
+        scope.launch {
+            val first = stateLock.withLock { if (watchdogStarted) false else { watchdogStarted = true; true } }
+            if (!first) return@launch
+            DownloadsRepository.ensureLoaded()
+            ensureWatcher()
+            while (true) {
+                delay(WATCHDOG_INTERVAL_MS)
+                runCatching { checkStalledDownloads() }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    log.d { "Download watchdog: ${error.message}" }
+                }
+            }
+        }
+    }
+
+    private suspend fun checkStalledDownloads() {
+        // Android's download jobs already retry a stalled connection themselves, and restarting
+        // one from the background is not allowed there.
+        if (enqueueAllAtOnce) return
+        val items = DownloadsRepository.uiState.value.items
+        val running = items.filter { it.status == DownloadStatus.Downloading }
+        val toRestart = mutableListOf<String>()
+        stateLock.withLock {
+            progressMarks.keys.retainAll(running.map { it.id }.toSet())
+            for (item in running) {
+                val mark = progressMarks[item.id]
+                if (mark == null || mark.bytes != item.downloadedBytes) {
+                    progressMarks[item.id] = ProgressMark(item.downloadedBytes, TimeSource.Monotonic.markNow(), mark?.restarts ?: 0)
+                } else if (mark.at.elapsedNow().inWholeMilliseconds >= RESTART_STALL_MS) {
+                    toRestart += item.id
+                    progressMarks[item.id] = ProgressMark(item.downloadedBytes, TimeSource.Monotonic.markNow(), mark.restarts + 1)
+                }
+            }
+        }
+        for (id in toRestart) {
+            log.d { "Download $id stopped receiving data; restarting it" }
+            withContext(Dispatchers.Main) {
+                DownloadsRepository.pauseDownload(id)
+                DownloadsRepository.resumeDownload(id)
+            }
+        }
+        // Downloads paused by the system rather than the user (for example after the network
+        // dropped) are left alone: resuming those is the user's choice.
+    }
+
+    private suspend fun addWaiting(spec: Spec, preferredBingeGroup: String?) {
+        stateLock.withLock {
+            if (spec.key !in waiting) waiting[spec.key] = Waiting(spec, TimeSource.Monotonic.markNow(), preferredBingeGroup)
+            if (retryLoopRunning) return
+            retryLoopRunning = true
+        }
+        scope.launch { retryWaitingLoop() }
+    }
+
+    /** Tries every waiting episode again every few minutes until it downloads or gives up after a day. */
+    private suspend fun retryWaitingLoop() {
+        try {
+            while (true) {
+                delay(RETRY_INTERVAL_MS)
+                val batch = stateLock.withLock {
+                    waiting.values.removeAll { it.since.elapsedNow().inWholeMilliseconds > MAX_WAIT_MS }
+                    waiting.values.toList()
+                }
+                if (batch.isEmpty()) return
+                for (entry in batch) {
+                    if (hasActiveOrDone(entry.spec.key)) {
+                        stateLock.withLock { waiting.remove(entry.spec.key) }
+                        continue
+                    }
+                    if (!enqueueAllAtOnce) waitForFreeSlot()
+                    val outcome = runCatching { downloadOne(entry.spec, entry.preferredBingeGroup) }
+                        .onFailure { if (it is CancellationException) throw it }
+                        .getOrNull()
+                    if (outcome != null) {
+                        stateLock.withLock { waiting.remove(entry.spec.key) }
+                        log.d { "Waiting download ${entry.spec.key} found a ready source" }
+                    }
+                }
+            }
+        } finally {
+            stateLock.withLock { retryLoopRunning = false }
         }
     }
 
@@ -421,6 +557,7 @@ object AutoDownloader {
                 )
             }
             if (result == DownloadEnqueueResult.Started || result == DownloadEnqueueResult.Replaced) {
+                stateLock.withLock { managed[spec.key] = spec }
                 val rest = candidates.drop(index + 1)
                 if (rest.isNotEmpty() && attempts < MAX_FAILOVERS) {
                     stateLock.withLock { failovers[spec.key] = Failover(spec, rest, attempts + 1) }
@@ -547,12 +684,20 @@ object AutoDownloader {
             DownloadsRepository.uiState.collect { state ->
                 for (item in state.items) {
                     if (item.status != DownloadStatus.Failed) continue
-                    val failover = stateLock.withLock { failovers.remove(item.logicalContentKey) } ?: continue
+                    val (failover, spec) = stateLock.withLock {
+                        failovers.remove(item.logicalContentKey) to managed.remove(item.logicalContentKey)
+                    }
+                    if (failover == null) {
+                        // Every source failed: look again later instead of leaving it failed.
+                        if (spec != null) scope.launch { addWaiting(spec, preferredBingeGroup = null) }
+                        continue
+                    }
                     scope.launch {
                         val chosen = enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = true)
                             ?: enqueueFirstWorking(failover.spec, failover.remaining, failover.attempts, strictSize = false)
                         if (chosen == null) {
-                            log.d { "No further sources to try for ${failover.spec.key}" }
+                            log.d { "No further sources to try for ${failover.spec.key}; trying again later" }
+                            addWaiting(failover.spec, preferredBingeGroup = null)
                         }
                     }
                 }
@@ -567,6 +712,15 @@ object AutoDownloader {
     }
 
     private const val MAX_PARALLEL = 3
+
+    /** A download with no new bytes for this long no longer holds a queue slot. */
+    private const val SLOT_STALL_MS = 90_000L
+
+    /** A download with no new bytes for this long is restarted (pause + resume). */
+    private const val RESTART_STALL_MS = 3L * 60_000L
+    private const val WATCHDOG_INTERVAL_MS = 20_000L
+    private const val RETRY_INTERVAL_MS = 5L * 60_000L
+    private const val MAX_WAIT_MS = 24L * 60L * 60_000L
     private const val LINK_CHECK_TIMEOUT_MS = 20_000L
 
     /** Real movies and episodes are bigger than this; debrid stand-in clips are a few MB. */
