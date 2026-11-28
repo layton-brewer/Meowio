@@ -457,6 +457,7 @@ object AutoDownloader {
             isSeries = spec.season != null && spec.episode != null,
             preferredBingeGroup = preferredBingeGroup,
             options = spec.options,
+            sizeOf = fileSizeEstimator(spec),
         )
         if (candidates.isEmpty()) return null
         // First only files that respect the size limit once their real size is known; if none
@@ -505,6 +506,7 @@ object AutoDownloader {
         isSeries: Boolean,
         preferredBingeGroup: String?,
         options: DownloadOptions,
+        sizeOf: (StreamItem) -> Long?,
     ): List<StreamItem> {
         val debrid = DebridSettingsRepository.snapshot()
         val evaluation = StreamAutoPlaySelector.evaluateAutoPlayStream(
@@ -523,7 +525,30 @@ object AutoDownloader {
         )
         val ready = evaluation.readyStreams
         if (ready.isEmpty()) return ready
-        return applyQuality(ready, options, isEpisode = isSeries)
+        return applyQuality(ready, options, sizeOf)
+    }
+
+    /**
+     * Size of the one file that would be saved. For an episode inside a pack this is the episode
+     * file's own size when the add-on reports it; when only the pack's total is printed, the total
+     * is split over the episodes the pack holds (one season, a season range such as S01-S05, or
+     * the whole show), so a huge multi-season pack of small episode files still counts as small.
+     */
+    private fun fileSizeEstimator(spec: Spec): (StreamItem) -> Long? {
+        val season = spec.season
+        if (season == null || spec.episode == null) return { it.reportedSizeBytes() }
+        val episodesPerSeason = spec.meta.videos
+            .filter { (it.season ?: 0) > 0 && it.episode != null }
+            .groupBy { it.season!! }
+            .mapValues { (_, videos) -> videos.distinctBy { it.episode }.size }
+        return { stream ->
+            stream.reportedSizeBytes(isEpisode = true) ?: run {
+                val total = stream.printedSizeBytes() ?: return@run null
+                val seasons = stream.packSeasons(episodesPerSeason.keys) ?: setOf(season)
+                val episodes = seasons.sumOf { episodesPerSeason[it] ?: 0 }
+                if (episodes > 0) total / episodes else null
+            }
+        }
     }
 
     private suspend fun enqueueFirstWorking(
@@ -669,7 +694,7 @@ object AutoDownloader {
                 return "file is too big to be one episode"
             }
         }
-        val cap = spec.options.maxSizeGb.takeIf { it > 0 }?.let { it * 1_073_741_824L }
+        val cap = spec.options.sizeCapBytes
         if (strictSize && cap != null && size != null && size > cap) {
             return "over the size limit"
         }
@@ -791,7 +816,7 @@ fun DownloadChoiceDialog(
     val isSeries = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
     val saved = remember { DownloadPrefs.current }
     var quality by remember { mutableStateOf(saved.quality) }
-    var maxSizeGb by remember { mutableStateOf(saved.maxSizeGb) }
+    var maxSizeMb by remember { mutableStateOf(saved.maxSizeMb) }
     var askEachTime by remember { mutableStateOf(saved.askEachTime) }
 
     val seasons = remember(meta.videos) {
@@ -823,8 +848,8 @@ fun DownloadChoiceDialog(
     val pickedEpisodes = allEpisodes.filter { episodeKey(it) in selected }
 
     fun options(): DownloadOptions {
-        DownloadPrefs.save(quality, maxSizeGb, askEachTime)
-        return DownloadOptions(quality, maxSizeGb)
+        DownloadPrefs.save(quality, maxSizeMb, askEachTime)
+        return DownloadOptions(quality, maxSizeMb)
     }
 
     AlertDialog(
@@ -858,15 +883,24 @@ fun DownloadChoiceDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                ChipGroup(title = "Size limit per file") {
-                    listOf(0 to "No limit", 2 to "2 GB", 5 to "5 GB", 10 to "10 GB").forEach { (gb, label) ->
+                ChipGroup(title = "Size per file") {
+                    DOWNLOAD_SIZE_CHOICES.forEach { (mb, label) ->
                         FilterChip(
-                            selected = gb == maxSizeGb,
-                            onClick = { maxSizeGb = gb },
+                            selected = mb == maxSizeMb,
+                            onClick = { maxSizeMb = mb },
                             label = { Text(label) },
                         )
                     }
                 }
+                Text(
+                    text = when {
+                        maxSizeMb == SIZE_SMALLEST -> "Picks the smallest file that is available."
+                        maxSizeMb > 0 -> "Picks files up to ${sizeChoiceLabel(maxSizeMb)}, the smallest first."
+                        else -> "Any size."
+                    } + if (isSeries) " The size of each episode's own file counts, not the whole pack." else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (!isSeries) {
                     Row(
                         modifier = Modifier
@@ -1048,17 +1082,37 @@ enum class DownloadQuality(val label: String, val maxHeight: Int?) {
     SD_480("480p", 480),
 }
 
-/** [maxSizeGb] of 0 means no size limit. */
+/** Picks the smallest file available, with no fixed limit. */
+const val SIZE_SMALLEST = -1
+
+/** Size per file choices in MB; [SIZE_SMALLEST] is the smallest available, 0 is no limit. */
+internal val DOWNLOAD_SIZE_CHOICES = listOf(
+    SIZE_SMALLEST to "Smallest",
+    100 to "100 MB",
+    250 to "250 MB",
+    500 to "500 MB",
+    1024 to "1 GB",
+    2048 to "2 GB",
+    0 to "No limit",
+)
+
+internal fun sizeChoiceLabel(mb: Int): String = DOWNLOAD_SIZE_CHOICES.firstOrNull { it.first == mb }?.second
+    ?: if (mb >= 1024) "${mb / 1024} GB" else "$mb MB"
+
+/** [maxSizeMb]: the largest file size in MB, 0 for no limit, [SIZE_SMALLEST] for the smallest available. */
 data class DownloadOptions(
     val quality: DownloadQuality = DownloadQuality.SMALLEST_GOOD,
-    val maxSizeGb: Int = 0,
-)
+    val maxSizeMb: Int = SIZE_SMALLEST,
+) {
+    val sizeCapBytes: Long? get() = maxSizeMb.takeIf { it > 0 }?.let { it * 1_048_576L }
+    val smallestFirst: Boolean get() = maxSizeMb != 0
+}
 
 /** The user's saved download choices. When [askEachTime] is off a movie downloads without a dialog. */
 object DownloadPrefs {
     data class State(
         val quality: DownloadQuality = DownloadQuality.SMALLEST_GOOD,
-        val maxSizeGb: Int = 0,
+        val maxSizeMb: Int = SIZE_SMALLEST,
         val askEachTime: Boolean = true,
     )
 
@@ -1067,12 +1121,12 @@ object DownloadPrefs {
 
     val current: State get() = _state.value
 
-    fun options(): DownloadOptions = DownloadOptions(current.quality, current.maxSizeGb)
+    fun options(): DownloadOptions = DownloadOptions(current.quality, current.maxSizeMb)
 
-    fun save(quality: DownloadQuality, maxSizeGb: Int, askEachTime: Boolean) {
-        val next = State(quality, maxSizeGb, askEachTime)
+    fun save(quality: DownloadQuality, maxSizeMb: Int, askEachTime: Boolean) {
+        val next = State(quality, maxSizeMb, askEachTime)
         _state.value = next
-        runCatching { DownloadPrefsStorage.save("${next.quality.name}|${next.maxSizeGb}|${next.askEachTime}") }
+        runCatching { DownloadPrefsStorage.save("${next.quality.name}|mb:${next.maxSizeMb}|${next.askEachTime}") }
     }
 
     private fun load(): State = runCatching {
@@ -1080,7 +1134,11 @@ object DownloadPrefs {
         State(
             quality = DownloadQuality.entries.firstOrNull { it.name == parts.getOrNull(0) }
                 ?: DownloadQuality.SMALLEST_GOOD,
-            maxSizeGb = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+            // Older versions saved whole GB (0 = no limit); the new default is the smallest file.
+            maxSizeMb = parts.getOrNull(1)?.let { raw ->
+                if (raw.startsWith("mb:")) raw.removePrefix("mb:").toIntOrNull()
+                else raw.toIntOrNull()?.let { gb -> if (gb > 0) gb * 1024 else SIZE_SMALLEST }
+            } ?: SIZE_SMALLEST,
             askEachTime = parts.getOrNull(2)?.toBooleanStrictOrNull() ?: true,
         )
     }.getOrDefault(State())
@@ -1137,9 +1195,13 @@ private fun describeStream(stream: StreamItem): String {
  * limit are dropped while any that fit remain; if none fit, the smallest ones are tried instead of
  * failing outright.
  */
-private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions, isEpisode: Boolean): List<StreamItem> {
+private fun applyQuality(
+    ranked: List<StreamItem>,
+    options: DownloadOptions,
+    sizeOf: (StreamItem) -> Long?,
+): List<StreamItem> {
     val maxHeight = options.quality.maxHeight ?: 2160
-    val sizeCap = options.maxSizeGb.takeIf { it > 0 }?.let { it * 1_073_741_824L }
+    val sizeCap = options.sizeCapBytes
     val smart = options.quality == DownloadQuality.SMALLEST_GOOD
 
     var pool = ranked
@@ -1157,21 +1219,26 @@ private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions, isE
         pool.sortedBy { it.heightOrNull() ?: Int.MAX_VALUE }
     }
 
+    val bySize = compareBy<StreamItem> { sizeOf(it) ?: Long.MAX_VALUE }
     if (sizeCap != null) {
-        val withinSize = pool.filter { (it.reportedSizeBytes(isEpisode) ?: 0L) <= sizeCap }
-        pool = if (withinSize.isNotEmpty()) {
-            withinSize
-        } else {
-            pool.sortedBy { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE }
-        }
+        val withinSize = pool.filter { (sizeOf(it) ?: 0L) <= sizeCap }
+        pool = if (withinSize.isNotEmpty()) withinSize else pool.sortedWith(bySize)
+    }
+    if (pool.size <= 1) return pool
+
+    val english = pool.filter { it.isEnglish() }
+    if (options.maxSizeMb == SIZE_SMALLEST) {
+        // Smallest available: the smallest English file of watchable quality (480p or better),
+        // whatever its resolution. The rest stay behind as failover sources.
+        val watchable = english.filter { (it.heightOrNull() ?: 480) >= 480 }.ifEmpty { english }
+        val first = watchable.sortedWith(bySize)
+        return first + pool.filterNot { it in first }
     }
 
-    if (smart && pool.size > 1) {
+    if (smart) {
         // Auto: the smallest English 1080p file, then the smallest English 720p, then any English
         // file up to 1080p, then any English file. The rest stay behind as failover sources, in
         // the ranker's order (cached debrid sources first).
-        val english = pool.filter { it.isEnglish() }
-        val bySize = compareBy<StreamItem> { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE }
         val first = listOf<(StreamItem) -> Boolean>(
             { it.heightOrNull() == 1080 },
             { it.heightOrNull() == 720 },
@@ -1185,8 +1252,43 @@ private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions, isE
             val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
             sameHeight.sortedWith(bySize) + others
         }
+    } else if (sizeCap != null) {
+        // A fixed quality with a size limit: smallest first among the best resolution that fits.
+        val bestHeight = pool.first().heightOrNull()
+        val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
+        pool = sameHeight.sortedWith(bySize) + others
     }
     return pool
+}
+
+/** The size printed in the source's text (for a pack this is the whole pack). */
+private fun StreamItem.printedSizeBytes(): Long? {
+    val match = SIZE_REGEX.find(qualityText()) ?: return null
+    val value = match.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+    val unit = match.groupValues[2].lowercase()
+    val multiplier = if (unit.startsWith("g")) 1_073_741_824.0 else 1_048_576.0
+    return (value * multiplier).toLong().takeIf { it > 0L }
+}
+
+private val SEASON_RANGE_REGEX = Regex(
+    "(?<![a-z0-9])(?:s|seasons?[ ._]?)(\\d{1,2})[ ._]?(?:-|–|~|to)[ ._]?(?:s|season[ ._]?)?(\\d{1,2})(?![0-9])",
+    RegexOption.IGNORE_CASE,
+)
+private val COMPLETE_SERIES_REGEX = Regex(
+    "complete[ ._-]?(?:series|collection|show)|all[ ._-]seasons",
+    RegexOption.IGNORE_CASE,
+)
+
+/** Seasons a pack holds, from "S01-S05" / "Seasons 1-3" / "Complete Series"; null if it does not say. */
+private fun StreamItem.packSeasons(knownSeasons: Set<Int>): Set<Int>? {
+    val text = qualityText()
+    SEASON_RANGE_REGEX.find(text)?.let { match ->
+        val from = match.groupValues[1].toIntOrNull()
+        val to = match.groupValues[2].toIntOrNull()
+        if (from != null && to != null && to >= from && to - from < 50) return (from..to).toSet()
+    }
+    if (COMPLETE_SERIES_REGEX.containsMatchIn(text)) return knownSeasons.takeIf { it.isNotEmpty() }
+    return null
 }
 
 private val ENGLISH_REGEX = Regex(

@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.80 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.81 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.80 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.81 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,15 +260,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.80"
+          tag="v0.2.81"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.80
+          ## What's new in 0.2.81
 
-          - Downloading a whole season (or many episodes) keeps going by itself until everything is saved. You no longer have to pause and resume to get the next episodes started.
-          - On Android phones every chosen episode is queued right away while the app is open, and three download at a time in the background.
-          - On Mac and Windows a download that stops receiving data is restarted by itself, and a stuck one no longer holds up the rest of the queue.
-          - Auto quality for downloads now picks the smallest English 1080p file, then the smallest English 720p, before anything else. Cached debrid sources still come first.
-          - Episodes with no ready debrid link yet are not dropped: Meowio looks again every 5 minutes for up to a day and starts them as soon as a ready link shows up. A download that fails on every source goes back on that waiting list.
+          - New download size choices: Smallest (the new default), 100 MB, 250 MB, 500 MB, 1 GB, 2 GB or No limit.
+          - Smallest picks the smallest English file available at 480p or better. The other limits pick the smallest file that fits.
+          - The size of each episode's own file counts, not the whole pack. A huge multi-season pack made of small episode files is used. When a source only shows the pack's total size, it is split over the episodes in that pack.
+          - Downloads still keep going by themselves (from 0.2.80).
 
           ## Download
 
