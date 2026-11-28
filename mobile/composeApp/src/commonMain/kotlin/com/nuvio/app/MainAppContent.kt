@@ -857,6 +857,8 @@ internal fun MainAppContent(
         // When no direct or debrid link can be downloaded automatically, show the source list so the
         // user can pick one by hand (each source there has its own Download button).
         LaunchedEffect(Unit) {
+            // Keeps queued downloads moving by themselves (restarts stuck ones, retries waiting ones).
+            com.nuvio.app.features.downloads.AutoDownloader.startWatchdog()
             com.nuvio.app.features.downloads.AutoDownloader.manualSourceRequests.collect { request ->
                 val launchId = StreamLaunchStore.put(
                     StreamLaunch(

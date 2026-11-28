@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.79 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.80 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.79 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.80 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,14 +260,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.79"
+          tag="v0.2.80"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.79
+          ## What's new in 0.2.80
 
-          - Downloads from season packs work like they do on the debrid site: Meowio adds the torrent, picks just that episode's file from the pack and downloads it. Packs whose files are named only by number ("Episode 01.mkv", "Show - 01.mkv") now work, sample files are skipped, and the right season folder is used.
-          - Before a download starts, Meowio checks the link. Dead links and "torrent is downloading" stand-in clips are skipped and the next source is tried, so you no longer end up with a short clip instead of the episode.
-          - Real-Debrid gets a few seconds to finish preparing a cached torrent instead of failing right away. This also helps playback.
-          - Downloads can still be saved to any folder (from 0.2.78).
+          - Downloading a whole season (or many episodes) keeps going by itself until everything is saved. You no longer have to pause and resume to get the next episodes started.
+          - On Android phones every chosen episode is queued right away while the app is open, and three download at a time in the background.
+          - On Mac and Windows a download that stops receiving data is restarted by itself, and a stuck one no longer holds up the rest of the queue.
+          - Auto quality for downloads now picks the smallest English 1080p file, then the smallest English 720p, before anything else. Cached debrid sources still come first.
+          - Episodes with no ready debrid link yet are not dropped: Meowio looks again every 5 minutes for up to a day and starts them as soon as a ready link shows up. A download that fails on every source goes back on that waiting list.
 
           ## Download
 

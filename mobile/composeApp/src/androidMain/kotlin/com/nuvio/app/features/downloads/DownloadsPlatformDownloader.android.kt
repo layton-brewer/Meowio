@@ -23,6 +23,7 @@ internal actual object DownloadsPlatformDownloader {
     internal fun contextOrNull(): Context? = appContext
 
     fun initialize(context: Context) {
+        AutoDownloader.enqueueAllAtOnce = true
         scheduler(context)
     }
 

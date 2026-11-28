@@ -30,6 +30,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
@@ -171,7 +173,9 @@ internal class AndroidDownloadScheduler(val context: Context) {
             if (!isActive(transfer)) return@withLock false
             var lastProgressAt = 0L
             val alreadyFinished = target.finishedUri(fileName)
-            if (alreadyFinished == null) transferAndroidDownload(
+            // Every queued download has its own job, scheduled while the app was open; only a few
+            // transfer at once and the rest wait here for their turn.
+            if (alreadyFinished == null) transferSlots.withPermit { transferAndroidDownload(
                 item = transfer.item,
                 target = target,
                 validator = transfer.validator,
@@ -188,7 +192,7 @@ internal class AndroidDownloadScheduler(val context: Context) {
                         }?.let(onProgress)
                     }
                 },
-            )
+            ) }
             currentCoroutineContext().ensureActive()
             updateActive(transfer) { current ->
                 val finishedUri = alreadyFinished ?: target.finish(fileName)
@@ -243,6 +247,9 @@ internal class AndroidDownloadScheduler(val context: Context) {
     private fun workName(transfer: AndroidDownloadTransfer) = "nuvio-download-${transfer.jobId}"
 
     companion object {
+        /** How many downloads transfer at the same time. */
+        private val transferSlots = Semaphore(3)
+
         const val FILE_NAME = "download_file_name"
         const val GENERATION = "download_generation"
         const val JOB_NAMESPACE = "nuvio-downloads"
