@@ -30,8 +30,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
@@ -173,9 +171,11 @@ internal class AndroidDownloadScheduler(val context: Context) {
             if (!isActive(transfer)) return@withLock false
             var lastProgressAt = 0L
             val alreadyFinished = target.finishedUri(fileName)
-            // Every queued download has its own job, scheduled while the app was open; only a few
-            // transfer at once and the rest wait here for their turn.
-            if (alreadyFinished == null) transferSlots.withPermit { transferAndroidDownload(
+            // Every queued download has its own job and Android decides how many run at once. A
+            // running job always transfers straight away: a job that sits idle waiting for a turn
+            // gets stopped by Android and pushed back, which left whole queues at 0%.
+            running[fileName] = Progress(transfer.item.downloadedBytes, SystemClock.elapsedRealtime())
+            if (alreadyFinished == null) transferAndroidDownload(
                 item = transfer.item,
                 target = target,
                 validator = transfer.validator,
@@ -185,6 +185,7 @@ internal class AndroidDownloadScheduler(val context: Context) {
                 },
                 onProgress = { bytes, total ->
                     val now = SystemClock.elapsedRealtime()
+                    running[fileName]?.let { mark -> if (mark.bytes != bytes) running[fileName] = Progress(bytes, now) }
                     if (now - lastProgressAt >= 1_000L || bytes == total) {
                         lastProgressAt = now
                         updateActive(transfer) {
@@ -192,7 +193,7 @@ internal class AndroidDownloadScheduler(val context: Context) {
                         }?.let(onProgress)
                     }
                 },
-            ) }
+            )
             currentCoroutineContext().ensureActive()
             updateActive(transfer) { current ->
                 val finishedUri = alreadyFinished ?: target.finish(fileName)
@@ -216,6 +217,7 @@ internal class AndroidDownloadScheduler(val context: Context) {
             else fail(transfer, error)
             retry
         } finally {
+            running.remove(fileName)
             if (network != null) withContext(NonCancellable + Dispatchers.IO) { client.connectionPool.evictAll() }
         }
     }
@@ -243,12 +245,42 @@ internal class AndroidDownloadScheduler(val context: Context) {
         } else it
     }
 
+    private class Progress(val bytes: Long, val at: Long)
+
+    /** Transfers running right now, with the last time each one received bytes. */
+    private val running = ConcurrentHashMap<String, Progress>()
+
+    /**
+     * Keeps the queue moving while the app is on screen (the only time Android lets the app start
+     * a download job): a queued download whose job went missing gets a new one, and a running
+     * download that has received nothing for a few minutes is restarted on a fresh connection.
+     */
+    fun keepQueueMoving() {
+        if (Build.VERSION.SDK_INT < 34) return
+        val scheduler = jobScheduler()
+        val now = SystemClock.elapsedRealtime()
+        for (transfer in store.transfers.value.values) {
+            if (transfer.item.status != DownloadStatus.Downloading) continue
+            val fileName = transfer.item.fileName
+            val mark = running[fileName]
+            val missing = mark == null && scheduler.getPendingJob(transfer.jobId) == null
+            val stalled = mark != null && now - mark.at >= STALL_RESTART_MS
+            if (!missing && !stalled) continue
+            try {
+                if (stalled) running.remove(fileName)
+                scheduler.schedule(buildJob(transfer))
+            } catch (error: Exception) {
+                // Not allowed right now (for example the app just left the screen); try next time.
+            }
+        }
+    }
+
     private fun lock(fileName: String): Mutex = locks.getOrPut(fileName) { Mutex() }
     private fun workName(transfer: AndroidDownloadTransfer) = "nuvio-download-${transfer.jobId}"
 
     companion object {
-        /** How many downloads transfer at the same time. */
-        private val transferSlots = Semaphore(3)
+        /** A running download with no new bytes for this long is restarted. */
+        private const val STALL_RESTART_MS = 3L * 60_000L
 
         const val FILE_NAME = "download_file_name"
         const val GENERATION = "download_generation"
