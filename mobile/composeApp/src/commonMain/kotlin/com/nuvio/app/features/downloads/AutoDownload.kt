@@ -35,6 +35,8 @@ import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaVideo
+import com.nuvio.app.features.addons.httpRequestRaw
+import com.nuvio.app.features.streams.PlaceholderVideoDetector
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySelector
 import com.nuvio.app.features.streams.StreamAutoPlaySource
@@ -42,6 +44,7 @@ import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamsRepository
 import com.nuvio.app.features.watched.releasedEpisodesForSeason
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -430,6 +433,8 @@ object AutoDownloader {
 
     private suspend fun playableStream(stream: StreamItem, spec: Spec): StreamItem? {
         val resolved = if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)) {
+            // Same steps as on the debrid site: add the torrent, pick this title's file from the
+            // pack, and get that one file's download link.
             val result = DirectDebridPlaybackResolver.resolveToPlayableStream(
                 stream = stream,
                 season = spec.season,
@@ -440,7 +445,63 @@ object AutoDownloader {
             stream
         }
         val url = resolved?.playableDirectUrl ?: return null
-        return resolved.takeIf { url.isDownloadableUrl() }
+        if (!url.isDownloadableUrl()) return null
+        return checkLink(resolved, url)
+    }
+
+    /**
+     * Opens the link before it is queued, following the add-on's redirects to the debrid file,
+     * the same way the player would. A dead link, a "torrent is downloading" stand-in clip or a
+     * tiny file is skipped here so the next source is tried at once instead of saving a clip.
+     * The real file name and size are filled in so the episode and size checks see the actual file
+     * from the pack. If the check itself cannot finish (slow server), the source is kept.
+     */
+    private suspend fun checkLink(stream: StreamItem, url: String): StreamItem? {
+        if (PlaceholderVideoDetector.isPlaceholderUrl(url)) return null
+        val response = try {
+            withTimeoutOrNull(LINK_CHECK_TIMEOUT_MS) {
+                httpRequestRaw(
+                    method = "GET",
+                    url = url,
+                    headers = stream.behaviorHints.proxyHeaders?.request.orEmpty() + ("Range" to "bytes=0-0"),
+                    body = "",
+                )
+            }
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            log.d { "Link check failed for a source: ${error.message}" }
+            return null
+        } ?: return stream
+        if (response.status >= 400) {
+            log.d { "Skipping a source: HTTP ${response.status}" }
+            return null
+        }
+        val finalUrl = response.url.ifBlank { url }
+        if (PlaceholderVideoDetector.isPlaceholderUrl(finalUrl)) {
+            log.d { "Skipping a source: it is a stand-in clip ($finalUrl)" }
+            return null
+        }
+        val contentType = response.headers["content-type"].orEmpty().lowercase()
+        if (contentType.startsWith("text/") || contentType.contains("json") || contentType.contains("mpegurl")) {
+            log.d { "Skipping a source: not a video file ($contentType)" }
+            return null
+        }
+        val size = response.headers["content-range"]?.substringAfterLast('/')?.trim()?.toLongOrNull()
+            ?: response.headers["content-length"]?.trim()?.toLongOrNull()?.takeIf { response.status == 200 }
+        if (size != null && size in 1 until MIN_VIDEO_FILE_BYTES) {
+            log.d { "Skipping a source: file is only $size bytes, a stand-in clip" }
+            return null
+        }
+        val fileName = response.headers["content-disposition"]?.let(::contentDispositionFileName)
+            ?: finalUrl.substringBefore('?').substringAfterLast('/').decodeUrlPart()
+                .takeIf { it.contains('.') && it.length > 4 }
+        val hints = stream.behaviorHints
+        return stream.copy(
+            behaviorHints = hints.copy(
+                filename = hints.filename?.takeIf { it.isNotBlank() } ?: fileName,
+                videoSize = size?.takeIf { it > 0L } ?: hints.videoSize,
+            ),
+        )
     }
 
     /**
@@ -506,6 +567,10 @@ object AutoDownloader {
     }
 
     private const val MAX_PARALLEL = 3
+    private const val LINK_CHECK_TIMEOUT_MS = 20_000L
+
+    /** Real movies and episodes are bigger than this; debrid stand-in clips are a few MB. */
+    private const val MIN_VIDEO_FILE_BYTES = 30L * 1_048_576L
     private const val MAX_FAILOVERS = 5
     private const val SEARCH_TIMEOUT_MS = 60_000L
 
@@ -516,6 +581,34 @@ object AutoDownloader {
         """(?<![a-z0-9])(?:s(\d{1,2})[ ._-]?e(\d{1,3})|(\d{1,2})x(\d{2,3}))(?![0-9])""",
         RegexOption.IGNORE_CASE,
     )
+}
+
+private fun contentDispositionFileName(value: String): String? {
+    val encoded = Regex("filename\\*=(?:UTF-8'[^']*')?([^;]+)", RegexOption.IGNORE_CASE).find(value)
+        ?.groupValues?.get(1)?.trim()?.trim('"')?.decodeUrlPart()
+    val plain = Regex("filename=\"?([^\";]+)\"?", RegexOption.IGNORE_CASE).find(value)
+        ?.groupValues?.get(1)?.trim()
+    return (encoded ?: plain)?.takeIf { it.isNotBlank() }
+}
+
+/** Decodes %XX escapes (UTF-8) in a URL path part; leaves the text as is if it is malformed. */
+private fun String.decodeUrlPart(): String {
+    if (!contains('%')) return this
+    return runCatching {
+        val bytes = ArrayList<Byte>(length)
+        var i = 0
+        while (i < length) {
+            val c = this[i]
+            if (c == '%' && i + 2 <= lastIndex) {
+                bytes += substring(i + 1, i + 3).toInt(16).toByte()
+                i += 3
+            } else {
+                c.toString().encodeToByteArray().forEach { bytes += it }
+                i++
+            }
+        }
+        bytes.toByteArray().decodeToString()
+    }.getOrDefault(this)
 }
 
 private fun String.isDownloadableUrl(): Boolean {

@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.78 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.79 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.78 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.79 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,13 +260,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.78"
+          tag="v0.2.79"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.78
+          ## What's new in 0.2.79
 
-          - Save downloads to any folder you like. On Android phones and tablets, Library > Downloads > Download location > Choose any folder… opens the system folder picker, so you can pick any folder on the phone, an SD card or a USB drive. Downloads, resume, offline playback, subtitles and delete all work from that folder.
-          - On Mac and Windows, Choose any folder… opens the normal Finder or Windows folder window.
-          - The chosen folder is shown by name, and Reset to default puts downloads back in the app's own folder. If the app ever loses access to your folder, new downloads go to the default folder instead.
+          - Downloads from season packs work like they do on the debrid site: Meowio adds the torrent, picks just that episode's file from the pack and downloads it. Packs whose files are named only by number ("Episode 01.mkv", "Show - 01.mkv") now work, sample files are skipped, and the right season folder is used.
+          - Before a download starts, Meowio checks the link. Dead links and "torrent is downloading" stand-in clips are skipped and the next source is tried, so you no longer end up with a short clip instead of the episode.
+          - Real-Debrid gets a few seconds to finish preparing a cached torrent instead of failing right away. This also helps playback.
+          - Downloads can still be saved to any folder (from 0.2.78).
 
           ## Download
 
