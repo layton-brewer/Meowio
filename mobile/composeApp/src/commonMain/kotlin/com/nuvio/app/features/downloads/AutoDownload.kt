@@ -772,7 +772,8 @@ object AutoDownloader {
     private const val LINK_CHECK_TIMEOUT_MS = 20_000L
 
     /** Real movies and episodes are bigger than this; debrid stand-in clips are a few MB. */
-    private const val MIN_VIDEO_FILE_BYTES = 30L * 1_048_576L
+    // Stand-in clips are a few MB; small episode encodes ("Smallest") can be 20-30 MB, so keep this low.
+    private const val MIN_VIDEO_FILE_BYTES = 8L * 1_048_576L
     private const val MAX_FAILOVERS = 5
 
     /** Sources resolved per episode in one go; each one adds a torrent to the debrid account. */

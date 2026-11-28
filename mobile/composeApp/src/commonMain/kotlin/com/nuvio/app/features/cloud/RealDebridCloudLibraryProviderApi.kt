@@ -23,7 +23,8 @@ internal class RealDebridCloudLibraryProviderApi : CloudLibraryProviderApi {
             if (!response.isSuccessful) {
                 throw IllegalStateException(response.rawBody.takeIf { it.isNotBlank() } ?: "Real-Debrid request failed (HTTP ${response.status}).")
             }
-            val torrents = response.body.orEmpty()
+            val torrents = response.body
+                ?: throw IllegalStateException("Couldn't read Real-Debrid's torrent list. Pull to refresh to try again.")
             val slots = Semaphore(4)
             // At most MAX_INFO_LOOKUPS info calls per refresh (Real-Debrid allows 250 a minute); later
             // torrents without links get one file that is looked up when it is played.
@@ -138,7 +139,7 @@ internal fun realDebridCloudItem(
         name = name,
         status = if (torrent.isDownloaded) "Ready" else torrent.status,
         sizeBytes = torrent.bytes,
-        progressFraction = torrent.progress?.let { it / 100f },
+        progressFraction = torrent.progress?.let { (it / 100.0).toFloat() },
         files = files,
     )
 }

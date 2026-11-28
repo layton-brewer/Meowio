@@ -25,7 +25,7 @@ class RealDebridCloudLibraryTest {
         val item = realDebridCloudItem(torrent, info, "realdebrid", "Real-Debrid")!!
         assertEquals(listOf("Show.S01E01.mkv" to "https://rd/l1", "Show.S01E02.mkv" to "https://rd/l2"), item.files.map { it.name to it.id })
 
-        val downloading = realDebridCloudItem(torrent.copy(status = "downloading", progress = 40), null, "realdebrid", "Real-Debrid")!!
+        val downloading = realDebridCloudItem(torrent.copy(status = "downloading", progress = 40.0), null, "realdebrid", "Real-Debrid")!!
         assertTrue(downloading.files.isEmpty())
         assertEquals(0.4f, downloading.progressFraction)
     }
