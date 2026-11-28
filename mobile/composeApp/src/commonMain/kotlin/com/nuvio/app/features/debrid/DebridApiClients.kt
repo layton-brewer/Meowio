@@ -9,6 +9,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 
 internal data class DebridApiResponse<T>(
     val status: Int,
@@ -353,14 +354,34 @@ internal object RealDebridApiClient {
         )
 
     /** Every torrent in the account, newest first (one page; RD allows up to 5000). */
-    suspend fun listTorrents(apiKey: String, limit: Int = 1000): DebridApiResponse<List<RealDebridTorrentInfoDto>> =
-        request(
+    suspend fun listTorrents(apiKey: String, limit: Int = 1000): DebridApiResponse<List<RealDebridTorrentInfoDto>> {
+        val response = request<Unit>(
             method = "GET",
             url = "$BASE_URL/torrents?${queryString("limit" to limit.toString())}",
             apiKey = apiKey,
             // A big account's list is several MB; cut off at the usual 1 MB it read as an empty list.
             maxResponseBodyBytes = TORRENT_LIST_MAX_BYTES,
         )
+        return DebridApiResponse(
+            status = response.status,
+            body = if (response.isSuccessful) parseTorrentList(response.rawBody) else null,
+            rawBody = response.rawBody,
+        )
+    }
+
+    /**
+     * Reads the torrent list one torrent at a time, so a single torrent with an unexpected field
+     * (for example a fractional "progress" while it downloads) no longer empties the whole list.
+     * Null when the answer is not a list at all.
+     */
+    internal fun parseTorrentList(raw: String): List<RealDebridTorrentInfoDto>? {
+        if (raw.isBlank()) return emptyList() // 204: no torrents
+        val array = runCatching { DebridApiJson.json.parseToJsonElement(raw) as? JsonArray }.getOrNull()
+            ?: return null
+        return array.mapNotNull { element ->
+            runCatching { DebridApiJson.json.decodeFromJsonElement(RealDebridTorrentInfoDto.serializer(), element) }.getOrNull()
+        }
+    }
 
     suspend fun startDeviceAuthorization(): DebridApiResponse<RealDebridDeviceCodeDto> =
         oauthRequest(

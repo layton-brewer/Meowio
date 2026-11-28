@@ -120,7 +120,8 @@ internal data class RealDebridTorrentInfoDto(
     @SerialName("original_bytes") val originalBytes: Long? = null,
     val host: String? = null,
     val split: Int? = null,
-    val progress: Int? = null,
+    /** 0 to 100; fractional while a torrent downloads. */
+    val progress: Double? = null,
     val status: String? = null,
     val files: List<RealDebridTorrentFileDto>? = null,
     val links: List<String>? = null,

@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.83 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.84 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.83 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.84 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,16 +260,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.83"
+          tag="v0.2.84"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.83
+          ## What's new in 0.2.84
 
-          - Fixed downloads stuck at 0 B and Real-Debrid torrents disappearing from your account. When Meowio added a torrent that was already in your Real-Debrid account, Real-Debrid handed back that same torrent, and Meowio could delete it after a lookup. That killed the links of downloads that were queued but not started yet, and removed files from your cloud library. Meowio now never deletes or changes a torrent that was already in your account.
-          - For an episode, every video file of the season pack is selected on Real-Debrid (instant when cached), so the other episodes resolve from the same torrent and each download gets its own episode's link.
-          - Cloud library loads again for big accounts. A long Real-Debrid torrent list was cut off and showed as "Nothing here yet".
-          - Cloud play says why when Real-Debrid refuses a file.
-          - Downloads run three at a time, like in 0.2.78. When one finishes, the next one starts by itself, even with the app closed.
-          - Downloads put far less load on Real-Debrid: at most four sources per episode, each checked once, and waiting episodes are looked at every 15 minutes.
+          - Cloud library shows your Real-Debrid torrents again. One torrent that was still downloading (Real-Debrid reports its progress as a fraction, like 12.5%) made the whole list unreadable, and the Cloud tab said "Nothing here yet". Each torrent is now read on its own, so one odd entry can't empty the list.
+          - When the cloud library can't load, it shows the reason instead of an empty page.
+          - Small episode files (under 30 MB, common with the Smallest size setting) were mistaken for Real-Debrid placeholder clips and skipped, so those episodes never downloaded. Only files under 8 MB count as placeholders now.
 
           ## Download
 

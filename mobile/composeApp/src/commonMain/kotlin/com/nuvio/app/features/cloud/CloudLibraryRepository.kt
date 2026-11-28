@@ -48,7 +48,9 @@ internal class CloudLibraryStore(
                     onFailure = { error ->
                         CloudLibraryProviderState(
                             provider = credential.provider,
-                            errorMessage = error.message,
+                            // Always a message, so a failed load shows an error and not "Nothing here yet".
+                            errorMessage = error.message?.takeIf { it.isNotBlank() }
+                                ?: "Couldn't reach ${credential.provider.displayName} (${error::class.simpleName ?: "error"}).",
                         )
                     },
                 )
