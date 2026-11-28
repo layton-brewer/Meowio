@@ -851,7 +851,7 @@ fun DownloadChoiceDialog(
                 }
                 Text(
                     text = if (quality == DownloadQuality.SMALLEST_GOOD) {
-                        "Up to 1080p, no remuxes, smaller file preferred."
+                        "The smallest English 1080p file (no remuxes), then 720p if there is no 1080p."
                     } else {
                         "Picks ${quality.label} when a source has it, otherwise the closest smaller one."
                     },
@@ -1040,7 +1040,7 @@ private fun episodeListLabel(video: MetaVideo): String {
 
 /** What the user wants to store. The default is deliberately not the biggest file. */
 enum class DownloadQuality(val label: String, val maxHeight: Int?) {
-    /** Up to 1080p, never a remux, and the smaller file when several look equally good. */
+    /** The smallest English 1080p file, never a remux (then 720p, then anything up to 1080p). */
     SMALLEST_GOOD("Auto: smallest good", 1080),
     UHD_2160("4K", 2160),
     FHD_1080("1080p", 1080),
@@ -1167,10 +1167,44 @@ private fun applyQuality(ranked: List<StreamItem>, options: DownloadOptions, isE
     }
 
     if (smart && pool.size > 1) {
-        // Same resolution as the best pick: prefer the smaller file.
-        val bestHeight = pool.first().heightOrNull()
-        val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
-        pool = sameHeight.sortedBy { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE } + others
+        // Auto: the smallest English 1080p file, then the smallest English 720p, then any English
+        // file up to 1080p, then any English file. The rest stay behind as failover sources, in
+        // the ranker's order (cached debrid sources first).
+        val english = pool.filter { it.isEnglish() }
+        val bySize = compareBy<StreamItem> { it.reportedSizeBytes(isEpisode) ?: Long.MAX_VALUE }
+        val first = listOf<(StreamItem) -> Boolean>(
+            { it.heightOrNull() == 1080 },
+            { it.heightOrNull() == 720 },
+            { (it.heightOrNull() ?: 0) <= 1080 },
+            { true },
+        ).firstNotNullOfOrNull { tier -> english.filter(tier).takeIf { it.isNotEmpty() } }
+        pool = if (first != null) {
+            first.sortedWith(bySize) + english.filterNot { it in first } + pool.filterNot { it in english }
+        } else {
+            val bestHeight = pool.first().heightOrNull()
+            val (sameHeight, others) = pool.partition { it.heightOrNull() == bestHeight }
+            sameHeight.sortedWith(bySize) + others
+        }
     }
     return pool
+}
+
+private val ENGLISH_REGEX = Regex(
+    """🇬🇧|🇺🇸|(?<![a-z])(?:english|eng)(?![a-z])""",
+    RegexOption.IGNORE_CASE,
+)
+private val FOREIGN_REGEX = Regex(
+    "🇮🇹|🇪🇸|🇲🇽|🇫🇷|🇩🇪|🇷🇺|🇵🇹|🇧🇷|🇮🇳|🇯🇵|🇰🇷|🇨🇳|🇹🇷|🇵🇱|🇳🇱|🇺🇦|🇸🇦|🇹🇭|🇻🇳|🇮🇩|" +
+        "(?<![a-z])(?:ita|italian|spa|spanish|esp|espanol|español|castellano|latino|french|truefrench|vff|vostfr|" +
+        "german|deutsch|ger|rus|russian|hindi|tamil|telugu|malayalam|kannada|bengali|portuguese|pt-br|" +
+        "japanese|jpn|korean|chinese|turkish|polish|dutch|ukrainian|arabic|thai|vietnamese|" +
+        "hungarian|czech|greek|hebrew|persian)(?![a-z])",
+    RegexOption.IGNORE_CASE,
+)
+
+/** True unless the source is labelled with another language and not with English. */
+private fun StreamItem.isEnglish(): Boolean {
+    val text = qualityText()
+    if (ENGLISH_REGEX.containsMatchIn(text)) return true
+    return !FOREIGN_REGEX.containsMatchIn(text)
 }
