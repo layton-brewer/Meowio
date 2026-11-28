@@ -201,8 +201,21 @@ internal object RealDebridCacheProbe {
         var torrentId: String? = null
         return try {
             val add = RealDebridApiClient.addMagnet(apiKey, "magnet:?xt=urn:btih:$hash")
-            torrentId = add.body?.id?.takeIf { add.isSuccessful && it.isNotBlank() } ?: return null
-            val select = RealDebridApiClient.selectFiles(apiKey, torrentId, "all")
+            val addedId = add.body?.id?.takeIf { add.isSuccessful && it.isNotBlank() } ?: return null
+            // Adding a torrent that is already in the account hands back that same torrent: read its
+            // state and leave it alone (never select or delete the user's own torrent).
+            val existing = RealDebridApiClient.getTorrentInfo(apiKey, addedId)
+            if (!existing.isSuccessful) return null
+            val existingStatus = existing.body?.status?.lowercase()
+            if (existingStatus != "magnet_conversion" && existingStatus != "waiting_files_selection") {
+                return if (existingStatus == "downloaded") {
+                    Result.success(LocalDebridCachedItem(name = existing.body?.filename, size = existing.body?.bytes))
+                } else {
+                    null
+                }
+            }
+            torrentId = addedId
+            val select = RealDebridApiClient.selectFiles(apiKey, addedId, "all")
             if (!select.isSuccessful && select.status != 202) return null
             val info = RealDebridApiClient.getTorrentInfo(apiKey, torrentId)
             if (!info.isSuccessful) return null

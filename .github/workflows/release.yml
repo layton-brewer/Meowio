@@ -264,10 +264,12 @@ jobs:
           cat > notes.md <<'NOTES'
           ## What's new in 0.2.83
 
-          - Cloud library shows up again. Accounts with a long Real-Debrid torrent list loaded as empty ("Nothing here yet").
-          - Cloud play says why when Real-Debrid refuses a file, instead of only "Couldn't play this cloud file".
-          - Downloads run three at a time again, like in 0.2.78. When one finishes, the running download job starts the next one, so the queue keeps going with the app closed. Downloads queued by an older version are put back in this queue when you open the app.
-          - Downloads put far less load on Real-Debrid: at most four sources are tried per episode, each source is checked once, waiting episodes are looked at every 15 minutes, and lookups that are cancelled no longer leave torrents behind in your account.
+          - Fixed downloads stuck at 0 B and Real-Debrid torrents disappearing from your account. When Meowio added a torrent that was already in your Real-Debrid account, Real-Debrid handed back that same torrent, and Meowio could delete it after a lookup. That killed the links of downloads that were queued but not started yet, and removed files from your cloud library. Meowio now never deletes or changes a torrent that was already in your account.
+          - For an episode, every video file of the season pack is selected on Real-Debrid (instant when cached), so the other episodes resolve from the same torrent and each download gets its own episode's link.
+          - Cloud library loads again for big accounts. A long Real-Debrid torrent list was cut off and showed as "Nothing here yet".
+          - Cloud play says why when Real-Debrid refuses a file.
+          - Downloads run three at a time, like in 0.2.78. When one finishes, the next one starts by itself, even with the app closed.
+          - Downloads put far less load on Real-Debrid: at most four sources per episode, each checked once, and waiting episodes are looked at every 15 minutes.
 
           ## Download
 
