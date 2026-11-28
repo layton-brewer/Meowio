@@ -24,7 +24,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-object StreamsRepository {
+/**
+ * One stream search with its own state. The app's search ([StreamsRepository]) drives the source
+ * list and auto-play; downloads use their own ([DownloadStreamSearch]) so a download looking up
+ * sources in the background never replaces or cancels the search for what the user is watching.
+ */
+open class StreamSearch internal constructor() {
     private val log = Logger.withTag("StreamsRepo")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(StreamsUiState())
@@ -648,6 +653,12 @@ object StreamsRepository {
         _uiState.update { it.copy(showDirectAutoPlayOverlay = visible, overlayMessage = message) }
     }
 }
+
+/** The search behind the source list, auto-play and Shuffle. */
+object StreamsRepository : StreamSearch()
+
+/** Background source lookups for downloads, kept apart from playback. */
+internal object DownloadStreamSearch : StreamSearch()
 
 /** How long Smart auto-play waits for slower add-ons when only lower-resolution links are ready. */
 private const val SMART_RESOLUTION_PATIENCE_MS = 10_000L

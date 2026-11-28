@@ -7,7 +7,11 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.nuvio.app.core.sync.AppForegroundMonitor
+import com.nuvio.app.core.sync.AppVisibility
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,9 +26,28 @@ internal actual object DownloadsPlatformDownloader {
 
     internal fun contextOrNull(): Context? = appContext
 
+    private var queueKeeperStarted = false
+
     fun initialize(context: Context) {
         AutoDownloader.enqueueAllAtOnce = true
-        scheduler(context)
+        val scheduler = scheduler(context)
+        startQueueKeeper(scheduler)
+    }
+
+    /** While the app is on screen, checks every half minute that queued downloads keep moving. */
+    @Synchronized
+    private fun startQueueKeeper(scheduler: AndroidDownloadScheduler) {
+        if (queueKeeperStarted) return
+        queueKeeperStarted = true
+        observerScope.launch {
+            AppForegroundMonitor.events().collectLatest { visibility ->
+                if (visibility != AppVisibility.Foreground) return@collectLatest
+                while (true) {
+                    runCatching { scheduler.keepQueueMoving() }
+                    delay(30_000L)
+                }
+            }
+        }
     }
 
     @Synchronized

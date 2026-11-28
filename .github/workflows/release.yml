@@ -111,7 +111,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.81 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :app:assembleFullDebug -Pmeowio.armOnly=true -Pnuvio.app.versionName=0.2.82 -Pnuvio.app.versionCode=$((2000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: |
@@ -217,7 +217,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Build
-        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.81 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
+        run: ./gradlew :androidApp:assembleFullDebug "-Dorg.gradle.jvmargs=-Xmx7g -XX:MaxMetaspaceSize=1536m -Dfile.encoding=UTF-8" -Pkotlin.daemon.jvmargs=-Xmx4g --max-workers=2 -Pmeowio.armOnly=true -Pnuvio.android.distribution=full -Pnuvio.ios.distribution=appstore -Pnuvio.app.versionName=0.2.82 -Pnuvio.app.versionCode=$((3000 + ${{ github.run_number }})) --stacktrace
 
       - name: Rename APK
         run: cp androidApp/build/outputs/apk/full/debug/androidApp-full-debug.apk "$RUNNER_TEMP/Meowio-mobile.apk"
@@ -260,14 +260,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="v0.2.81"
+          tag="v0.2.82"
           cat > notes.md <<'NOTES'
-          ## What's new in 0.2.81
+          ## What's new in 0.2.82
 
-          - New download size choices: Smallest (the new default), 100 MB, 250 MB, 500 MB, 1 GB, 2 GB or No limit.
-          - Smallest picks the smallest English file available at 480p or better. The other limits pick the smallest file that fits.
-          - The size of each episode's own file counts, not the whole pack. A huge multi-season pack made of small episode files is used. When a source only shows the pack's total size, it is split over the episodes in that pack.
-          - Downloads still keep going by themselves (from 0.2.80).
+          - Phone downloads no longer sit at 0%. Every queued episode now transfers as soon as Android runs its download job, instead of waiting idle for a turn (Android was stopping those idle jobs and pushing them back).
+          - While the app is open, a download that stops receiving data is restarted by itself, and a queued download that lost its job gets a new one.
+          - Smart auto-play and Shuffle pick sources the way they did before 0.2.78 again. Downloads looking for sources in the background were taking over the same source search that playback uses; downloads now have their own search.
 
           ## Download
 

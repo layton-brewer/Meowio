@@ -41,7 +41,7 @@ import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySelector
 import com.nuvio.app.features.streams.StreamAutoPlaySource
 import com.nuvio.app.features.streams.StreamItem
-import com.nuvio.app.features.streams.StreamsRepository
+import com.nuvio.app.features.streams.DownloadStreamSearch
 import com.nuvio.app.features.watched.releasedEpisodesForSeason
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.CancellationException
@@ -72,7 +72,7 @@ object AutoDownloader {
     private val log = Logger.withTag("AutoDownload")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    // StreamsRepository is one shared search; only one lookup at a time may use it.
+    // Downloads have their own stream search (apart from playback); one lookup at a time uses it.
     private val lookupMutex = Mutex()
     private val stateLock = Mutex()
     private val failovers = mutableMapOf<String, Failover>()
@@ -469,32 +469,44 @@ object AutoDownloader {
     private suspend fun findStreams(spec: Spec): List<StreamItem> = lookupMutex.withLock {
         val type = spec.meta.type
         repeat(3) { attempt ->
-            // manualSelection = true keeps the shared search from also starting auto-play.
-            StreamsRepository.load(
-                type = type,
-                videoId = spec.videoId,
-                parentMetaId = spec.meta.id,
-                season = spec.season,
-                episode = spec.episode,
-                manualSelection = true,
-            )
-            val token = StreamsRepository.requestToken(
+            val token = DownloadStreamSearch.requestToken(
                 type = type,
                 videoId = spec.videoId,
                 season = spec.season,
                 episode = spec.episode,
                 manualSelection = true,
             )
+            // manualSelection = true keeps this search from ever starting auto-play. A retry of the
+            // same episode searches again instead of reusing the earlier (empty) results.
+            if (DownloadStreamSearch.uiState.value.requestToken == token) {
+                DownloadStreamSearch.reload(
+                    type = type,
+                    videoId = spec.videoId,
+                    parentMetaId = spec.meta.id,
+                    season = spec.season,
+                    episode = spec.episode,
+                    manualSelection = true,
+                )
+            } else {
+                DownloadStreamSearch.load(
+                    type = type,
+                    videoId = spec.videoId,
+                    parentMetaId = spec.meta.id,
+                    season = spec.season,
+                    episode = spec.episode,
+                    manualSelection = true,
+                )
+            }
             val state = withTimeoutOrNull(SEARCH_TIMEOUT_MS) {
-                StreamsRepository.uiState.first { current ->
+                DownloadStreamSearch.uiState.first { current ->
                     current.requestToken != token ||
                         (!current.isAnyLoading && current.groups.none { it.isLoading })
                 }
-            } ?: StreamsRepository.uiState.value
+            } ?: DownloadStreamSearch.uiState.value
             if (state.requestToken == token) {
                 return@withLock state.groups.flatMap { it.streams }
             }
-            // Someone else (for example the details page preloading) took over the search; try again.
+            // The search was replaced before it finished; try again.
             log.d { "Stream search for ${spec.videoId} was preempted (attempt ${attempt + 1})" }
             delay(500)
         }
